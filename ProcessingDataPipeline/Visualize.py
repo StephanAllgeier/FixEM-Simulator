@@ -6,13 +6,13 @@ class Visualize():
     plt.rcParams['lines.linewidth'] = 1
 
     @staticmethod
-    def plot_xy(dataset):
-        f = dataset['f']
-        t = dataset['time']
-        x = dataset['x_vals']
-        y = dataset['y_vals']
-        plt.plot(t/f, x, label='x')
-        plt.plot(t/f, y, label='y')
+    def plot_xy(dataset, const_dict):
+        f = const_dict['f']
+        t = dataset[const_dict['time_col']]*const_dict['TimeScaling']
+        x = dataset[const_dict['x_col']]*const_dict['ValScaling']
+        y = dataset[const_dict['y_col']]*const_dict['ValScaling']
+        plt.plot(t, x, label='x')
+        plt.plot(t, y, label='y')
         plt.xlabel('Time')
         plt.ylabel('Position in arcmin')
         plt.title('Position over Time')
@@ -20,9 +20,9 @@ class Visualize():
         plt.show()
 
     @staticmethod
-    def plot_xy_trace(dataset):
-        x = dataset['x_vals']
-        y = dataset['y_vals']
+    def plot_xy_trace(dataset, const_dict):
+        x = dataset[const_dict['x_col']]*const_dict['ValScaling']
+        y = dataset[const_dict['y_col']]*const_dict['ValScaling']
         plt.plot(x, y)
         plt.xlabel('X in arcminutes')
         plt.ylabel('Y in arcminutes')
