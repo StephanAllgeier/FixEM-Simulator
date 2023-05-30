@@ -36,9 +36,19 @@ class Visualize():
     def plot_fft(fft, freq):
         plt.plot(freq, np.abs(fft))
         plt.xlabel('Frequency (Hz)')
-        matplotlib.axes.Axes.set_xbound(Lower=0)
+        plt.xlim([0, max(freq)])
         plt.ylabel('Magnitude')
         plt.title('FFT - Magnitude Spectrum')
         plt.grid(True)
         plt.show()
+
+    @staticmethod
+    def print_microsacc(df, const_dict, micsacc):
+        Visualize.plot_xy(df, const_dict)
+        micsac_list = micsacc[0]
+        for microsaccade in micsac_list:
+            plt.axvline(microsaccade[0] / const_dict['f'], color='blue') # plotting onset of microsaccade
+            plt.axvline(microsaccade[1] / const_dict['f'], color='red')  # plotting offset of microsaccade
+
+
 

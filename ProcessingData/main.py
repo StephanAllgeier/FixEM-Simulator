@@ -4,6 +4,7 @@ import scipy
 from Preprocessing.Interpolation import Interpolation
 from Visualize import Visualize
 from Preprocessing.Filtering import Filtering
+from StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
@@ -36,13 +37,18 @@ if __name__ == '__main__':
     #Interpolation
     cubic = Interpolation.interp_cubic(roorda_data, const_roorda)
     piece_poly = Interpolation.interp_monocub(roorda_data, const_roorda)
-    spliced = Interpolation.splice_together(roorda_data, const_roorda)
     '''
+    spliced = Interpolation.splice_together(roorda_data, const_roorda)
+
     #FastFourierTransformation
     fft, fftfreq = Filtering.fft_transform(Interpolation.splice_together(gazebase_data, const_gazebase), const_gazebase, 'x_col')
     Visualize.plot_fft(fft, fftfreq)
+    #Filtering Bandpass
 
-    print('Done')
+
+    micsacc = EventDetection.find_micsacc(spliced, const_roorda, mindur=12)
+
+    Visualize.print_microsacc(spliced, const_roorda, micsacc)
     print_hi('PyCharm')
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
