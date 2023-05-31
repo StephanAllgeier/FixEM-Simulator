@@ -17,7 +17,7 @@ class Filtering():
         low = lowcut / nyq
         high = highcut / nyq
         b, a = butter(order, [low, high], btype='band')
-        return b,
+        return b, a
 
     @staticmethod
     def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):

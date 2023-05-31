@@ -24,20 +24,21 @@ if __name__ == '__main__':
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
 
-    gazebase_file = r"E:\GazeBase\GazeBase_v2_0\Fixation_Only\S_1001_S1_FXS.csv"
+    gazebase_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Testing\S_1001_S1_FXS.csv"
     gazebase_data = pd.read_csv(gazebase_file)
     const_gazebase = get_constants("GazeBase")
     #
-    '''
+
     #Visualize both:
-    Visualize.plot_xy(roorda_data, const_roorda)
-    Visualize.plot_xy(rgazebase_data, const_gazebase)
+    #Visualize.plot_xy(roorda_data, const_roorda)
+    #Visualize.plot_xy(gazebase_data, const_gazebase)
     #Visualize.plot_xy(dataset_gazebase)
+    #Visualize.plot_xy(roorda_data, const_roorda, color=['red','orange'], labels=['x Roorda','y Roorda'])
+    #Visualize.plot_xy(gazebase_data, const_gazebase, color=['blue','violet'], labels=['x GazeBase','y GazeBase'])
 
     #Interpolation
     cubic = Interpolation.interp_cubic(roorda_data, const_roorda)
     piece_poly = Interpolation.interp_monocub(roorda_data, const_roorda)
-    '''
     spliced = Interpolation.splice_together(roorda_data, const_roorda)
 
     #FastFourierTransformation
@@ -50,6 +51,5 @@ if __name__ == '__main__':
 
     Visualize.print_microsacc(spliced, const_roorda, micsacc)
     print_hi('PyCharm')
-    #Änderung nur in Main gemacht.
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

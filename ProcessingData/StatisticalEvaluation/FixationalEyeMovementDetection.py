@@ -31,3 +31,5 @@ class EventDetection():
         return_frame[constant_dict['x_col']] = Filtering.butter_bandpass_filter(df[constant_dict['x_col']],
                                                                                 lowcut=lowcut, highcut=highcut,
                                                                                 fs=constant_dict['f'])
+        #Filtered=Filtering.butter_bandpass_filter(spliced, lowcut=50, highcut=100, fs=1920, order=5)
+        #Filtered_2= pd.DataFrame(Filtered, columns=['index'].extend(list(roorda_data.columns)))
