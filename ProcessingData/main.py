@@ -50,5 +50,6 @@ if __name__ == '__main__':
 
     Visualize.print_microsacc(spliced, const_roorda, micsacc)
     print_hi('PyCharm')
+    #Änderung nur in Main gemacht.
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
