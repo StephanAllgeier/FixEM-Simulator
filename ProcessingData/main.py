@@ -1,55 +1,67 @@
 import pandas as pd
 import numpy as np
 import scipy
+import matplotlib.pyplot as plt
 from Preprocessing.Interpolation import Interpolation
-from Visualize import Visualize
-from Preprocessing.Filtering import Filtering
+from Visualize import Visualize as Vis
+from Preprocessing.Filtering import Filtering as Filt
 from StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
+
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
-        return {"f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling" : 1, "TimeScaling" : 1}
+        return {"f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1, "TimeScaling": 1}
     elif dataset_name == "GazeBase":
-        return {"f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling" : 60, "TimeScaling" : 1/1000} #Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
+        return {"f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
+                "TimeScaling": 1 / 1000}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Strg+F8 to toggle the breakpoint.
+def get_events(df, const_dict, msac_mindur=4):
+    return None
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    #roorda_files = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    # roorda_files = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
     roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_001.csv"
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
 
-    gazebase_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Testing\S_1001_S1_FXS.csv"
-    gazebase_data = pd.read_csv(gazebase_file)
-    const_gazebase = get_constants("GazeBase")
+    gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Testing\S_1001_S1_FXS.csv"
+    gb_data = pd.read_csv(gb_file)
+    const_gb = get_constants("GazeBase")
     #
+    data = gb_data
+    const_dict = const_gb
 
-    #Visualize both:
-    #Visualize.plot_xy(roorda_data, const_roorda)
-    #Visualize.plot_xy(gazebase_data, const_gazebase)
-    #Visualize.plot_xy(dataset_gazebase)
-    #Visualize.plot_xy(roorda_data, const_roorda, color=['red','orange'], labels=['x Roorda','y Roorda'])
-    #Visualize.plot_xy(gazebase_data, const_gazebase, color=['blue','violet'], labels=['x GazeBase','y GazeBase'])
+    # Visualize both:
+    #Vis.plot_xy(data, const_dict)
+    #Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
+    #Vis.plot_xy(gab_data, const_gb, colors=['blue', 'violet'], labels=['x GazeBase', 'y GazeBase'])
 
-    #Interpolation
-    cubic = Interpolation.interp_cubic(roorda_data, const_roorda)
-    piece_poly = Interpolation.interp_monocub(roorda_data, const_roorda)
-    spliced = Interpolation.splice_together(roorda_data, const_roorda)
+    # Interpolation Roorda
+    cubic = Interpolation.interp_cubic(data, const_dict)
+    piece_poly = Interpolation.interp_monocub(data, const_dict)
+    spliced = Interpolation.splice_together(data, const_dict)
+    blink_removed = Interpolation.remove_blink(data, const_dict, 10)
+    # FastFourierTransformation
+    fft_spliced, fftfreq_spliced = Filt.fft_transform(spliced, const_dict, 'x_col')
+    Vis.plot_fft(fft_spliced, fftfreq_spliced)
 
-    #FastFourierTransformation
-    fft, fftfreq = Filtering.fft_transform(Interpolation.splice_together(gazebase_data, const_gazebase), const_gazebase, 'x_col')
-    Visualize.plot_fft(fft, fftfreq)
-    #Filtering Bandpass
+    # Filtering Bandpass
+    Drift_c = EventDetection.filter_drift(cubic, const_dict)
+    Tremor_c = EventDetection.filter_tremor(cubic, const_dict)
+    Drift_p = EventDetection.filter_drift(piece_poly, const_dict)
+    Tremor_p = EventDetection.filter_tremor(piece_poly, const_dict)
+    Drift = EventDetection.filter_drift(spliced, const_dict)
+    Tremor = EventDetection.filter_tremor(spliced, const_dict)
 
+    #Plotting Tremor/Drift and belonging Frequencie Spectrum
 
-    micsacc = EventDetection.find_micsacc(spliced, const_roorda, mindur=12)
+    fft2, fftfreq2 = Filt.fft_transform(Drift, const_dict, 'x_col')
+    Vis.plot_fft(fft2, fftfreq2)
+    micsacc = EventDetection.find_micsacc(spliced, const_dict, mindur=12)
 
-    Visualize.print_microsacc(spliced, const_roorda, micsacc)
-    print_hi('PyCharm')
+    Vis.print_microsacc(spliced, const_dict, micsacc)
+    print('PyCharm')
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
