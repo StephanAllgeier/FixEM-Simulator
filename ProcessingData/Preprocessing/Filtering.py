@@ -40,7 +40,7 @@ class Filtering():
         b, a = Filtering.butter_bandpass(lowcut, highcut, fs, order=order)
         y = signal.filtfilt(b, a, data, padlen=3 * max(len(a), len(b)))
         return y
-A
+
     @staticmethod
     def butter_lowpass(highcut, fs, order=5):
         nyq = 0.5 * fs

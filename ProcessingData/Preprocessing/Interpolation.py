@@ -34,7 +34,7 @@ class Interpolation():
         return data_frame
 
     @staticmethod
-    def remove_blink(df, const_dict, time_cutoff): #time_cutoff in ms
+    def remove_blink(df, const_dict, time_cutoff, remove_start=False, remove_end = False,remove_start_time= 0, remove_end_time= 0): #time_cutoff in ms
         #This function cuts out blink movements
         data_frame = copy.deepcopy(df)
 
@@ -62,6 +62,35 @@ class Interpolation():
         #Delete Rows from Frame
         for liste in indexes:
             data_frame = data_frame.drop(liste)
+        if remove_end:
+            data_frame = data_frame[0:-remove_end_time*const_dict['f']//1000]
+        if remove_start:
+            data_frame= data_frame[remove_start_time*const_dict['f']//1000:]
+        data_frame = data_frame.reset_index()
+        data_frame[const_dict['time_col']] = data_frame.index / const_dict['f'] / const_dict['TimeScaling']
+        return data_frame
+
+    @staticmethod
+    def remove_blink_annot(df, const_dict):
+        data_frame = copy.deepcopy(df)
+        blink_idx = df[df[const_dict['Annotations']] == const_dict['BlinkID']].index
+        current_sublist = []
+        indexes = []
+        for i in range(len(blink_idx)):
+            if i == 0 or blink_idx[i] != blink_idx[i - 1] + 1:
+                if current_sublist:
+                    indexes.append(current_sublist)
+                current_sublist = [blink_idx[i]]
+            else:
+                current_sublist.append(blink_idx[i])
+
+        # Füge die letzte Teil-Liste hinzu, falls vorhanden
+        if current_sublist:
+            indexes.append(current_sublist)
+        for liste in indexes:
+            data_frame = data_frame.drop(liste)
         data_frame = data_frame.reset_index()
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
-''        return data_frame
+        return data_frame
+
+

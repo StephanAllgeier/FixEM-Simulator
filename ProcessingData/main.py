@@ -10,10 +10,11 @@ from StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
-        return {"f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1, "TimeScaling": 1}
+        return {"f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1, "TimeScaling": 1,
+                'BlinkID': 3, 'Annotations': 'Flags'}
     elif dataset_name == "GazeBase":
         return {"f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
-                "TimeScaling": 1 / 1000}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
+                "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab'}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
 
 def get_events(df, const_dict, msac_mindur=4):
     return None
@@ -22,7 +23,7 @@ def get_events(df, const_dict, msac_mindur=4):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     # roorda_files = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_001.csv"
+    roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
 
@@ -38,11 +39,15 @@ if __name__ == '__main__':
     #Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
     #Vis.plot_xy(gab_data, const_gb, colors=['blue', 'violet'], labels=['x GazeBase', 'y GazeBase'])
 
-    # Interpolation Roorda
+    #Microsaccades according to Roorda:
+    roorda_micsac = Vis.get_roorda_micsac(roorda_data)
+    Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
+
+    # Interpolation
     cubic = Interpolation.interp_cubic(data, const_dict)
     piece_poly = Interpolation.interp_monocub(data, const_dict)
     spliced = Interpolation.splice_together(data, const_dict)
-    blink_removed = Interpolation.remove_blink(data, const_dict, 10)
+    blink_removed = Interpolation.remove_blink(data, const_dict, 10, remove_start=True, remove_end = False,remove_start_time= 20, remove_end_time= 0)
     # FastFourierTransformation
     fft_spliced, fftfreq_spliced = Filt.fft_transform(spliced, const_dict, 'x_col')
     Vis.plot_fft(fft_spliced, fftfreq_spliced)
