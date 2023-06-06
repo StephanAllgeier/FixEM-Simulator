@@ -40,6 +40,8 @@ def plot_w_msacc(x_vals, y_vals, t, msacc):
         plt.axvline(x=t[i[0]])
         plt.axvline(x=t[i[1]])
 
+@staticmethod
+
 
 if __name__ == '__main__':
     file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_002.csv"
