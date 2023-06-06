@@ -53,24 +53,3 @@ class Visualize():
             plt.axvline(microsaccade[0] / const_dict['f'], color='blue')  # plotting onset of microsaccade
             plt.axvline(microsaccade[1] / const_dict['f'], color='red')  # plotting offset of microsaccade
 
-    @staticmethod
-    def get_roorda_micsac(df):
-        # Input is dataframe from Roorda_Database. It Returns list of lists containing onset and offset of microsaccades
-        mic_sac_idx = df[df['Flags'] == 1].index
-        current_sublist = []
-        indexes = []
-        for i in range(len(mic_sac_idx)):
-            if i == 0 or mic_sac_idx[i] != mic_sac_idx[i - 1] + 1:
-                if current_sublist:
-                    indexes.append(current_sublist)
-                current_sublist = [mic_sac_idx[i]]
-            else:
-                current_sublist.append(mic_sac_idx[i])
-
-        # Füge die letzte Teil-Liste hinzu, falls vorhanden
-        if current_sublist:
-            indexes.append(current_sublist)
-        micsac_onoff = []
-        for liste in indexes:
-            micsac_onoff.append([liste[0], liste[-1]])
-        return micsac_onoff
