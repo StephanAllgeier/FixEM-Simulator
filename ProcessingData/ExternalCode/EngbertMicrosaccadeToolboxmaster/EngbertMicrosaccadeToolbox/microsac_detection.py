@@ -146,7 +146,7 @@ def microsacc(x, vfac=5, mindur=3, sampling=500):
     # Compute velocity
     v = vecvel(x, sampling=sampling)
 
-    # Apply test criterion: elliptic treshold
+    # Apply test criterion: elliptic threshold
     test, radius = _test_crit(v, vfac)
     indx = np.where(test > 1)[0]
 
@@ -154,7 +154,7 @@ def microsacc(x, vfac=5, mindur=3, sampling=500):
     nsac = len(sac)
 
     if nsac > 0:
-        # Compute peak velocity, horiztonal and vertical components
+        # Compute peak velocity, horizontal and vertical components
         for i, s in enumerate(sac):
             # Onset and offset for saccades
             start = int(s[0])
