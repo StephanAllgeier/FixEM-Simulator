@@ -93,4 +93,11 @@ class Interpolation():
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
         return data_frame
 
+    @staticmethod
+    def convert_arcmin_to_dva(df, const_dict):
+        return_df= copy.deepcopy(df)
+        factor = 1/60
+        return_df[const_dict['x_col']], return_df[const_dict['y_col']] = return_df[const_dict['x_col']].multiply(factor), return_df[const_dict['y_col']].multiply(factor)
+        return return_df
+
 
