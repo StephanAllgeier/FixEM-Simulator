@@ -68,16 +68,24 @@ if __name__ == '__main__':
     for file in roorda_files:
         micsac_count = Microsaccades.count_micsac_annot(pd.read_csv(Path(file)))
         roorda_count_dict[Path(file).stem] = micsac_count
+
     #data_name=r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacEval.csv"
     #save_dict_to_csv(roorda_count_dict, data_name)
 
     detected_micsac = {}
     for file in roorda_files:
-        interpolated = Interpolation.remove_blink_annot(pd.read_csv(Path(file)), const_roorda)
+        df = pd.read_csv(Path(file))
+        interpolated = Interpolation.remove_blink_annot(df, const_roorda)
+        resampled = Interpolation.resample(interpolated, const_roorda, 1000)
         interpol = Interpolation.convert_arcmin_to_dva(interpolated, const_roorda)
         filtered = EventDetection.filter_drift(interpol, constant_dict=const_roorda, highcut=40, order=5)
-        micsac= Microsaccades.find_micsacc(interpol, const_roorda, mindur=10)
-        detected_micsac[Path(file).stem] = len(micsac[0])
+        micsac_detec = Microsaccades.find_micsac(interpol, const_roorda, mindur=25, vfac=23)
+        micsac_annot = Microsaccades.get_roorda_micsac(interpol)
+        print(f'Es wurden {len(micsac_detec[0])} detektiert.\nEigentlich sind {len(micsac_annot)} vorhanden.')
+        #Vis.print_microsacc(filtered, const_roorda, micsac_detec[0], color=['orange', 'yellow'])
+        #Vis.print_microsacc(filtered, const_roorda, micsac_annot, color=['black', 'green'])
+        detected_micsac[Path(file).stem] = len(micsac_detec[0])
+
     print('Evaluation done')
     data_name = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacDetected.xlsx"
     save_dict_to_excel(detected_micsac, data_name)
@@ -87,9 +95,8 @@ if __name__ == '__main__':
     #Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
     #Vis.plot_xy(gab_data, const_gb, colors=['blue', 'violet'], labels=['x GazeBase', 'y GazeBase'])
 
-    #Microsaccades according to Roorda:
-    roorda_micsac = Microsaccades.get_roorda_micsac(roorda_data)
-    Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
+    #Microsaccades according to Roorda:    roorda_micsac = Microsaccades.get_roorda_micsac(roorda_data)
+    #Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
 
     # Interpolation
     cubic = Interpolation.interp_cubic(data, const_dict)
