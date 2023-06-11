@@ -120,4 +120,5 @@ class Interpolation():
         # return_x = pydsm.resample(interm_frame[const_dict['x_col']], fs, f_target)
         # return_y = pydsm.resample(interm_frame[const_dict['y_col']], fs, f_target)
         # return_t = pydsm.resample(interm_frame[const_dict['t_col']], fs, f_target)
-        return pd.concat([return_t, return_x, return_y], axis=1)
+        const_dict['f'] = f_target
+        return pd.concat([return_t, return_x, return_y], axis=1), const_dict
