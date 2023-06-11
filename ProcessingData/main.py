@@ -17,10 +17,10 @@ from StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
-        return {"f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1, "TimeScaling": 1,
-                'BlinkID': 3, 'Annotations': 'Flags'}
+        return {"Name":"Roorda", "f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1, "TimeScaling": 1,
+                'BlinkID': 3, 'Annotations': 'Flags', 'file_pattern': "\d{5}[A-Za-z]_\d{3}\.csv"}
     elif dataset_name == "GazeBase":
-        return {"f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
+        return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
                 "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab'}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
 def get_files_with_pattern(folder_path, pattern):
     file_list = []
@@ -43,8 +43,26 @@ def save_dict_to_excel(data_dict, file_path):
     df.to_excel(file_path)
 
 def get_events(df, const_dict, msac_mindur=4):
-    return None
+    return
 
+def detect_all_micsac(folderpath, const_dict,mindur, vfac, resample=False, rs_freq=1000, save=False):
+    files = get_files_with_pattern(Path(folderpath), pattern=const_dict['file_pattern'])
+    detected_micsac = {}
+    for file in files:
+        df = pd.read_csv(Path(file))
+        data = Interpolation.remove_blink_annot(df, const_dict)
+        if resample:
+            data, const_dict = Interpolation.resample(data, const_dict, rs_freq)
+        if const_dict['Name'] == "Roorda":
+            data = Interpolation.convert_arcmin_to_dva(data, const_dict)
+        micsac_detec, return_frame = Microsaccades.find_micsac(data, const_dict, mindur=mindur, vfac=vfac)
+        micsac_annot = Microsaccades.get_roorda_micsac(Interpolation.remove_blink_annot(df, const_dict))
+        print(f'Es wurden {len(micsac_detec[0])} detektiert.\nEigentlich sind {len(micsac_annot)} vorhanden.')
+        detected_micsac[Path(file).stem] = len(micsac_detec[0])
+    if save:
+        print('Evaluation done')
+        data_name = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacDetected.xlsx"
+        save_dict_to_excel(detected_micsac, data_name)
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -53,43 +71,16 @@ if __name__ == '__main__':
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
 
-    gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Testing\S_1001_S1_FXS.csv"
-    gb_data = pd.read_csv(gb_file)
-    const_gb = get_constants("GazeBase")
+    ##gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Testing\S_1001_S1_FXS.csv"
+    #gb_data = pd.read_csv(gb_file)
+    #const_gb = get_constants("GazeBase")
     #
-    data = gb_data
-    const_dict = const_gb
+    #data = gb_data
+    #const_dict = const_gb
 
     #Working with Roorda_data
     roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    roorda_filepattern = "\d{5}[A-Za-z]_\d{3}\.csv"
-    roorda_files = get_files_with_pattern(Path(roorda_folder), pattern=roorda_filepattern)
-    roorda_count_dict = {}
-    for file in roorda_files:
-        micsac_count = Microsaccades.count_micsac_annot(pd.read_csv(Path(file)))
-        roorda_count_dict[Path(file).stem] = micsac_count
-
-    #data_name=r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacEval.csv"
-    #save_dict_to_csv(roorda_count_dict, data_name)
-
-    detected_micsac = {}
-    for file in roorda_files:
-        df = pd.read_csv(Path(file))
-        interpolated = Interpolation.remove_blink_annot(df, const_roorda)
-        resampled = Interpolation.resample(interpolated, const_roorda, 1000)
-        interpol = Interpolation.convert_arcmin_to_dva(interpolated, const_roorda)
-        filtered = EventDetection.filter_drift(interpol, constant_dict=const_roorda, highcut=40, order=5)
-        micsac_detec = Microsaccades.find_micsac(interpol, const_roorda, mindur=25, vfac=23)
-        micsac_annot = Microsaccades.get_roorda_micsac(interpol)
-        print(f'Es wurden {len(micsac_detec[0])} detektiert.\nEigentlich sind {len(micsac_annot)} vorhanden.')
-        #Vis.print_microsacc(filtered, const_roorda, micsac_detec[0], color=['orange', 'yellow'])
-        #Vis.print_microsacc(filtered, const_roorda, micsac_annot, color=['black', 'green'])
-        detected_micsac[Path(file).stem] = len(micsac_detec[0])
-
-    print('Evaluation done')
-    data_name = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacDetected.xlsx"
-    save_dict_to_excel(detected_micsac, data_name)
-
+    detect_all_micsac(roorda_folder, mindur=25, vfac=25, const_dict=const_roorda,resample=False, save=True)
     # Visualize both:
     #Vis.plot_xy(data, const_dict)
     #Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
@@ -97,7 +88,7 @@ if __name__ == '__main__':
 
     #Microsaccades according to Roorda:    roorda_micsac = Microsaccades.get_roorda_micsac(roorda_data)
     #Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
-
+    '''
     # Interpolation
     cubic = Interpolation.interp_cubic(data, const_dict)
     piece_poly = Interpolation.interp_monocub(data, const_dict)
@@ -122,6 +113,4 @@ if __name__ == '__main__':
     micsacc = EventDetection.find_micsacc(spliced, const_dict, mindur=12)
 
     Vis.print_microsacc(spliced, const_dict, micsacc)
-    print('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    '''
