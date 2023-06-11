@@ -17,7 +17,7 @@ class Microsaccades():
         return count
 
     @staticmethod
-    def find_micsac(df, constant_dict, mindur=3, vfac=5):
+    def find_micsac(df, constant_dict, mindur=3, vfac=5, highcut=40):
         '''
         parameters:
         df=dataframe to work with, units of the traces is in degrees of visual angle
@@ -26,10 +26,10 @@ class Microsaccades():
         returns tuple with tuple[0] = microsaccades
         '''
         #Filtering Signal like in Paper "Eye Movement Analysis in Simple Visual Tasks"
-        df = EventDetection.filter_drift(df, constant_dict=constant_dict, highcut=40, order=5)
-        input_array = df[[constant_dict['x_col'], constant_dict['y_col']]].to_numpy()
+        df_2 = EventDetection.filter_drift(df, constant_dict=constant_dict, highcut=highcut, order=5)
+        input_array = df_2[[constant_dict['x_col'], constant_dict['y_col']]].to_numpy()
         micsac = microsac_detection.microsacc(input_array, sampling=constant_dict['f'], mindur=mindur, vfac=vfac)
-        return micsac
+        return micsac, df_2
 
     @staticmethod
     def get_roorda_micsac(df):
