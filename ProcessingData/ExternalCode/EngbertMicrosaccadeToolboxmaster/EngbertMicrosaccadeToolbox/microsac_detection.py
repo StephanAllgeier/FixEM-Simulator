@@ -74,7 +74,7 @@ def _test_crit(v, VFAC):
 
 
 def _identify_saccade_candidates(indx, mindur):
-    """takes an all identified indexes and finds atart and endpoints for
+    """takes an all identified indexes and finds start and endpoints for
     saccades
 
     Parameters
