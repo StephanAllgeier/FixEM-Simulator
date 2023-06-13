@@ -62,9 +62,6 @@ def save_dict_to_excel(data_dict, file_path):
     df.index.name = 'Key'
     df.to_excel(file_path)
 
-def get_events(df, const_dict, msac_mindur=4):
-    return
-
 def detect_all_micsac(folderpath, const_dict,mindur, vfac, resample=False, rs_freq=1000, save=False):
     files = get_files_with_pattern(Path(folderpath), pattern=const_dict['file_pattern'])
     detected_micsac = {}
@@ -73,16 +70,20 @@ def detect_all_micsac(folderpath, const_dict,mindur, vfac, resample=False, rs_fr
         data = Interpolation.remove_blink_annot(df, const_dict)
         if resample:
             data, const_dict = Interpolation.resample(data, const_dict, rs_freq)
+        micsac_detec2 = Microsaccades.find_micsac(data, const_dict, mindur=mindur, vfac=vfac)
         if const_dict['Name'] == "Roorda":
             data = Interpolation.convert_arcmin_to_dva(data, const_dict)
-        micsac_detec, return_frame = Microsaccades.find_micsac(data, const_dict, mindur=mindur, vfac=vfac)
+        micsac_detec = Microsaccades.find_micsac(data, const_dict, mindur=mindur, vfac=vfac)
+        if len(micsac_detec[0]) != len(micsac_detec2[0]):
+            print(len(micsac_detec[0])-len(micsac_detec2[0]), file)
         micsac_annot = Microsaccades.get_roorda_micsac(Interpolation.remove_blink_annot(df, const_dict))
         print(f'Es wurden {len(micsac_detec[0])} detektiert.\nEigentlich sind {len(micsac_annot)} vorhanden.')
-        detected_micsac[Path(file).stem] = len(micsac_detec[0])
+        detected_micsac[Path(file).stem] = len(micsac_annot)#(micsac_detec[0])
     if save:
         print('Evaluation done')
         data_name = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacDetected.xlsx"
         save_dict_to_excel(detected_micsac, data_name)
+    return data, micsac_detec[0]
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -91,10 +92,11 @@ if __name__ == '__main__':
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
     allgeier_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Allgeier, Stephan"
-    a, const_a = read_allgeier_data(allgeier_folder)
-    plot_ds_comparison(roorda_data, const_roorda, a, const_a)
-
-    ##gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Testing\S_1001_S1_FXS.csv"
+    #a, const_a = read_allgeier_data(allgeier_folder)
+    filtered,b,c = EventDetection.drift_only(roorda_data, const_roorda)
+    fft, fftfreq = Filt.fft_transform(filtered, const_roorda, 'x_col')
+    Vis.plot_fft(fft, fftfreq)
+    #plot_ds_comparison(roorda_data, const_roorda, a, const_a)
     #gb_data = pd.read_csv(gb_file)
     #const_gb = get_constants("GazeBase")
     #
@@ -103,7 +105,7 @@ if __name__ == '__main__':
 
     #Working with Roorda_data
     roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    detect_all_micsac(roorda_folder, mindur=25, vfac=25, const_dict=const_roorda,resample=False, save=True)
+    df, micsac = detect_all_micsac(roorda_folder, mindur=25, vfac=21, const_dict=const_roorda,resample=False, save=True)
     # Visualize both:
     #Vis.plot_xy(data, const_dict)
     #Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
@@ -112,15 +114,6 @@ if __name__ == '__main__':
     #Microsaccades according to Roorda:    roorda_micsac = Microsaccades.get_roorda_micsac(roorda_data)
     #Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
     '''
-    # Interpolation
-    cubic = Interpolation.interp_cubic(data, const_dict)
-    piece_poly = Interpolation.interp_monocub(data, const_dict)
-    spliced = Interpolation.splice_together(data, const_dict)
-    blink_removed = Interpolation.remove_blink(data, const_dict, 10, remove_start=True, remove_end = False,remove_start_time= 20, remove_end_time= 0)
-    # FastFourierTransformation
-    fft_spliced, fftfreq_spliced = Filt.fft_transform(spliced, const_dict, 'x_col')
-    Vis.plot_fft(fft_spliced, fftfreq_spliced)
-
     # Filtering Bandpass
     Drift_c = EventDetection.filter_drift(cubic, const_dict)
     Tremor_c = EventDetection.filter_tremor(cubic, const_dict)
