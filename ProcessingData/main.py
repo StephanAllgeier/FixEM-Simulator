@@ -21,7 +21,27 @@ def get_constants(dataset_name):
                 'BlinkID': 3, 'Annotations': 'Flags', 'file_pattern': "\d{5}[A-Za-z]_\d{3}\.csv"}
     elif dataset_name == "GazeBase":
         return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
-                "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab'}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
+                "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab'} # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
+
+def read_allgeier_data(folder_path):
+    files = list(glob.glob(folder_path + "/*.txt"))
+    #Create Dataframe
+    df = pd.read_csv(files[0], names=['t','x_µm','y_µm'], header=None)
+    print(df)
+    const_dict = {"Name":"Allgeier", "f": 1/((df['t'].iloc[-1]-df['t'].iloc[0])/len(df)), "x_µm": 'x_µm', "y_µm": 'y_µm', "time_col": 't', "ValScaling": 1, "TimeScaling": 1,
+                'BlinkID': None, 'Annotations': None, 'file_pattern': "/.+\.txt"}
+    return df, const_dict
+
+def plot_ds_comparison(df1, const1, df2, const2):
+    name1 = const1['Name']
+    name2 = const2['Name']
+    if name1 != 'Allgeier':
+        df1, const1 = Interpolation.arcmin_to_µm(df1, const1)
+    if name2 != 'Allgeier':
+        df2, const2 = Interpolation.arcmin_to_µm(df1, const1)
+    Vis.plot_xy_µm(df1, const1, color=['black', 'green'], labels=[f'x_{name1}', f'y_{name1}'])
+    Vis.plot_xy_µm(df2, const2, color=['orange', 'red'], labels=[f'x_{name2}', f'y_{name2}'])
+    print('Done')
 def get_files_with_pattern(folder_path, pattern):
     file_list = []
     regex_pattern = re.compile(pattern)
@@ -70,6 +90,9 @@ if __name__ == '__main__':
     roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
+    allgeier_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Allgeier, Stephan"
+    a, const_a = read_allgeier_data(allgeier_folder)
+    plot_ds_comparison(roorda_data, const_roorda, a, const_a)
 
     ##gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Testing\S_1001_S1_FXS.csv"
     #gb_data = pd.read_csv(gb_file)
