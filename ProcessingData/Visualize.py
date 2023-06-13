@@ -6,7 +6,11 @@ class Visualize():
     plt.rcParams['lines.linewidth'] = 1
 
     @staticmethod
-    def plot_xy(dataset, const_dict, color=['blue', 'orange'], labels=['x', 'y']):
+    def plot_xy(dataset, const_dict, color=None, labels=None):
+        if labels is None:
+            labels = ['x', 'y']
+        if color is None:
+            color = ['blue', 'orange']
         f = const_dict['f']
         t = dataset[const_dict['time_col']] * const_dict['TimeScaling']
         x = dataset[const_dict['x_col']] * const_dict['ValScaling']
@@ -19,6 +23,23 @@ class Visualize():
         plt.legend()
         plt.show()
 
+    @staticmethod
+    def plot_xy_µm(dataset, const_dict, color=None, labels=None):
+        if labels is None:
+            labels = ['x', 'y']
+        if color is None:
+            color = ['blue', 'orange']
+        f = const_dict['f']
+        t = dataset[const_dict['time_col']] * const_dict['TimeScaling']
+        x = dataset[const_dict['x_µm']] * const_dict['ValScaling']
+        y = dataset[const_dict['y_µm']] * const_dict['ValScaling']
+        plt.plot(t, x, label=labels[0], color=color[0])
+        plt.plot(t, y, label=labels[1], color=color[1])
+        plt.xlabel('Time')
+        plt.ylabel('Position in µm')
+        plt.title('Position over Time')
+        plt.legend()
+        plt.show()
     @staticmethod
     def plot_xy_trace(dataset, const_dict, color='blue', label="Label"):
         x = dataset[const_dict['x_col']] * const_dict['ValScaling']
