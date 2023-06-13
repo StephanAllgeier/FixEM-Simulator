@@ -32,26 +32,29 @@ class Interpolation():
     def splice_together(df, const_dict):
         data_frame = df.dropna(subset=[const_dict['x_col'], const_dict['y_col']], how='any')
         data_frame = data_frame.reset_index()
-        data_frame[const_dict['time_col']] = data_frame.index/const_dict['f']
+        data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
         return data_frame
 
     @staticmethod
-    def remove_blink(df, const_dict, time_cutoff, remove_start=False, remove_end = False,remove_start_time= 0, remove_end_time= 0): #time_cutoff in ms
-        #This function cuts out blink movements
+    def remove_blink(df, const_dict, time_cutoff, remove_start=False, remove_end=False, remove_start_time=0,
+                     remove_end_time=0):  # time_cutoff in ms
+        # This function cuts out blink movements
         data_frame = copy.deepcopy(df)
 
         x_nan = df[df[const_dict['x_col']].isnull()].index.to_list()
         y_nan = df[df[const_dict['y_col']].isnull()].index.to_list()
         if x_nan != y_nan:
             print('Die beiden Einträge sind ungleich lang, wird verworfen.')
-        #Splitting lists into sublists
+        # Splitting lists into sublists
         indexes = []
         current_sublist = []
-        padding_count = round(time_cutoff *const_dict['f'] //1000)
+        padding_count = round(time_cutoff * const_dict['f'] // 1000)
         for i in range(len(x_nan)):
             if i == 0 or x_nan[i] != x_nan[i - 1] + 1:
                 if current_sublist:
-                    padded_list = list(range(current_sublist[0] - padding_count, current_sublist[0])) + current_sublist + list(range(current_sublist[-1] + 1, current_sublist[-1] + padding_count + 1))
+                    padded_list = list(
+                        range(current_sublist[0] - padding_count, current_sublist[0])) + current_sublist + list(
+                        range(current_sublist[-1] + 1, current_sublist[-1] + padding_count + 1))
                     indexes.append(padded_list)
                 current_sublist = [x_nan[i]]
             else:
@@ -61,13 +64,13 @@ class Interpolation():
         if current_sublist:
             indexes.append(current_sublist)
 
-        #Delete Rows from Frame
+        # Delete Rows from Frame
         for liste in indexes:
             data_frame = data_frame.drop(liste)
         if remove_end:
-            data_frame = data_frame[0:-remove_end_time*const_dict['f']//1000]
+            data_frame = data_frame[0:-remove_end_time * const_dict['f'] // 1000]
         if remove_start:
-            data_frame= data_frame[remove_start_time*const_dict['f']//1000:]
+            data_frame = data_frame[remove_start_time * const_dict['f'] // 1000:]
         data_frame = data_frame.reset_index()
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f'] / const_dict['TimeScaling']
         return data_frame
@@ -97,9 +100,10 @@ class Interpolation():
 
     @staticmethod
     def convert_arcmin_to_dva(df, const_dict):
-        return_df= copy.deepcopy(df)
-        factor = 1/60
-        return_df[const_dict['x_col']], return_df[const_dict['y_col']] = return_df[const_dict['x_col']].multiply(factor), return_df[const_dict['y_col']].multiply(factor)
+        return_df = copy.deepcopy(df)
+        factor = 1 / 60
+        return_df[const_dict['x_col']], return_df[const_dict['y_col']] = return_df[const_dict['x_col']].multiply(
+            factor), return_df[const_dict['y_col']].multiply(factor)
         return return_df
 
     @staticmethod
@@ -109,12 +113,15 @@ class Interpolation():
         '''
         interm_frame = df[[const_dict['time_col'], const_dict['x_col'], const_dict['y_col']]]
         fs = const_dict['f']
-        resampling_ratio = f_target/fs
-        num_output_samples = int(len(interm_frame)*resampling_ratio)
+        resampling_ratio = f_target / fs
+        num_output_samples = int(len(interm_frame) * resampling_ratio)
 
-        return_x = pd.Series(signal.resample(interm_frame[const_dict['x_col']], num_output_samples), name=const_dict['x_col'])
-        return_y = pd.Series(signal.resample(interm_frame[const_dict['y_col']], num_output_samples), name=const_dict['y_col'])
-        return_t = pd.Series(np.linspace(0, df[const_dict['time_col']].iloc[-1], num_output_samples), name=const_dict['time_col'])
+        return_x = pd.Series(signal.resample(interm_frame[const_dict['x_col']], num_output_samples),
+                             name=const_dict['x_col'])
+        return_y = pd.Series(signal.resample(interm_frame[const_dict['y_col']], num_output_samples),
+                             name=const_dict['y_col'])
+        return_t = pd.Series(np.linspace(0, df[const_dict['time_col']].iloc[-1], num_output_samples),
+                             name=const_dict['time_col'])
 
         # Using pydsm
         # return_x = pydsm.resample(interm_frame[const_dict['x_col']], fs, f_target)
@@ -122,3 +129,11 @@ class Interpolation():
         # return_t = pydsm.resample(interm_frame[const_dict['t_col']], fs, f_target)
         const_dict['f'] = f_target
         return pd.concat([return_t, return_x, return_y], axis=1), const_dict
+
+    @staticmethod
+    def arcmin_to_µm(df, const_dict, r_eye=12.5):
+        df['x_µm'] = r_eye * np.sin((df[const_dict['x_col']] / 60)*np.pi/180)*1000
+        df['y_µm'] = r_eye * np.sin((df[const_dict['y_col']] / 60)*np.pi/180)*1000
+        const_dict['x_µm'] = 'x_µm'
+        const_dict['y_µm'] = 'y_µm'
+        return df, const_dict
