@@ -62,7 +62,7 @@ class Visualize():
         plt.show()
 
     @staticmethod
-    def print_microsacc(df, const_dict, micsac, color=['red', 'blue']):
+    def print_microsacc(df, const_dict, micsac, color=['red', 'blue'], thickness=1):
         Visualize.plot_xy(df, const_dict)
         if isinstance(micsac, tuple):
             micsac_list = micsac[0]  # Either tuple or list
@@ -71,6 +71,6 @@ class Visualize():
         else:
             print('Microsaccade Input is neither a tupel nor a list')
         for microsaccade in micsac_list:
-            plt.axvline(microsaccade[0] / const_dict['f'], color=color[0])  # plotting onset of microsaccade
-            plt.axvline(microsaccade[1] / const_dict['f'], color=color[1])  # plotting offset of microsaccade
+            plt.axvline(microsaccade[0] / const_dict['f'], color=color[0], linewidth=thickness)  # plotting onset of microsaccade
+            plt.axvline(microsaccade[1] / const_dict['f'], color=color[1], linewidth=thickness)  # plotting offset of microsaccade
 
