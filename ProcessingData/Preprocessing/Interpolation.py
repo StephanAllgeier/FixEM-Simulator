@@ -94,7 +94,7 @@ class Interpolation():
             indexes.append(current_sublist)
         for liste in indexes:
             data_frame = data_frame.drop(liste)
-        data_frame = data_frame.reset_index()
+        data_frame = data_frame.reset_index(drop=True)
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
         return data_frame
 
