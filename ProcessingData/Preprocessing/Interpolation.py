@@ -137,3 +137,10 @@ class Interpolation():
         const_dict['x_µm'] = 'x_µm'
         const_dict['y_µm'] = 'y_µm'
         return df, const_dict
+    @staticmethod
+    def dva_to_arcmin(df, const_dict):
+        return_df = copy.deepcopy(df)
+        return_df[const_dict['x_col']] = return_df[const_dict['x_col']] * 60
+        return_df[const_dict['y_col']] = return_df[const_dict['y_col']] * 60
+        const_dict['ValScaling'] = 1
+        return return_df, const_dict
