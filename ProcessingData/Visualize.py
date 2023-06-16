@@ -1,12 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import norm
+
+from ProcessingData.StatisticalEvaluation.Evaluation import Evaluation
 
 
 class Visualize():
     plt.rcParams['lines.linewidth'] = 1
 
     @staticmethod
-    def plot_xy(dataset, const_dict, color=None, labels=None):
+    def plot_xy(dataset, const_dict, color=None, labels=None, title='Eye Trace in x- and y-Position'):
         if labels is None:
             labels = ['x', 'y']
         if color is None:
@@ -17,9 +20,9 @@ class Visualize():
         y = dataset[const_dict['y_col']] * const_dict['ValScaling']
         plt.plot(t, x, label=labels[0], color=color[0])
         plt.plot(t, y, label=labels[1], color=color[1])
-        plt.xlabel('Time')
+        plt.xlabel('Time in s')
         plt.ylabel('Position in arcmin')
-        plt.title('Position over Time')
+        plt.title(title)
         plt.legend()
         plt.show()
 
@@ -35,7 +38,7 @@ class Visualize():
         y = dataset[const_dict['y_µm']] * const_dict['ValScaling']
         plt.plot(t, x, label=labels[0], color=color[0])
         plt.plot(t, y, label=labels[1], color=color[1])
-        plt.xlabel('Time')
+        plt.xlabel('Time in s')
         plt.ylabel('Position in µm')
         plt.title('Position over Time')
         plt.legend()
@@ -62,15 +65,55 @@ class Visualize():
         plt.show()
 
     @staticmethod
-    def print_microsacc(df, const_dict, micsac, color=['red', 'blue'], thickness=1):
-        Visualize.plot_xy(df, const_dict)
+    def plot_microsacc(df, const_dict, title = 'Eye Trace in x- and y-Position', micsac=False, micsac2=False, color=['red', 'blue'], thickness=1, legend=['Onset','Offset']):
+        if color is None:
+            color = ['blue', 'orange']
+        f = const_dict['f']
+        t = df[const_dict['time_col']] * const_dict['TimeScaling']
+        x = df[const_dict['x_col']] * const_dict['ValScaling']
+        y = df[const_dict['y_col']] * const_dict['ValScaling']
+        plt.plot(t, x,  color=color[0])
+        plt.plot(t, y,  color=color[1])
+        plt.xlabel('Time in s')
+        plt.ylabel('Position in arcmin')
+        plt.title(title)
         if isinstance(micsac, tuple):
             micsac_list = micsac[0]  # Either tuple or list
         elif isinstance(micsac, list):
             micsac_list = micsac
-        else:
-            print('Microsaccade Input is neither a tupel nor a list')
-        for microsaccade in micsac_list:
-            plt.axvline(microsaccade[0] / const_dict['f'], color=color[0], linewidth=thickness)  # plotting onset of microsaccade
-            plt.axvline(microsaccade[1] / const_dict['f'], color=color[1], linewidth=thickness)  # plotting offset of microsaccade
+        if isinstance(micsac2, tuple):
+            micsac_list2 = micsac2[0]  # Either tuple or list
+        elif isinstance(micsac2, list):
+            micsac_list2 = micsac2
+        onsets = [micsac_list[i][0]/const_dict['f'] for i in range(len(micsac_list))]
+        offsets= [micsac_list[i][1]/const_dict['f'] for i in range(len(micsac_list))]
+        plt.vlines(x=onsets, ymin = min(x), ymax = max(x), colors=color[2], linewidth=thickness)
+        plt.vlines(x=offsets, ymin = min(x), ymax = max(x),colors=color[3], linewidth=thickness)
+        if micsac2:
+            onsets2 = [micsac_list2[i][0] /const_dict['f']for i in range(len(micsac_list2))]
+            offsets2 = [micsac_list2[i][1] /const_dict['f']for i in range(len(micsac_list2))]
+            plt.vlines(x=onsets2,ymin = min(x), ymax = max(x),colors=color[4], linewidth=thickness)
+            plt.vlines(x=offsets2, ymin = min(x), ymax = max(x),colors=color[5], linewidth=thickness)
+        plt.gca().legend(legend)
+        plt.show()
 
+    @staticmethod
+    def plot_prob_dist(data, title):
+        # Takes a list of Data as input and plots the distribution
+        mean, median, stabw = Evaluation.get_statistics(data)
+        # Wahrscheinlichkeitsverteilung erstellen
+        x = np.linspace(min(data), max(data), 100)
+        y = norm.pdf(x, mean, stabw)
+        # Plot erstellen
+        plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
+        plt.hist(data, bins=20, density=True, alpha=0.6, label='Histogram')
+        plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {mean}', linewidth=2)
+        plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {median}', linewidth=2)
+        plt.axvline(x=mean + stabw, color='b', linestyle='--', label='1 Sigma', linewidth=2)
+        plt.axvline(x=mean - stabw, color='b', linestyle='--', linewidth=2)
+        # Achsenbeschriftung und Legende hinzufügen
+        plt.xlabel('Wert')
+        plt.title(title)
+        plt.ylabel('Wahrscheinlichkeitsdichte')
+        plt.legend()
+        plt.show()
