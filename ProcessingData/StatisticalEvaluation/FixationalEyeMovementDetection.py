@@ -38,14 +38,30 @@ class EventDetection():
         return df
 
     @staticmethod
-    def drift_only(df, const_dict, micsac_mindur=25, micsac_vfac=21):
+    def drift_only(df, const_dict, micsac_mindur=10, micsac_vfac=21):
         #remove blinks
-        blink_rm = Interpolation.remove_blink_annot(df, const_dict)
+        blink_rm = Interpolation.remove_blink_annot(df, const_dict) #Noch alle Frequenzbänder vorhanden
+        fft, fftfreq = Filtering.fft_transform(blink_rm, const_dict, 'x_col')
+        Visualize.plot_fft(fft, fftfreq)
         #remove micsacs
-        removed_micsac = Microsaccades.remove_micsac(blink_rm, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)
+        removed_micsac, drift_segment_indexes = Microsaccades.remove_micsac(blink_rm, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)
+        fft, fftfreq = Filtering.fft_transform(removed_micsac, const_dict, 'x_col')# Noch alle Frequenzbänder vorhanden
+        Visualize.plot_fft(fft, fftfreq)
         #Lowpassfiltering Signal
         filtered = EventDetection.filter_drift(removed_micsac, const_dict)
-        return filtered, removed_micsac, blink_rm
+        return filtered, drift_segment_indexes
+
+    @staticmethod
+    def tremor_only(df, const_dict, micsac_mindur=25, micsac_vfac=21):
+        # remove blinks
+        blink_rm = Interpolation.remove_blink_annot(df, const_dict)  # Noch alle Frequenzbänder vorhanden
+
+        # remove micsacs
+        removed_micsac, _ = Microsaccades.remove_micsac(blink_rm, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)
+
+        # Passbandfiltering Signal
+        filtered = EventDetection.filter_tremor(removed_micsac, const_dict)
+        return filtered
 
 
 
