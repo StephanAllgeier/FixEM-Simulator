@@ -1,10 +1,15 @@
 import numpy as np
+import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 from scipy.stats import norm
+import math
 
 from ProcessingData.ExternalCode.EngbertMicrosaccadeToolboxmaster.EngbertMicrosaccadeToolbox.microsac_detection import \
     vecvel
+from ProcessingData.Preprocessing.Interpolation import Interpolation
+from ProcessingData.StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
+from ProcessingData.StatisticalEvaluation.Microsaccades import Microsaccades
 
 
 class Evaluation():
@@ -41,8 +46,6 @@ class Evaluation():
             # timedist.append(df[const_dict['time_col']][micsac_list[i+1][0]] - df[const_dict['time_col']][micsac_list[i][1]])
         return timedist
 
-
-
     @staticmethod
     def intermicsac_distribution(const_dict, micsac_list, plot=False):
         intermicsac_list = Evaluation.intermicrosacc_len(const_dict, micsac_list)
@@ -75,12 +78,92 @@ class Evaluation():
             y_diff = y_offset_val - y_onset_val
             amp = np.sqrt(np.square(x_diff) + np.square(y_diff))
 
-            v = np.max(np.sqrt(vel[start:end, 0]**2 + vel[start:end, 1]**2))
-            #v = amp / ((micsac_offset - micsac_onset) / const_dict['f'])
+            v = np.max(np.sqrt(vel[start:end, 0] ** 2 + vel[start:end, 1] ** 2))
+            # v = amp / ((micsac_offset - micsac_onset) / const_dict['f'])
             # Gibt Geschwindigkeit in der Einheit der Eingabe zurück
             duration.append((end - start) / const_dict['f'])
             amplitudes.append(amp)
             velocity.append(v)
-
-            # Hier ist ein Unterschied in der AMplitude detetiert worden: Entsteht durch Filtern bei Detektion der MS
+        # Hier ist ein Unterschied in der AMplitude detetiert worden: Entsteht durch Filtern bei Detektion der MS
+        #Velocity in deg/s
+        micsac_vel = [i/60 for i in velocity]
         return intermic_dist, duration, amplitudes, velocity
+
+    @staticmethod
+    def get_drift_statistics(df, const_dict):  # df has to be without blinks
+        drift = EventDetection.drift_only(df, const_dict)
+        drift_indexes = EventDetection.drift_indexes_only(df, const_dict)
+        amp = []
+        amp2 = []
+        velocity = []
+        x = df[[const_dict['x_col'], const_dict['y_col']]].to_numpy()
+        vel = vecvel(x, sampling=const_dict['f'])
+        for drift_segment in drift_indexes:
+            start = drift_segment[0]
+            end = drift_segment[1]
+            #a = Evaluation.berechne_weitester_abstand(df, const_dict, start, end)
+            amplituden = np.sqrt(df[const_dict['x_col']][start:end] ** 2 + df[const_dict['y_col']][start:end] ** 2)
+            amp.append(np.max(amplituden) - np.min(amplituden))
+            #amp2.append(a)
+
+            v = np.max(np.sqrt(vel[start:end, 0] ** 2 + vel[start:end, 1] ** 2))  # Caluclating max speed in segment
+            velocity.append(v)
+        return amp, velocity
+
+    @staticmethod
+    def get_tremor_statistics(df, const_dict): # df has to be without blinks
+        tremor = EventDetection.tremor_only(df, const_dict)
+        tremor_segments = EventDetection.drift_indexes_only(df, const_dict) # Remove Microsaccades from measurement
+        amp = []
+        velocity = []
+        x = tremor[[const_dict['x_col'], const_dict['y_col']]].to_numpy()
+        vel = vecvel(x, sampling=const_dict['f'])
+        for tremor_segment in tremor_segments:
+            start = tremor_segment[0]
+            end = tremor_segment[1]
+            amplituden = np.sqrt(tremor[const_dict['x_col']][start:end] ** 2 + tremor[const_dict['y_col']][start:end] ** 2)
+            amp.append(np.max(amplituden) - np.min(amplituden))
+            v = np.max(np.sqrt(vel[start:end, 0] ** 2 + vel[start:end, 1] ** 2))
+            velocity.append(v)
+        return amp, velocity
+
+    def berechne_weitester_abstand(dataframe, const_dict, start, end):
+        zeitbereich = dataframe[start:end-1]
+        x = zeitbereich[const_dict['x_col']].tolist()
+        y = zeitbereich[const_dict['y_col']].tolist()
+
+        weitester_abstand = 0.0
+
+        for i in range(len(x)):
+            for j in range(i + 1, len(x)):
+                abstand = math.sqrt((x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2)
+                if abstand > weitester_abstand:
+                    weitester_abstand = abstand
+
+        return weitester_abstand
+
+    @staticmethod
+    def evaluation_of_files(files_list, const_dict):
+        all_micsac_amp = []
+        all_intermicsac = []
+        all_micsac_dur = []
+        all_micsac_vel = []
+        all_drift_amp = []
+        all_drift_vel = []
+        all_tremor_amp = []
+        all_tremor_vel = []
+        for file in files_list:
+            data = pd.read_csv(file)
+            blink_rm, const_dict = Interpolation.remove_blink_annot(data, const_dict)
+            micsac_detec = Microsaccades.find_micsac(blink_rm, const_dict)
+            intermicsac, dur, amplitudes, velocity = Evaluation.get_micsac_statistics(blink_rm, const_dict, micsac_detec)
+            amp_drift, vel_drift = Evaluation.get_drift_statistics(blink_rm, const_dict)
+            amp_tremor, vel_tremor = Evaluation.get_tremor_statistics(blink_rm, const_dict)
+            all_micsac_amp.extend(amplitudes)
+            all_intermicsac.extend(intermicsac)
+            all_micsac_dur.extend(dur)
+            all_micsac_vel.extend(velocity)
+            all_drift_amp.extend(amp_drift)
+            all_drift_vel.extend(vel_drift)
+            all_tremor_amp.extend(amp_tremor)
+            all_tremor_vel.extend(vel_tremor)
