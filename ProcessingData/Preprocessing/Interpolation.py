@@ -73,7 +73,8 @@ class Interpolation():
             data_frame = data_frame[remove_start_time * const_dict['f'] // 1000:]
         data_frame = data_frame.reset_index()
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f'] / const_dict['TimeScaling']
-        return data_frame
+        const_dict['rm_blink'] = True
+        return data_frame, const_dict
 
     @staticmethod
     def remove_blink_annot(df, const_dict):
@@ -96,7 +97,8 @@ class Interpolation():
             data_frame = data_frame.drop(liste)
         data_frame = data_frame.reset_index(drop=True)
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
-        return data_frame
+        const_dict['rm_blink'] = True
+        return data_frame, const_dict
 
     @staticmethod
     def convert_arcmin_to_dva(df, const_dict):
