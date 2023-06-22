@@ -2,8 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
 
-from ProcessingData.StatisticalEvaluation.Evaluation import Evaluation
-
 
 class Visualize():
     plt.rcParams['lines.linewidth'] = 1
@@ -98,21 +96,23 @@ class Visualize():
         plt.show()
 
     @staticmethod
-    def plot_prob_dist(data, title):
+    def plot_prob_dist(data: list, title: str, x_value: str):
         # Takes a list of Data as input and plots the distribution
-        mean, median, stabw = Evaluation.get_statistics(data)
+        mean = np.mean(data)
+        median = np.median(data)
+        std= np.std(data)
         # Wahrscheinlichkeitsverteilung erstellen
         x = np.linspace(min(data), max(data), 100)
-        y = norm.pdf(x, mean, stabw)
+        y = norm.pdf(x, mean, std)
         # Plot erstellen
         plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
-        plt.hist(data, bins=20, density=True, alpha=0.6, label='Histogram')
+        plt.hist(data, bins='auto', density=True, alpha=0.6, label='Histogram')
         plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {mean}', linewidth=2)
         plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {median}', linewidth=2)
-        plt.axvline(x=mean + stabw, color='b', linestyle='--', label='1 Sigma', linewidth=2)
-        plt.axvline(x=mean - stabw, color='b', linestyle='--', linewidth=2)
+        plt.axvline(x=mean + std, color='b', linestyle='--', label=f'1 Sigma = {std}', linewidth=2)
+        plt.axvline(x=mean - std, color='b', linestyle='--', linewidth=2)
         # Achsenbeschriftung und Legende hinzufügen
-        plt.xlabel('Wert')
+        plt.xlabel(x_value)
         plt.title(title)
         plt.ylabel('Wahrscheinlichkeitsdichte')
         plt.legend()
