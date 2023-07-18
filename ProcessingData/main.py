@@ -18,7 +18,7 @@ from StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
-        return {"Name":"Roorda", "f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1, "TimeScaling": 1,
+        return {"Name":"Roorda", "f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1/60, "TimeScaling": 1,
                 'BlinkID': 3, 'Annotations': 'Flags', 'file_pattern': "\d{5}[A-Za-z]_\d{3}\.csv", 'rm_blink':False}
     elif dataset_name == "GazeBase":
         return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     #                   color=['orange', 'blue', 'green', 'red', 'grey', 'black'], thickness=2,
     #                   legend=['x', 'y', 'Onset detect', 'Offset detect', 'Onset annot', 'Offset annot'])
 
-
+    Vis.plot_xy(blink_rm[0:round(6000/1000*const_roorda['f'])],const_roorda,color=['b','orange'], labels=['x-Achse', 'y-Achse'], title='Menschliche Augenbewegung während der Fixation')
     drift_only_wo_micsac = EventDetection.drift_only_wo_micsac(blink_rm, const_dict)
     drift_only = EventDetection.drift_only(blink_rm, const_dict)
     drift_interpolated = EventDetection.drift_interpolated(blink_rm, const_dict)

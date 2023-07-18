@@ -18,8 +18,8 @@ class Visualize():
         y = dataset[const_dict['y_col']] * const_dict['ValScaling']
         plt.plot(t, x, label=labels[0], color=color[0])
         plt.plot(t, y, label=labels[1], color=color[1])
-        plt.xlabel('Time in s')
-        plt.ylabel('Position in arcmin')
+        plt.xlabel('Zeit in s')
+        plt.ylabel('Position in Grad [°]')
         plt.title(title)
         plt.legend()
         plt.show()
