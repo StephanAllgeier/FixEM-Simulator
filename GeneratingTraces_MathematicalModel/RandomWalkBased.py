@@ -85,7 +85,7 @@ class RandomWalk():
                             help='Number of visited / fixation potential cells per degree. This influences how densly the field of view will be scanned and is thus indirectly proportional to the scanned area.')
         parser.add_argument('--fixation_potential_factor', default=5.0, type=float,
                             help='Scaling factor of the fixation potential.')
-        parser.add_argument('--relaxation_rate', default=0.2, type=float,
+        parser.add_argument('--relaxation_rate', default=0.001, type=float,#Value from Engerb, here was standing 0.2 which was too fast
                             help='Relaxation rate of the visited-activation over a duration of 1 second.')
         parser.add_argument('--sampling_frequency', default=100.0, type=float,
                             help='Sampling frequency of the simulated scanner in 1/sec.')
@@ -500,15 +500,58 @@ class RandomWalk():
         walker_j = RandomWalk.convert_range(field_min, field_max, walker_x, N)  # degree
         visited_activation[walker_i, walker_j] = 1.0
         steps_dist = 0.0  # degree
-
+        micsac_flag = False
+        micsac_array= np.empty(steps_sim+1)
+        micsac_array[0]=False
+        skip=0
         """
         Random Walk
         """
 
         for i in range(steps_sim):
+            #------------------------------------------------
+            #Fabian Anzlinger
+            #------------------------------------------------
+            if skip>0:
+                micsac_array[i + 1] = True
+                skip-=1
+                continue
             #   Get possible next locations
             if micsac_flag == True:
-                pass
+                #Trigger Microsaccade: get global minimum of sum of activation field and potential
+                sum_act_pot = visited_activation + fixation_potential_display
+                glob_min_idx = np.unravel_index(np.argmin(sum_act_pot), sum_act_pot.shape)#Index mit minimalem Wert. Nun noch mit Standardabweichung und Co verarbeiten.TODO: SPRING AKTUELL IMMER INS ZENTRUM DIESER ZELLE!!!
+                micsac_dur = np.random.uniform(0.01, 0.02) #Take random value for Micsac_duration
+                num_of_steps = 1 if int(np.ceil(micsac_dur * f_sim))<1 else int(np.ceil(micsac_dur * f_sim))
+                start_micsac = [visited_points[i, 0], visited_points[i, 1]] #x,y
+                end_micsac = [cell_center_1d[glob_min_idx[1]], cell_center_1d[glob_min_idx[0]]]#x,y
+                x_vals= np.linspace(start_micsac[0], end_micsac[0], num_of_steps+1)
+                y_vals= np.linspace(start_micsac[1], end_micsac[1], num_of_steps+1)
+
+                #   Get indices that lie on the line from start to most probable end point
+                y_idx, x_idx, w_idx = line_aa(line_i[-1], line_j[-1], glob_min_idx[1], glob_min_idx[0])
+                y_idx, x_idx, w_idx = y_idx[1:], x_idx[1:], w_idx[1:]
+                # prefer thin lines, otherwise the walker is quite restricted
+                # long term, by using a smooth activation increase function instead of a line and a better rule than max, this can be properly improved. for now we're stuck with the grid.
+                y_idx = y_idx[w_idx >= min_line_weight]
+                x_idx = x_idx[w_idx >= min_line_weight]
+
+                #Update activation
+                walked_mask = np.zeros(visited_activation.shape, dtype=bool)
+                walked_mask[y_idx, x_idx] = True
+                visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (
+                            1 / f_sim)
+                visited_activation[walked_mask] = visited_activation[walked_mask] + 1.0
+                visited_points[i + 1: i + 1 + num_of_steps, 0] = x_vals[1:]
+                visited_points[i + 1: i + 1 + num_of_steps, 1] = y_vals[1:]
+                #Adjusting position, skip for as long as needed
+                walker_x = cell_center_1d[glob_min_idx[1]]
+                walker_y = cell_center_1d[glob_min_idx[0]]
+                micsac_flag = False
+                micsac_array[i+1] =True
+                skip = num_of_steps-1
+                micsac_flag = False
+                continue
             rand_x, rand_y, angle, dist = RandomWalk.get_random_directions(args, walker_x, walker_y, field_min, field_max) #all variables are arrays of size args.step_candidates
 
             #   Convert float locations to potential grid indices
@@ -551,9 +594,7 @@ class RandomWalk():
             walker_y = rand_y[selected_idx]
             visited_points[i + 1, 0] = walker_x
             visited_points[i + 1, 1] = walker_y
-            # Check value of activation  field at new point TODO: DONE BY ME
-            h_c = 7.9  # Value from "An integrated model of fixational eye movements and microsaccades
-            h_curr = visited_activation[RandomWalk.convert_range(field_min, field_max, walker_y, N), RandomWalk.convert_range(field_min, field_max, walker_x, N)]
+
 
             #   Step visualization (do this before updating the activation so it reflects the values during decision)
             if args.step_through > 0 and args.sampling_start <= i / f_sim and i / f_sim < args.sampling_start + args.sampling_duration:
@@ -606,9 +647,13 @@ class RandomWalk():
             #   Update visited-activation
             visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (1 / f_sim)
             visited_activation[walked_mask] = visited_activation[walked_mask] + 1.0
-
+            # Check value of activation  field at new point
+            h_crit = 3.9  # Value from "An integrated model of fixational eye movements and microsaccades
+            micsac_flag = np.any(visited_activation[walked_mask]>h_crit)
+            micsac_array[i+1] = micsac_flag
+            print('Vis Act max', np.max(visited_activation[walked_mask]), 'Flag: ', micsac_flag)
         """
-        BSpline Interpolation
+        BSpline Interpolation for random Walk and Linear Interpolation for Microsaccades
         """
 
         x = visited_points[:, 0]
@@ -617,11 +662,35 @@ class RandomWalk():
         # construct spline based on simulated steps
         T_sim = steps_sim / f_sim  # in the range [T, T + 1/f_sim)
         t_sim = np.linspace(0, T_sim, len(visited_points))
+
+        #Abschnittsweise B-Spline und Lineare Interpolation
+        micsac_onset = []# Entspricht Offset Drift
+        micsac_offset =[] #Entspricht Onset Drift
+        for i in range(1,len(micsac_array)):
+            if micsac_array[i] and not micsac_array[i-1]:
+                micsac_onset.append(i)
+            elif not micsac_array[i] and micsac_array[i-1]:
+                micsac_offset.append(i-1)
+        if len(micsac_onset)>len(micsac_offset): #Wenn genau am letzten Index eine Mikrosakkade getriggert wird.
+            micsac_onset=micsac_onset[:-1]
+        drift_segments=[]
+        for i in range(len(micsac_onset)+1):
+            if i == 0:
+                drift_segments.append([0,micsac_onset[i]])
+            elif i>0 and i<len(micsac_onset):
+                drift_segments.append([micsac_offset[i-1], micsac_onset[i]])
+            else:
+                drift_segments.append([micsac_offset[i-1], len(micsac_array)])
+        '''
+        for segment in drift_segments:
+            drift_sim = t_sim[segment[0]:segment[1]]
+            x_drift = x[segment[0]:segment[1]]
+            y_drift = y[segment[0]:segment[1]]
+            spline_x_drift = si.splrep(drift_sim,x_drift, k=3)
+            spline_y_drift = si.splrep(drift_sim,y_drift, k=3)
+        '''
         spline_x = si.splrep(t_sim, x, k=3)
         spline_y = si.splrep(t_sim, y, k=3)
-        # t_sim_idces = range(len(visited_points)) # use unit in indices for potentially faster spline construction -> TODO: is there a spline method that benefits from this?
-        # spline_x_idces = si.splrep(t_sim_idces, x, k=3)
-        # spline_y_idces = si.splrep(t_sim_idces, y, k=3)
 
         # sample with sampling frequency of the scanner
         sampling_end = args.sampling_start + args.sampling_duration
@@ -640,9 +709,6 @@ class RandomWalk():
             T_sampling = t_sampled[-1] - t_sampled[0]
             x_sampled = si.splev(t_sampled, spline_x)
             y_sampled = si.splev(t_sampled, spline_y)
-            # t_sampled_sim_idces = t_sampled * f_sim # since the spline was constructed with time in unit 'simulation steps', convert the sampling times from scale seconds to simulation steps
-            # x_sampled = si.splev(t_sampled_sim_idces, spline_x_idces)
-            # y_sampled = si.splev(t_sampled_sim_idces, spline_y_idces)
 
             samples_dist = RandomWalk.line_length(x_sampled, y_sampled)
 
@@ -699,6 +765,7 @@ class RandomWalk():
         np.seterr(divide=prev_err['divide'])
         print("Length change compared to approximation with half frequency (f_sampling*2**" + str(f_sampling_power) + "):",
               bspline_dist_half - bspline_dist, "deg")
+        print("Number of Microsaccades ", len(drift_segments)-1)
 
         """
         Write step positions & curve to disk.
