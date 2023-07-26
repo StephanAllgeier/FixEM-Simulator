@@ -24,8 +24,8 @@ class MyWindow(QMainWindow):
 
         # Liste von Variablennamen erstellen
         self.variable_names = ["Duration", "Field size in degree", "Simulation Frequency", "Sampling Frequency", "Sampling duration",
-                               "Relaxation Rate", "Start Position Sigma", 'Number of step candidates', 'Folderpath to save to', 'Show plots', 'Cells per degree']
-        self.variable_mapping = {"Cells per degree": "potential_resolution", "Duration": 'duration', "Field size in degree":'field_size', "Simulation Frequency":'simulation_freq', "Sampling Frequency":'sampling_frequency', "Sampling duration":'sampling_duration',
+                               "Relaxation Rate", "Start Position Sigma", 'Number of step candidates', 'Folderpath to save to', 'Show plots', 'Cells per degree', 'Number of simulations']
+        self.variable_mapping = {"Number of simulations":"number", "Cells per degree": "potential_resolution", "Duration": 'duration', "Field size in degree":'field_size', "Simulation Frequency":'simulation_freq', "Sampling Frequency":'sampling_frequency', "Sampling duration":'sampling_duration',
                                "Relaxation Rate":'relaxation_rate', "Start Position Sigma":'start_position_sigma', 'Number of step candidates':'num_step_candidates', 'Folderpath to save to':'folderpath', 'Show plots':'show_plots'}
 
         self.input_fields = []
@@ -119,7 +119,8 @@ class MyWindow(QMainWindow):
             if key in self.variable_mapping.keys():
                 variables_dict[self.variable_mapping[key]] = variables[key]
         if selected_function == 'RandomWalk based':
-            RandomWalkBased.RandomWalk.randomWalk(**variables_dict)
+            for i in range(1,int(variable_value)+1):
+                RandomWalkBased.RandomWalk.randomWalk(**variables_dict, number_id=i)
         if selected_function == 'GAN based':
             print('Not yet implemented.')
 
