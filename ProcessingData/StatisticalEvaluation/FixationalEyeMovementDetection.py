@@ -44,13 +44,13 @@ class EventDetection():
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)  # Noch alle Frequenzbänder vorhanden
-        fft, fftfreq = Filtering.fft_transform(df, const_dict, 'x_col')
-        Visualize.plot_fft(fft, fftfreq) #HIER SIND NOCH ALLE FREQUENZBÄNDER VORHANDEN
+        #fft, fftfreq = Filtering.fft_transform(df, const_dict, 'x_col')
+        #Visualize.plot_fft(fft, fftfreq) #HIER SIND NOCH ALLE FREQUENZBÄNDER VORHANDEN
         # remove micsacs
         removed_micsac = Microsaccades.remove_micsac(df, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)
-        fft, fftfreq = Filtering.fft_transform(removed_micsac, const_dict,
-                                               'x_col')  # Noch alle Frequenzbänder vorhanden
-        Visualize.plot_fft(fft, fftfreq) #TODO: Wieso sieht das Signal hier so anders aus? Entsteht durch das Splicen des Signals an Stellen der Mikrosakkaden
+        #fft, fftfreq = Filtering.fft_transform(removed_micsac, const_dict,
+                                            #   'x_col')  # Noch alle Frequenzbänder vorhanden
+        #Visualize.plot_fft(fft, fftfreq) #TODO: Wieso sieht das Signal hier so anders aus? Entsteht durch das Splicen des Signals an Stellen der Mikrosakkaden
         # Lowpassfiltering Signal
         filtered = EventDetection.filter_drift(removed_micsac, const_dict)
         return filtered
