@@ -96,6 +96,19 @@ def detect_all_micsac(folderpath, const_dict,mindur, vfac, resample=False, rs_fr
         save_dict_to_excel(detected_micsac, data_name)
     return data, micsac_detec[0]
 
+def read_all_values_from_csv(folder_path, end, column_name):
+    all_names = []
+    csv_files = list(glob.glob(os.path.join(folder_path, f'*{end}')))
+
+    for csv_file in csv_files:
+        file_path = os.path.join(folder_path, csv_file)
+        df = pd.read_csv(file_path)
+        if column_name in df.columns:
+            all_names.extend(df['Name'].tolist())
+
+    return all_names
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
@@ -105,6 +118,8 @@ if __name__ == '__main__':
 
     #OWN DATA
     folder_path= r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\dur=10.0_cells=25.0\SamplingF=200.0_SimulationF=100.0"
+    micsac_dur = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*intermic_dur.csv', 'Intermicsac Duration [s]')
+    micsac_amp = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*micsac_amp.csv', 'Micsac Amplitude [deg]')
     all_own_files = get_csv_files_in_folder(folder_path)
     for file in all_own_files:
 
