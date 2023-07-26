@@ -103,9 +103,9 @@ class Visualize():
         std= np.std(data)
         # Wahrscheinlichkeitsverteilung erstellen
         x = np.linspace(min(data), max(data), 100)
-        y = norm.pdf(x, mean, std)
+        #y = norm.pdf(x, mean, std)
         # Plot erstellen
-        plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
+        #plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
         plt.hist(data, bins='auto', density=True, alpha=0.6, label='Histogram')
         plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {mean}', linewidth=2)
         plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {median}', linewidth=2)
@@ -116,4 +116,5 @@ class Visualize():
         plt.title(title)
         plt.ylabel('Wahrscheinlichkeitsdichte')
         plt.legend()
+        plt.savefig(fr'C:\Users\fanzl\bwSyncShare\Documents\Texte\Masterarbeit_AnzlingerFabian\Bilder\Statistische Verteilungen\AutomaticallyGenerated\{title}.svg', dpi=350)
         plt.show()
