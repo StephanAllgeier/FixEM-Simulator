@@ -23,7 +23,9 @@ def get_constants(dataset_name):
     elif dataset_name == "GazeBase":
         return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
                 "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab', 'rm_blink':False} # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
-
+    elif dataset_name == "OwnData":
+        return {"Name": "OwnData", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'Time', "ValScaling": 1,
+                "TimeScaling": 1, 'BlinkID': None, 'Annotations': 'lab', 'rm_blink':False}
 def read_allgeier_data(folder_path, filenr=0):
     files = list(glob.glob(folder_path + "/*.txt"))
     #Create Dataframe
@@ -50,6 +52,14 @@ def get_files_with_pattern(folder_path, pattern):
         if os.path.isfile(file_path) and regex_pattern.match(filename):
             file_list.append(file_path)
     return file_list
+
+def get_csv_files_in_folder(folder_path):
+    csv_files = []
+    for filename in os.listdir(folder_path):
+        if filename.endswith(".csv"):
+            file_path = os.path.join(folder_path, filename)
+            csv_files.append(file_path)
+    return csv_files
 
 def save_dict_to_csv(data_dict, file_path):
     with open(file_path, 'w', newline='') as csv_file:
@@ -92,6 +102,26 @@ if __name__ == '__main__':
 
     roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
 
+
+    #OWN DATA
+    folder_path= r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\dur=10.0_cells=25.0\SamplingF=200.0_SimulationF=100.0"
+    all_own_files = get_csv_files_in_folder(folder_path)
+    for file in all_own_files:
+
+        own_data = pd.read_csv(file)
+        x = own_data['x']
+        y = own_data['y']
+        f = 1000
+        t = own_data['Time']
+        own_dict =get_constants('OwnData')
+        plt.plot(t, x, label='x', color='g')
+        plt.plot(t, y, label='y', color='b')
+        plt.xlabel('Zeit in s')
+        plt.title('Test1')
+        plt.legend()
+        plt.show()
+        Vis.plot_xy_trace(own_dict)
+    own_micsacs = Microsaccades.find_micsac(own_data, own_dict)
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
     roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
@@ -119,7 +149,7 @@ if __name__ == '__main__':
     #                   color=['orange', 'blue', 'green', 'red', 'grey', 'black'], thickness=2,
     #                   legend=['x', 'y', 'Onset detect', 'Offset detect', 'Onset annot', 'Offset annot'])
 
-    Vis.plot_xy(blink_rm[0:round(6000/1000*const_roorda['f'])],const_roorda,color=['b','orange'], labels=['x-Achse', 'y-Achse'], title='Menschliche Augenbewegung während der Fixation')
+    #Vis.plot_xy(blink_rm[0:round(6000/1000*const_roorda['f'])],const_roorda,color=['b','orange'], labels=['x-Achse', 'y-Achse'], title='Menschliche Augenbewegung während der Fixation')
     drift_only_wo_micsac = EventDetection.drift_only_wo_micsac(blink_rm, const_dict)
     drift_only = EventDetection.drift_only(blink_rm, const_dict)
     drift_interpolated = EventDetection.drift_interpolated(blink_rm, const_dict)
@@ -137,6 +167,17 @@ if __name__ == '__main__':
     all_tremor_vel = []
     for file in roorda_files:
         data = pd.read_csv(file)
+        #Get Resolution
+        x = data['xx']
+        y = data['yy']
+        a_x = x.sort_values()
+        a_y = y.sort_values()
+        diff_x = a_x.diff()
+        diff_y = a_y.diff()
+        nn_x = diff_x[diff_x!=0.0]
+        nn_y = diff_y[diff_y.notnull()]
+
+
         blink_rm, const_dict = Interpolation.remove_blink_annot(data, const_roorda)
         micsac_detec = Microsaccades.find_micsac(blink_rm, const_dict)
         intermicsac, dur, amplitudes, velocity = Evaluation.get_micsac_statistics(blink_rm, const_dict, micsac_detec)
@@ -169,11 +210,21 @@ if __name__ == '__main__':
             writer.writerow(row)
         '''
 
-    Vis.plot_prob_dist([i*60 for i in all_tremor_amp], 'Amplitude of tremor', 'Amplitude in arcsec')#Why does this lead to an error?
-    Vis.plot_prob_dist(all_micsac_amp, 'Amplitudes of Microsaccades', 'Amplitude in arcmin')
-    Vis.plot_prob_dist(all_intermicsac, 'Intermicrosaccadic Duration', 'Duration in s')
-    Vis.plot_prob_dist(all_micsac_vel, 'Velocity of Microsaccades', 'Velocity in °/s')
-    Vis.plot_prob_dist(all_drift_amp, 'Amplitude of drift', 'Amplitude in arcmin')
+    #Vis.plot_prob_dist([i*60 for i in all_tremor_amp], 'Amplitude of tremor', 'Amplitude in arcsec')#Why does this lead to an error?
+    #Mikrosakkaden
+    Vis.plot_prob_dist(all_micsac_amp, 'Amplituden der Mikrosakkaden', 'Amplitude in Bogenminuten')
+    Vis.plot_prob_dist(all_intermicsac, 'Intermikrosakkadische Intervalldauer', 'Zeit in s')
+    Vis.plot_prob_dist(all_micsac_vel, 'Geschwindigkeit von Mikrosakkaden', 'Geschwindigkeit in °/s')
+    Vis.plot_prob_dist(all_micsac_dur, 'Dauer von Mikrosakkaden', 'Zeit in s')
+    #Drift
+    Vis.plot_prob_dist(all_drift_amp, 'Amplituden des Drifts', 'Amplitude in Bogenminuten')
+    Vis.plot_prob_dist(all_drift_vel, 'Geschwindigkeit des Drifts', 'Geschwindigkeit in Bogenminuten/s')
+    #Tremor
+    Vis.plot_prob_dist(all_tremor_amp, 'Amplituden des Tremors', 'Amplitude in Bogenminuten')
+    Vis.plot_prob_dist(all_tremor_vel, 'Geschwindigkeit des Tremors', 'Geschwindigkeit in Bogenminuten/s')
+
+
+
 
     amp_drift, vel_drift = Evaluation.get_drift_statistics(blink_rm, const_dict)
     amp_tremor, vel_tremor = Evaluation.get_tremor_statistics(blink_rm, const_dict)
