@@ -117,9 +117,9 @@ if __name__ == '__main__':
 
 
     #OWN DATA
-    folder_path= r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\dur=10.0_cells=25.0\SamplingF=200.0_SimulationF=100.0"
-    micsac_dur = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*intermic_dur.csv', 'Intermicsac Duration [s]')
-    micsac_amp = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*micsac_amp.csv', 'Micsac Amplitude [deg]')
+    folder_path= r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\dur=5.0_cells=10.0\SamplingF=1000.0"
+    #micsac_dur = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*intermic_dur.csv', 'Intermicsac Duration [s]')
+    #micsac_amp = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*micsac_amp.csv', 'Micsac Amplitude [deg]')
     all_own_files = get_csv_files_in_folder(folder_path)
     for file in all_own_files:
 

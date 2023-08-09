@@ -49,9 +49,10 @@ if __name__ == '__main__':
                 mean_intermicsac_dur, median_intermicsac_dur, sigma_intermicsac_dur, mean_micsac_amp, median_micsac_amp, sigma_intermicsac_amp = 0,0,0,0,0,0
             data = [simulation_rate, cells_per_deg, relaxation_rate, hc, mean_intermicsac_dur, median_intermicsac_dur, sigma_intermicsac_dur, mean_micsac_amp, median_micsac_amp, sigma_intermicsac_amp, micsacs_mean, micsacs_median]
             all_data.append(data)
+            print(f"{j / len(all_combinations) / len(folder_names)}% done")
     df = pd.DataFrame(all_data, columns=headers)
     file_name_excel= "MicsacStatistics.xlsx"
     file_name_csv = "MicsacStatistics.csv"
-    df.to_excel(rf"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\{file_name_excel}", index=False)
-    df.to_csv(rf"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\{file_name_csv}", index=False)
+    df.to_excel(rf"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\{file_name_excel}", index=False)
+    df.to_csv(rf"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\{file_name_csv}", index=False)
     print(len(all_combinations))

@@ -397,7 +397,7 @@ class RandomWalk():
     def oculomotor_potential(args, curr_posx, curr_posy, center_row, center_col):
         chi = 2
         L = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
-        oculo_pot = lambda offset_x, offset_y:(args.fixation_potential_factor * 2 *((offset_x-curr_posx) ** 2 + (offset_y-curr_posy) ** 2))
+        oculo_pot = lambda offset_x, offset_y:(args.fixation_potential_factor * 2 *(((offset_x-curr_posx) ** 2) * ((offset_y-curr_posy) ** 2)))
         return oculo_pot(center_col, center_row)
 
 
@@ -407,7 +407,8 @@ class RandomWalk():
                    potential_norm_exponent=None, random_seed=None, potential_resolution=None, potential_weight=None,
                    relaxation_rate=None, sampling_duration=None, sampling_frequency=None, sampling_start=None,
                    show_plots=None, start_position_sigma=None, num_step_candidates=None, step_through=None,
-                   use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, number = 0):
+                   use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1,
+                   number = 0, hc=1.0, save=False, report=False):
         # Init
         global warned_mirror
         warned_mirror = False #TODO: Was macht dieser Code hier
@@ -466,12 +467,12 @@ class RandomWalk():
         if walk_along_axes is not None:
             args.walk_along_axes=walk_along_axes
         if folderpath is not None:
-            args.fpath_sampled=fr'{Path(folderpath)}\dur={args.duration}_cells={args.potential_resolution}\SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}\{number_id}'
+            args.fpath_sampled=fr"{Path(folderpath)}\dur={args.duration}_cells={args.potential_resolution}_SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}_relaxationr={args.relaxation_rate}\{number_id}"
             args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\{number_id}'
 
         N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
         effective_potential_resolution = N / args.field_size
-        print('effective potential_resolution:', effective_potential_resolution, '[1/°] (N = ' + str(N) + ')')
+        #print('effective potential_resolution:', effective_potential_resolution, '[1/°] (N = ' + str(N) + ')')
 
         if args.base_dir is not None:
             chdir(args.base_dir)
@@ -671,14 +672,14 @@ class RandomWalk():
             walked_mask[line_i, line_j] = True
 
             #Micsac Criterion
-            h_crit = 2.9 # 7.9 Value from "An integrated model of fixational eye movements and microsaccades
+            h_crit = hc # 7.9 Value from "An integrated model of fixational eye movements and microsaccades
             #micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger PUnkt auf LInie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
             if micsac_array[i]:
                 micsac_array[i+1] = False
             else:
                 micsac_array[i + 1] = micsac_flag
-            print('Visited activation', np.max(visited_activation[line_i[-1], line_j[-1]]), 'Flag: ', micsac_flag)
+            #print('Visited activation', np.max(visited_activation[line_i[-1], line_j[-1]]), 'Flag: ', micsac_flag)
 
             #   Update visited-activation
             visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (1 / f_sim)
@@ -790,29 +791,29 @@ class RandomWalk():
         x_sampled += tremor_x
         y_sampled += tremor_y
 
+        if report:
+            """
+            Summary Report
+            """
 
-        """
-        Summary Report
-        """
-
-        print("Requested simulation duration:", T, "sec")
-        print("Effective simulation duration:", T_sim, "sec")
-        print("Effective sampling duration:", T_sampling, "sec")
-        print("Number of sampled locations (including start):", len(t_sampled))
-        print("Distance linear pathway:", steps_dist, "deg")
-        print("Length of B-Spline:", bspline_dist, "deg")
-        print("Mean distance between steps (linear):", steps_dist / steps_sim, "deg")
-        print("Mean distance between steps along B-Spline:", bspline_dist / steps_sim, "deg")
-        print("Mean distance between samples (linear):", samples_dist / steps_sampling, "deg")
-        print("Mean distance between samples along B-Spline:", bspline_dist / steps_sampling, "deg")
-        prev_err = np.geterr()
-        np.seterr(divide='ignore')
-        print("Mean velocity:", np.float64(bspline_dist) / np.float64(T_sampling), "deg/sec")
-        print("Stddev velocity:", bspline_velocity_std, "deg/sec")
-        np.seterr(divide=prev_err['divide'])
-        print("Length change compared to approximation with half frequency (f_sampling*2**" + str(f_sampling_power) + "):",
-              bspline_dist_half - bspline_dist, "deg")
-        print("Number of Microsaccades ",  0 if len(drift_segments)-1 < 0 else len(drift_segments)-1)
+            print("Requested simulation duration:", T, "sec")
+            print("Effective simulation duration:", T_sim, "sec")
+            print("Effective sampling duration:", T_sampling, "sec")
+            print("Number of sampled locations (including start):", len(t_sampled))
+            print("Distance linear pathway:", steps_dist, "deg")
+            print("Length of B-Spline:", bspline_dist, "deg")
+            print("Mean distance between steps (linear):", steps_dist / steps_sim, "deg")
+            print("Mean distance between steps along B-Spline:", bspline_dist / steps_sim, "deg")
+            print("Mean distance between samples (linear):", samples_dist / steps_sampling, "deg")
+            print("Mean distance between samples along B-Spline:", bspline_dist / steps_sampling, "deg")
+            prev_err = np.geterr()
+            np.seterr(divide='ignore')
+            print("Mean velocity:", np.float64(bspline_dist) / np.float64(T_sampling), "deg/sec")
+            print("Stddev velocity:", bspline_velocity_std, "deg/sec")
+            np.seterr(divide=prev_err['divide'])
+            print("Length change compared to approximation with half frequency (f_sampling*2**" + str(f_sampling_power) + "):",
+                  bspline_dist_half - bspline_dist, "deg")
+            print("Number of Microsaccades ",  0 if len(drift_segments)-1 < 0 else len(drift_segments)-1)
 
         """
         Write step positions & curve to disk.
@@ -831,13 +832,20 @@ class RandomWalk():
 
             np.savetxt(f'{args.fpath_sim}_NumMS={0 if len(drift_segments)-1 < 0 else len(drift_segments)-1}.csv', np.stack((x, y), axis=1), delimiter=',')
         '''
-        if args.fpath_sampled is not None:
-            RandomWalk.create_folder_if_not_exists(args.fpath_sampled)
-            #np.save(args.fpath_sampled, np.stack((x_sampled, y_sampled), axis=1))
-            #np.savetxt(f'{args.fpath_sampled}.csv', np.stack((x_sampled, y_sampled), axis=1), delimiter=',')
-            df.to_csv(f'{args.fpath_sampled}_NumMS={0 if len(drift_segments)-1 < 0 else len(drift_segments)-1}.csv', index=False)
-            mic_amplitude.to_csv(f'{args.fpath_sampled}_micsac_amp.csv', index=False)
-            intermic_duration.to_csv(f'{args.fpath_sampled}_intermic_dur.csv', index=False)
+        if save:
+            if args.fpath_sampled is not None:
+                RandomWalk.create_folder_if_not_exists(args.fpath_sampled)
+                #np.save(args.fpath_sampled, np.stack((x_sampled, y_sampled), axis=1))
+                #np.savetxt(f'{args.fpath_sampled}.csv', np.stack((x_sampled, y_sampled), axis=1), delimiter=',')
+                if not os.path.exists(args.fpath_sampled):
+                    os.makedirs(args.fpath_sampled)
+                df.to_csv(f'{args.fpath_sampled}\Signal_NumMS={0 if len(drift_segments)-1 < 0 else len(drift_segments)-1}.csv', index=False)
+                mic_amplitude.to_csv(f'{args.fpath_sampled}\micsac_amp.csv', index=False)
+                intermic_duration.to_csv(f'{args.fpath_sampled}\intermic_dur.csv', index=False)
+
+        #TODO: RETURN ENTFERNEN
+        num_of_micsac = 0 if len(drift_segments)-1 < 0 else len(drift_segments)-1
+        return micsac_amp, intermicsac_dur, num_of_micsac
 
         """
         PLOT: Plotting the movement of the eye as well as the two potentials of the random walk
