@@ -9,6 +9,7 @@ import matplotlib
 import pandas as pd
 
 from GeneratingTraces_MathematicalModel.colorline import colorline
+from ProcessingData.Visualize import Visualize
 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -410,8 +411,8 @@ class RandomWalk():
                    number=None, use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False):
         # Init
         global warned_mirror
-        warned_mirror = False #TODO: Was macht dieser Code hier
-        min_line_weight = 0.25 #TODO: Was macht dieser Code hier. Gibt an, welchen Schwellwert die Linie haben muss.
+        warned_mirror = False
+        min_line_weight = 0.25
 
         #   Get parsed parameters
         args, N = RandomWalk.parse_args()
@@ -775,12 +776,25 @@ class RandomWalk():
             bspline_velocity_std = RandomWalk.line_segment_length_std(x_e, y_e) * f_sampling * 2 ** f_sampling_power
 
         """
-        Adding Tremor as random noise with given amplitude
+        Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
         """
         tremor_x = np.random.normal(0, np.sqrt(1/3600), len(x_sampled))
         tremor_y = np.random.normal(0, np.sqrt(1/3600), len(y_sampled))
-        x_sampled += tremor_x
-        y_sampled += tremor_y
+        onsets = t_sim[micsac_onset]
+        offsets = t_sim[micsac_offset]
+        micsac_ranges = [[int(np.where(np.isclose(t_sampled, onsets[i]))[0]), int(np.where(np.isclose(t_sampled, offsets[i]))[0])] for i in range(0,len(onsets))]
+        no_addition_mask = np.ones_like(x_sampled)
+
+        # Setze die Werte an den Indizes aus not_adding auf 0 im Masken-Array
+        for range_list in micsac_ranges:
+            start_idx, end_idx = range_list
+            no_addition_mask[start_idx:end_idx + 1] = 0
+
+        # Multipliziere tremor_x mit der Masken-Array, um die Werte zu entfernen, die nicht addiert werden sollen
+        tremor_x_filtered = tremor_x * no_addition_mask
+        tremor_y_filtered = tremor_y * no_addition_mask
+        x_sampled += tremor_x_filtered
+        y_sampled += tremor_y_filtered
 
         if report:
             """
@@ -842,10 +856,27 @@ class RandomWalk():
         PLOT: Plotting the movement of the eye as well as the two potentials of the random walk
         """
 
-        if not args.show_plots:
+        if args.show_plots:
             x_range_sampled = x[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
             y_range_sampled = y[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
+            t = t_sampled
 
+            plt.plot(t, x_sampled*60, label='x', color='blue') #*60 um von grad auf Bogenminuten
+            plt.plot(t, y_sampled*60, label='y', color='orange')
+            plt.xlabel('Zeit in s')
+            plt.ylabel('Position in Bogenminuten [arcmin]')
+            plt.title('Augenbewegungen in x-y-Koordinaten')
+            #Mikrosakkaden plotten
+            onsets = t_sim[micsac_onset]
+            offsets = t_sim[micsac_offset]
+            plt.vlines(x=onsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='red', linewidth=1)
+            plt.vlines(x=offsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='black', linewidth=1)
+            plt.savefig(fr'C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Bilder\xy_trace_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}.jpeg',
+                dpi=350)
+            plt.legend()
+            plt.plot()
+            plt.close()
+            '''
             if args.debug_colors:
                 # samples with both lines and points gradient-colored, but with different frequency such that the course of the line is evident in most situations
                 colorline(x_sampled, y_sampled, np.mod(np.linspace(0.0, len(x_sampled) - 1, len(x_sampled)), 100) / 100,
@@ -854,13 +885,9 @@ class RandomWalk():
                            c=np.mod(np.linspace(0.0, len(x_sampled) - 1, len(x_sampled)), 171) / 171, marker='o',
                            cmap=plt.get_cmap('hsv'), zorder=2)
             else:
-                # regular samples
-                # ax.plot(x_sampled, y_sampled, color='orange', markersize=4.0, marker='o')
-                # ax.plot(x, y, 'x',  marker='o', markersize=6.0) # simulated step positions
-
                 ax.plot(x_sampled, y_sampled, color='orange', marker='o', markersize=2.0)
                 ax.plot(x_range_sampled, y_range_sampled, 'x', marker='x', markersize=3.0)  # simulated step positions
-            '''
+
             if steps_sampling <= 0:
                 print('No sampled points.')
             else:
@@ -926,4 +953,4 @@ class RandomWalk():
 if __name__ == '__main__':
     print('Start')
     RandomWalk.randomWalk()
-    print('ENd')
+    print('End')
