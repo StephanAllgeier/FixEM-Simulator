@@ -101,6 +101,29 @@ class Interpolation():
         return data_frame, const_dict
 
     @staticmethod
+    def remove_sacc_annot(df, const_dict):
+        data_frame = copy.deepcopy(df)
+        sakk_idx = df[df[const_dict['Annotations']] == const_dict['SakkID']].index
+        current_sublist = []
+        indexes = []
+        for i in range(len(sakk_idx)):
+            if i == 0 or sakk_idx[i] != sakk_idx[i - 1] + 1:
+                if current_sublist:
+                    indexes.append(current_sublist)
+                current_sublist = [sakk_idx[i]]
+            else:
+                current_sublist.append(sakk_idx[i])
+
+        # Füge die letzte Teil-Liste hinzu, falls vorhanden
+        if current_sublist:
+            indexes.append(current_sublist)
+        for liste in indexes:
+            data_frame = data_frame.drop(liste)
+        data_frame = data_frame.reset_index(drop=True)
+        data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
+        const_dict['rm_sakk'] = True
+        return data_frame, const_dict
+    @staticmethod
     def convert_arcmin_to_dva(df, const_dict):
         return_df = copy.deepcopy(df)
         factor = 1 / 60

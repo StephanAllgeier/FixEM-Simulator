@@ -13,7 +13,7 @@ if __name__ == '__main__':
     cells_per_degree = [10,25,50,100,150,200,300,360]
     relaxation_rates = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
     all_combinations = generate_combinations([simulations_rates, cells_per_degree, relaxation_rates])
-    folder_names = ["hc=1,9", "hc=2,4", "hc=2,9", "hc=2,4", "hc=3,9", "hc=4,4", "hc=4,9", "hc=5,4", "hc=5,9", "hc=6,4", "hc=6,9", "hc=7,4", "hc=7,9"]
+    folder_names = ["hc=3,4", "hc=7,4", "hc=7,9"]
     n=25
     headers=["simulation rate", "cells per degree", "relaxation rate", 'h_crit', "mean intermicsac duration [s]", "median intermicsac duration [s]", "stdev intermicsac duration [s]", "mean micsac amp [deg]", "median micsac amp [deg]", "stdev micsac amp [deg]", "Number of Micsac - Mean", "Number of Micsac - Median"]
     all_data = []
@@ -51,8 +51,8 @@ if __name__ == '__main__':
             all_data.append(data)
             print(f"{j / len(all_combinations) / len(folder_names)}% done")
     df = pd.DataFrame(all_data, columns=headers)
-    file_name_excel= "MicsacStatistics.xlsx"
-    file_name_csv = "MicsacStatistics.csv"
+    file_name_excel= "MicsacStatistics[hc=3,4].xlsx"
+    file_name_csv = "MicsacStatistics[hc=3,4].csv"
     df.to_excel(rf"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\{file_name_excel}", index=False)
     df.to_csv(rf"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\{file_name_csv}", index=False)
     print(len(all_combinations))

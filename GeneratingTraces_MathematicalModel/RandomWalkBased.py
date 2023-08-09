@@ -407,8 +407,7 @@ class RandomWalk():
                    potential_norm_exponent=None, random_seed=None, potential_resolution=None, potential_weight=None,
                    relaxation_rate=None, sampling_duration=None, sampling_frequency=None, sampling_start=None,
                    show_plots=None, start_position_sigma=None, num_step_candidates=None, step_through=None,
-                   use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1,
-                   number = 0, hc=1.0, save=False, report=False):
+                   number=None, use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False):
         # Init
         global warned_mirror
         warned_mirror = False #TODO: Was macht dieser Code hier
@@ -679,7 +678,6 @@ class RandomWalk():
                 micsac_array[i+1] = False
             else:
                 micsac_array[i + 1] = micsac_flag
-            #print('Visited activation', np.max(visited_activation[line_i[-1], line_j[-1]]), 'Flag: ', micsac_flag)
 
             #   Update visited-activation
             visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (1 / f_sim)
@@ -720,14 +718,7 @@ class RandomWalk():
                 drift_segments.append([micsac_offset[i-1], len(micsac_array)])
         for segment in drift_segments:
             intermicsac_dur.append((segment[1]-segment[0])/args.simulation_frequency)
-        '''
-        for segment in drift_segments:
-            drift_sim = t_sim[segment[0]:segment[1]]
-            x_drift = x[segment[0]:segment[1]]
-            y_drift = y[segment[0]:segment[1]]
-            spline_x_drift = si.splrep(drift_sim,x_drift, k=3)
-            spline_y_drift = si.splrep(drift_sim,y_drift, k=3)
-        '''
+
         spline_x = si.splrep(t_sim, x, k=3)
         spline_y = si.splrep(t_sim, y, k=3)
 
@@ -786,8 +777,8 @@ class RandomWalk():
         """
         Adding Tremor as random noise with given amplitude
         """
-        tremor_x = np.random.normal(0, np.sqrt(1/360), len(x_sampled))
-        tremor_y = np.random.normal(0, np.sqrt(1/360), len(y_sampled))
+        tremor_x = np.random.normal(0, np.sqrt(1/3600), len(x_sampled))
+        tremor_y = np.random.normal(0, np.sqrt(1/3600), len(y_sampled))
         x_sampled += tremor_x
         y_sampled += tremor_y
 
@@ -845,13 +836,31 @@ class RandomWalk():
 
         #TODO: RETURN ENTFERNEN
         num_of_micsac = 0 if len(drift_segments)-1 < 0 else len(drift_segments)-1
-        return micsac_amp, intermicsac_dur, num_of_micsac
+        #return micsac_amp, intermicsac_dur, num_of_micsac
 
         """
         PLOT: Plotting the movement of the eye as well as the two potentials of the random walk
         """
 
         if not args.show_plots:
+            x_range_sampled = x[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
+            y_range_sampled = y[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
+
+            if args.debug_colors:
+                # samples with both lines and points gradient-colored, but with different frequency such that the course of the line is evident in most situations
+                colorline(x_sampled, y_sampled, np.mod(np.linspace(0.0, len(x_sampled) - 1, len(x_sampled)), 100) / 100,
+                          cmap=plt.get_cmap('hsv'))
+                ax.scatter(x_sampled, y_sampled, s=4.0 ** 2,
+                           c=np.mod(np.linspace(0.0, len(x_sampled) - 1, len(x_sampled)), 171) / 171, marker='o',
+                           cmap=plt.get_cmap('hsv'), zorder=2)
+            else:
+                # regular samples
+                # ax.plot(x_sampled, y_sampled, color='orange', markersize=4.0, marker='o')
+                # ax.plot(x, y, 'x',  marker='o', markersize=6.0) # simulated step positions
+
+                ax.plot(x_sampled, y_sampled, color='orange', marker='o', markersize=2.0)
+                ax.plot(x_range_sampled, y_range_sampled, 'x', marker='x', markersize=3.0)  # simulated step positions
+            '''
             if steps_sampling <= 0:
                 print('No sampled points.')
             else:
@@ -913,7 +922,7 @@ class RandomWalk():
             ax.set_ylabel('Longitudinal fixation offset (°)')
             ax.set_aspect('equal', adjustable='box')
             plt.show()
-
+            '''
 if __name__ == '__main__':
     print('Start')
     RandomWalk.randomWalk()
