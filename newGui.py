@@ -34,8 +34,8 @@ class MyWindow(QMainWindow):
         # Dropdown-Menü mit 16 Optionen erstellen
         self.float_options = [(20, 10, 0.1, 1.9), (50, 25, 0.002, 1.9), (50, 10, 0.001, 3.4), (50, 10, 0.002, 3.4),
                               (50, 10, 0.01, 3.4), (50, 10, 0.1, 3.4), (50, 10, 0.001, 3.9), (50, 10, 0.005, 3.9),
-                              (50, 10, 0.01, 3.9), (100, 10, 0.001, 5.4), (100, 10, 0.002, 5.4), (100, 10, 0.002, 5.4),
-                              (100, 10, 0.01, 5.4), (100, 10, 0.05, 5.4), (100, 10, 0.001, 5.4), (100, 10, 0.05, 5.9)]
+                              (50, 10, 0.01, 3.9), (100, 10, 0.001, 5.4), (100, 10, 0.002, 5.4), (100, 10, 0.01, 5.4),
+                              (100, 10, 0.05, 5.4), (100, 10, 0.001, 5.9), (100, 10, 0.005, 5.9), (100, 10, 0.05, 6.9)]
         self.drop_var = ['simulation_freq', "potential_resolution", "relaxation_rate", "hc"]
         self.float_combo = QComboBox(self)
         for index, option in enumerate(self.float_options):
@@ -129,7 +129,7 @@ class MyWindow(QMainWindow):
         for element in self.input_fields:
             if len(element) == 3:
                 variable_name, line_edit, checkbox_default = element
-                if variable_name != 'Folderpath to save to' and variable_name != 'Show plots':
+                if variable_name != 'folderpath' and variable_name != 'show_plots':
                     if checkbox_default.isChecked() or line_edit.text() == '':
                         variable_value = None
                     else:
@@ -160,6 +160,8 @@ class MyWindow(QMainWindow):
             comb_val = float(comb_elem.split('=')[1])
             variables.update({comb_name: comb_val})
         if selected_function == 'RandomWalk based':
+            if isinstance(variables['number'], type(None)):
+                variables['number'] =1
             for i in range(1, int(variables['number']) + 1):
                 RandomWalkBased.RandomWalk.randomWalk(**variables, number_id=i)
         if selected_function == 'GAN based':
