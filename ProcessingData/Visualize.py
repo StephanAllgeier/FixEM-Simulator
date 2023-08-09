@@ -7,7 +7,7 @@ class Visualize():
     plt.rcParams['lines.linewidth'] = 1
 
     @staticmethod
-    def plot_xy(dataset, const_dict, color=None, labels=None, title='Eye Trace in x- and y-Position'):
+    def plot_xy(dataset, const_dict, color=None, labels=None, title='Augenbewegungen in x- und y-Koordinaten'):
         if labels is None:
             labels = ['x', 'y']
         if color is None:
@@ -19,7 +19,7 @@ class Visualize():
         plt.plot(t, x, label=labels[0], color=color[0])
         plt.plot(t, y, label=labels[1], color=color[1])
         plt.xlabel('Zeit in s')
-        plt.ylabel('Position in Grad [°]')
+        plt.ylabel('Position in Bogenminuten [arcmin]')
         plt.title(title)
         plt.legend()
         plt.show()
