@@ -80,6 +80,7 @@ class Visualize():
         plt.savefig(save_path + '.jpeg', format='jpeg', dpi=600)
         plt.savefig(save_path + '.pdf', format='pdf')
         plt.show()
+
     @staticmethod
     def plot_xy_µm(dataset, const_dict, color=None, labels=None):
         if labels is None:
@@ -97,6 +98,7 @@ class Visualize():
         plt.title('Position over Time')
         plt.legend()
         plt.show()
+
     @staticmethod
     def plot_xy_trace(dataset, const_dict, color='blue', label="Label"):
         x = dataset[const_dict['x_col']] * const_dict['ValScaling']
@@ -164,6 +166,7 @@ class Visualize():
         plt.savefig(save_path + '.jpeg', format='jpeg', dpi=600)
         plt.savefig(save_path + '.pdf', format='pdf')
         plt.show()
+
     @staticmethod
     def plot_fft(fft, freq):
         plt.plot(freq, np.abs(fft))
@@ -175,15 +178,16 @@ class Visualize():
         plt.show()
 
     @staticmethod
-    def plot_microsacc(df, const_dict, title = 'Eye Trace in x- and y-Position', micsac=False, micsac2=False, color=['red', 'blue'], thickness=1, legend=['Onset','Offset']):
+    def plot_microsacc(df, const_dict, title='Eye Trace in x- and y-Position', micsac=False, micsac2=False,
+                       color=['red', 'blue'], thickness=1, legend=['Onset', 'Offset']):
         if color is None:
             color = ['blue', 'orange']
         f = const_dict['f']
         t = df[const_dict['time_col']] * const_dict['TimeScaling']
         x = df[const_dict['x_col']] * const_dict['ValScaling']
         y = df[const_dict['y_col']] * const_dict['ValScaling']
-        plt.plot(t, x,  color=color[0])
-        plt.plot(t, y,  color=color[1])
+        plt.plot(t, x, color=color[0])
+        plt.plot(t, y, color=color[1])
         plt.xlabel('Time in s')
         plt.ylabel('Position in arcmin')
         plt.title(title)
@@ -195,15 +199,15 @@ class Visualize():
             micsac_list2 = micsac2[0]  # Either tuple or list
         elif isinstance(micsac2, list):
             micsac_list2 = micsac2
-        onsets = [micsac_list[i][0]/const_dict['f'] for i in range(len(micsac_list))]
-        offsets= [micsac_list[i][1]/const_dict['f'] for i in range(len(micsac_list))]
-        plt.vlines(x=onsets, ymin = min(x), ymax = max(x), colors=color[2], linewidth=thickness)
-        plt.vlines(x=offsets, ymin = min(x), ymax = max(x),colors=color[3], linewidth=thickness)
+        onsets = [micsac_list[i][0] / const_dict['f'] for i in range(len(micsac_list))]
+        offsets = [micsac_list[i][1] / const_dict['f'] for i in range(len(micsac_list))]
+        plt.vlines(x=onsets, ymin=min(x), ymax=max(x), colors=color[2], linewidth=thickness)
+        plt.vlines(x=offsets, ymin=min(x), ymax=max(x), colors=color[3], linewidth=thickness)
         if micsac2:
-            onsets2 = [micsac_list2[i][0] /const_dict['f']for i in range(len(micsac_list2))]
-            offsets2 = [micsac_list2[i][1] /const_dict['f']for i in range(len(micsac_list2))]
-            plt.vlines(x=onsets2,ymin = min(x), ymax = max(x),colors=color[4], linewidth=thickness)
-            plt.vlines(x=offsets2, ymin = min(x), ymax = max(x),colors=color[5], linewidth=thickness)
+            onsets2 = [micsac_list2[i][0] / const_dict['f'] for i in range(len(micsac_list2))]
+            offsets2 = [micsac_list2[i][1] / const_dict['f'] for i in range(len(micsac_list2))]
+            plt.vlines(x=onsets2, ymin=min(x), ymax=max(x), colors=color[4], linewidth=thickness)
+            plt.vlines(x=offsets2, ymin=min(x), ymax=max(x), colors=color[5], linewidth=thickness)
         plt.gca().legend(legend)
         plt.show()
 
@@ -212,12 +216,12 @@ class Visualize():
         # Takes a list of Data as input and plots the distribution
         mean = np.mean(data)
         median = np.median(data)
-        std= np.std(data)
+        std = np.std(data)
         # Wahrscheinlichkeitsverteilung erstellen
         x = np.linspace(min(data), max(data), 100)
-        #y = norm.pdf(x, mean, std)
+        # y = norm.pdf(x, mean, std)
         # Plot erstellen
-        #plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
+        # plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
         plt.hist(data, bins='auto', density=True, alpha=0.6, label='Histogram')
         plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {mean}', linewidth=2)
         plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {median}', linewidth=2)
@@ -228,5 +232,7 @@ class Visualize():
         plt.title(title)
         plt.ylabel('Wahrscheinlichkeitsdichte')
         plt.legend()
-        plt.savefig(fr'C:\Users\fanzl\bwSyncShare\Documents\Texte\Masterarbeit_AnzlingerFabian\Bilder\Statistische Verteilungen\AutomaticallyGenerated\{title}.svg', dpi=350)
+        plt.savefig(
+            fr'C:\Users\fanzl\bwSyncShare\Documents\Texte\Masterarbeit_AnzlingerFabian\Bilder\Statistische Verteilungen\AutomaticallyGenerated\{title}.svg',
+            dpi=350)
         plt.show()

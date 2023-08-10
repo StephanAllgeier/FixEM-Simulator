@@ -75,6 +75,7 @@ def test_binsacc():
     np.testing.assert_allclose(expected_monol, np.array(monol))
     assert monor == []
 
+
 def test_sacpar():
     input_array = np.genfromtxt("tests/sacpar_in.dat")
     sac = microsac_detection.sacpar(input_array)

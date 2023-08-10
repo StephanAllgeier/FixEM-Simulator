@@ -17,7 +17,7 @@ class EventDetection():
     @staticmethod
     def filter_tremor(df, constant_dict, lowcut=40, highcut=103, order=5):
         # [70,103] laut "Eye Movement Analysis in Simple Visual Tasks"
-        #Andere Quellen 
+        # Andere Quellen
         return_frame = copy.deepcopy(df)
         return_frame[constant_dict['x_col']] = Filtering.butter_bandpass_filter(df[constant_dict['x_col']],
                                                                                 lowcut=lowcut, highcut=highcut,
@@ -44,13 +44,13 @@ class EventDetection():
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)  # Noch alle Frequenzbänder vorhanden
-        #fft, fftfreq = Filtering.fft_transform(df, const_dict, 'x_col')
-        #Visualize.plot_fft(fft, fftfreq) #HIER SIND NOCH ALLE FREQUENZBÄNDER VORHANDEN
+        # fft, fftfreq = Filtering.fft_transform(df, const_dict, 'x_col')
+        # Visualize.plot_fft(fft, fftfreq) #HIER SIND NOCH ALLE FREQUENZBÄNDER VORHANDEN
         # remove micsacs
         removed_micsac = Microsaccades.remove_micsac(df, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)
-        #fft, fftfreq = Filtering.fft_transform(removed_micsac, const_dict,
-                                            #   'x_col')  # Noch alle Frequenzbänder vorhanden
-        #Visualize.plot_fft(fft, fftfreq) #TODO: Wieso sieht das Signal hier so anders aus? Entsteht durch das Splicen des Signals an Stellen der Mikrosakkaden
+        # fft, fftfreq = Filtering.fft_transform(removed_micsac, const_dict,
+        #   'x_col')  # Noch alle Frequenzbänder vorhanden
+        # Visualize.plot_fft(fft, fftfreq) #TODO: Wieso sieht das Signal hier so anders aus? Entsteht durch das Splicen des Signals an Stellen der Mikrosakkaden
         # Lowpassfiltering Signal
         filtered = EventDetection.filter_drift(removed_micsac, const_dict)
         return filtered
@@ -65,11 +65,12 @@ class EventDetection():
         # Lowpassfiltering Signal
         filtered = EventDetection.filter_drift(interpol_micsac, const_dict)
         return filtered
+
     @staticmethod
     def drift_only(df, const_dict, micsac_mindur=10, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
-            df, const_dict= Interpolation.remove_blink_annot(df, const_dict)
+            df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
         # Lowpassfiltering Signal
         filtered = EventDetection.filter_drift(df, const_dict)
         return filtered
@@ -126,10 +127,9 @@ class EventDetection():
         # get micsacs
         micsac = Microsaccades.find_micsac(df, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)[0]
 
-
         # Füge den Startwert 0 für den Anfang des DataFrames hinzu
         first_start = micsac[0][0]
-        #new_dataframe.loc[0:first_start, [const_dict['x_col'], const_dict['y_col']]] = 0
+        # new_dataframe.loc[0:first_start, [const_dict['x_col'], const_dict['y_col']]] = 0
 
         # Iteriere über die Segmente und setze die Werte entsprechend
         for i in range(len(micsac) - 1):

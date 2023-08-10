@@ -82,4 +82,4 @@ def surrogate(x, sampling):
     xs = np.cumsum(vsx)
     ys = np.cumsum(vsy)
     xsur = np.stack((xs, ys), axis=1)
-    return(xsur)
+    return (xsur)

@@ -123,6 +123,7 @@ class Interpolation():
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
         const_dict['rm_sakk'] = True
         return data_frame, const_dict
+
     @staticmethod
     def convert_arcmin_to_dva(df, const_dict):
         return_df = copy.deepcopy(df)
@@ -157,11 +158,12 @@ class Interpolation():
 
     @staticmethod
     def arcmin_to_µm(df, const_dict, r_eye=12.5):
-        df['x_µm'] = r_eye * np.sin((df[const_dict['x_col']] / 60)*np.pi/180)*1000
-        df['y_µm'] = r_eye * np.sin((df[const_dict['y_col']] / 60)*np.pi/180)*1000
+        df['x_µm'] = r_eye * np.sin((df[const_dict['x_col']] / 60) * np.pi / 180) * 1000
+        df['y_µm'] = r_eye * np.sin((df[const_dict['y_col']] / 60) * np.pi / 180) * 1000
         const_dict['x_µm'] = 'x_µm'
         const_dict['y_µm'] = 'y_µm'
         return df, const_dict
+
     @staticmethod
     def dva_to_arcmin(df, const_dict):
         return_df = copy.deepcopy(df)

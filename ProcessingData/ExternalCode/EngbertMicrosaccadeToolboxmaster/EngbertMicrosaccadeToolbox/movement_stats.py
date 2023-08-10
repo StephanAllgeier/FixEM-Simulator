@@ -28,7 +28,7 @@ def lagdist(x):
         x1 = x1[1:, ]
         x2 = x2[:-1, ]
         d = x1 - x2
-        r[lag] = np.mean(d[:, 0]**2 + d[:, 1]**2)
+        r[lag] = np.mean(d[:, 0] ** 2 + d[:, 1] ** 2)
 
     lag = np.arange(maxlag) + 1
     rv = np.array([lag, r]).transpose()
