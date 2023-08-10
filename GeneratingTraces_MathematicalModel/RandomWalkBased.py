@@ -560,8 +560,10 @@ class RandomWalk():
                 y_idx = y_idx[w_idx >= min_line_weight]
                 x_idx = x_idx[w_idx >= min_line_weight]
 
-                #Add Microsaccade Amplitude
-                micsac_amp.append(np.sqrt((new_x - start_micsac[0])**2 + (new_y - start_micsac[1])**2))
+                #Add Microsaccade Amplitude if after 10s
+                # TODO: WIEDER ENTFERNEN!!!
+                if i>10*args.simulation_frequency:
+                    micsac_amp.append(np.sqrt((new_x - start_micsac[0])**2 + (new_y - start_micsac[1])**2))
 
                 #Update activation
                 walked_mask = np.zeros(visited_activation.shape, dtype=bool)
@@ -684,7 +686,33 @@ class RandomWalk():
             visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (1 / f_sim)
             visited_activation[walked_mask] = visited_activation[walked_mask] + 1.0
 
-
+        #Evaluation
+        micsac_onset = []  # Entspricht Offset Drift
+        micsac_offset = []  # Entspricht Onset Drift
+        for i in range(1, len(micsac_array)):
+            if micsac_array[i] and not micsac_array[i - 1]:
+                micsac_onset.append(i)
+            elif not micsac_array[i] and micsac_array[i - 1]:
+                micsac_offset.append(i - 1)
+        if len(micsac_onset) > len(micsac_offset):  # Wenn genau am letzten Index eine Mikrosakkade getriggert wird.
+            micsac_onset = micsac_onset[:-1]
+        drift_segments = []
+        for i in range(len(micsac_onset) + 1):
+            if len(micsac_onset) == 0:
+                continue
+            if i == 0:
+                drift_segments.append([0, micsac_onset[i]])
+            elif i > 0 and i < len(micsac_onset):
+                drift_segments.append([micsac_offset[i - 1], micsac_onset[i]])
+            else:
+                drift_segments.append([micsac_offset[i - 1], len(micsac_array)])
+        drift_segments_after10s = []
+        #TODO: WIEDER ENTFERNEN!!!
+        for segment in drift_segments:
+            if segment[1] > 10 * args.simulation_frequency:
+                drift_segments_after10s.append(segment)
+        for segment in drift_segments_after10s:
+            intermicsac_dur.append((segment[1] - segment[0]) / args.simulation_frequency)
 
         """
         BSpline Interpolation for random Walk and Linear Interpolation for Microsaccades
@@ -696,29 +724,6 @@ class RandomWalk():
         # construct spline based on simulated steps
         T_sim = steps_sim / f_sim  # in the range [T, T + 1/f_sim)
         t_sim = np.linspace(0, T_sim, len(visited_points))
-
-        #Abschnittsweise B-Spline und Lineare Interpolation
-        micsac_onset = []# Entspricht Offset Drift
-        micsac_offset =[] #Entspricht Onset Drift
-        for i in range(1,len(micsac_array)):
-            if micsac_array[i] and not micsac_array[i-1]:
-                micsac_onset.append(i)
-            elif not micsac_array[i] and micsac_array[i-1]:
-                micsac_offset.append(i-1)
-        if len(micsac_onset)>len(micsac_offset): #Wenn genau am letzten Index eine Mikrosakkade getriggert wird.
-            micsac_onset=micsac_onset[:-1]
-        drift_segments=[]
-        for i in range(len(micsac_onset)+1):
-            if len(micsac_onset) == 0:
-                continue
-            if i == 0:
-                drift_segments.append([0,micsac_onset[i]])
-            elif i>0 and i<len(micsac_onset):
-                drift_segments.append([micsac_offset[i-1], micsac_onset[i]])
-            else:
-                drift_segments.append([micsac_offset[i-1], len(micsac_array)])
-        for segment in drift_segments:
-            intermicsac_dur.append((segment[1]-segment[0])/args.simulation_frequency)
 
         spline_x = si.splrep(t_sim, x, k=3)
         spline_y = si.splrep(t_sim, y, k=3)
@@ -778,11 +783,19 @@ class RandomWalk():
         """
         Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
         """
-        tremor_x = np.random.normal(0, np.sqrt(1/3600), len(x_sampled))
-        tremor_y = np.random.normal(0, np.sqrt(1/3600), len(y_sampled))
+        tremor_x = np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
+        tremor_y = np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(y_sampled))
         onsets = t_sim[micsac_onset]
         offsets = t_sim[micsac_offset]
-        micsac_ranges = [[int(np.where(np.isclose(t_sampled, onsets[i]))[0]), int(np.where(np.isclose(t_sampled, offsets[i]))[0])] for i in range(0,len(onsets))]
+
+        def find_nearest(array, value):
+            array = np.asarray(array)
+            idx = (np.abs(array - value)).argmin()
+            return idx
+        try:
+            micsac_ranges = [[int(find_nearest(t_sampled, onsets[k])), int(find_nearest(t_sampled, offsets[k]))] for k in range(0,len(onsets))]
+        except:
+            print('Error')
         no_addition_mask = np.ones_like(x_sampled)
 
         # Setze die Werte an den Indizes aus not_adding auf 0 im Masken-Array
@@ -844,13 +857,13 @@ class RandomWalk():
                 #np.savetxt(f'{args.fpath_sampled}.csv', np.stack((x_sampled, y_sampled), axis=1), delimiter=',')
                 if not os.path.exists(args.fpath_sampled):
                     os.makedirs(args.fpath_sampled)
-                df.to_csv(f'{args.fpath_sampled}\Signal_NumMS={0 if len(drift_segments)-1 < 0 else len(drift_segments)-1}.csv', index=False)
+                df.to_csv(f'{args.fpath_sampled}\Signal_NumMS={0 if len(drift_segments_after10s)-1 < 0 else len(drift_segments_after10s)-1}.csv', index=False)
                 mic_amplitude.to_csv(f'{args.fpath_sampled}\micsac_amp.csv', index=False)
                 intermic_duration.to_csv(f'{args.fpath_sampled}\intermic_dur.csv', index=False)
 
         #TODO: RETURN ENTFERNEN
-        num_of_micsac = 0 if len(drift_segments)-1 < 0 else len(drift_segments)-1
-        #return micsac_amp, intermicsac_dur, num_of_micsac
+        num_of_micsac = 0 if len(drift_segments_after10s)-1 < 0 else len(drift_segments_after10s)-1
+        return micsac_amp, intermicsac_dur, num_of_micsac
 
         """
         PLOT: Plotting the movement of the eye as well as the two potentials of the random walk
