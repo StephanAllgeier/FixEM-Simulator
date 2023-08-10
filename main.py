@@ -8,31 +8,38 @@ import pandas as pd
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
-from Preprocessing.Interpolation import Interpolation
-from ProcessingData.StatisticalEvaluation.Evaluation import Evaluation
+from ProcessingData.Preprocessing.Interpolation import Interpolation
+from ProcessingData.StatisticalEvaluation import Evaluation
+
 from ProcessingData.StatisticalEvaluation.Microsaccades import Microsaccades
-from Visualize import Visualize as Vis
-from Preprocessing.Filtering import Filtering as Filt
-from StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
+from ProcessingData.Visualize import Visualize as Vis
+from ProcessingData.Preprocessing.Filtering import Filtering as Filt
+from ProcessingData.StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
 
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
-        return {"Name":"Roorda", "f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1/60, "TimeScaling": 1,
-                'BlinkID': 3, 'Annotations': 'Flags', 'file_pattern': "\d{5}[A-Za-z]_\d{3}\.csv", 'rm_blink':False}
+        return {"Name": "Roorda", "f": 1920, "x_col": 'xx', "y_col": 'yy', "time_col": 'TimeAxis', "ValScaling": 1 / 60,
+                "TimeScaling": 1,
+                'BlinkID': 3, 'Annotations': 'Flags', 'file_pattern': "\d{5}[A-Za-z]_\d{3}\.csv", 'rm_blink': False}
     elif dataset_name == "GazeBase":
         return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
-                "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab', 'rm_blink':False} # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
+                "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab',
+                'rm_blink': False}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
     elif dataset_name == "OwnData":
         return {"Name": "OwnData", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'Time', "ValScaling": 1,
-                "TimeScaling": 1, 'BlinkID': None, 'Annotations': 'lab', 'rm_blink':False}
+                "TimeScaling": 1, 'BlinkID': None, 'Annotations': 'lab', 'rm_blink': False}
+
+
 def read_allgeier_data(folder_path, filenr=0):
     files = list(glob.glob(folder_path + "/*.txt"))
-    #Create Dataframe
-    df = pd.read_csv(files[filenr], names=['t','x_µm','y_µm'], header=None)
-    const_dict = {"Name":"Allgeier", "f": 1/((df['t'].iloc[-1]-df['t'].iloc[0])/len(df)), "x_µm": 'x_µm', "y_µm": 'y_µm', "time_col": 't', "ValScaling": 1, "TimeScaling": 1,
-                'BlinkID': None, 'Annotations': None, 'file_pattern': "/.+\.txt", 'rm_blink' : False}
+    # Create Dataframe
+    df = pd.read_csv(files[filenr], names=['t', 'x_µm', 'y_µm'], header=None)
+    const_dict = {"Name": "Allgeier", "f": 1 / ((df['t'].iloc[-1] - df['t'].iloc[0]) / len(df)), "x_µm": 'x_µm',
+                  "y_µm": 'y_µm', "time_col": 't', "ValScaling": 1, "TimeScaling": 1,
+                  'BlinkID': None, 'Annotations': None, 'file_pattern': "/.+\.txt", 'rm_blink': False}
     return df, const_dict
+
 
 def plot_ds_comparison(df1, const1, df2, const2):
     name1 = const1['Name']
@@ -44,6 +51,8 @@ def plot_ds_comparison(df1, const1, df2, const2):
     Vis.plot_xy_µm(df1, const1, color=['black', 'green'], labels=[f'x_{name1}', f'y_{name1}'])
     Vis.plot_xy_µm(df2, const2, color=['orange', 'red'], labels=[f'x_{name2}', f'y_{name2}'])
     print('Done')
+
+
 def get_files_with_pattern(folder_path, pattern):
     file_list = []
     regex_pattern = re.compile(pattern)
@@ -53,6 +62,7 @@ def get_files_with_pattern(folder_path, pattern):
             file_list.append(file_path)
     return file_list
 
+
 def get_csv_files_in_folder(folder_path):
     csv_files = []
     for filename in os.listdir(folder_path):
@@ -61,18 +71,22 @@ def get_csv_files_in_folder(folder_path):
             csv_files.append(file_path)
     return csv_files
 
+
 def save_dict_to_csv(data_dict, file_path):
     with open(file_path, 'w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(['File', 'MicSacCount'])  # Header schreiben
         for key, value in data_dict.items():
             writer.writerow([key, value])
+
+
 def save_dict_to_excel(data_dict, file_path):
     df = pd.DataFrame.from_dict(data_dict, orient='index', columns=['Value'])
     df.index.name = 'Key'
     df.to_excel(file_path)
 
-def detect_all_micsac(folderpath, const_dict,mindur, vfac, resample=False, rs_freq=1000, save=False):
+
+def detect_all_micsac(folderpath, const_dict, mindur, vfac, resample=False, rs_freq=1000, save=False):
     files = get_files_with_pattern(Path(folderpath), pattern=const_dict['file_pattern'])
     detected_micsac = {}
     for file in files:
@@ -85,16 +99,25 @@ def detect_all_micsac(folderpath, const_dict,mindur, vfac, resample=False, rs_fr
             data = Interpolation.convert_arcmin_to_dva(data, const_dict)
         micsac_detec = Microsaccades.find_micsac(data, const_dict, mindur=mindur, vfac=vfac)
         if len(micsac_detec[0]) != len(micsac_detec2[0]):
-            print(len(micsac_detec[0])-len(micsac_detec2[0]), file)
+            print(len(micsac_detec[0]) - len(micsac_detec2[0]), file)
         blink_rm, const_dict = Interpolation.remove_blink_annot(df, const_dict)
         micsac_annot = Microsaccades.get_roorda_micsac(blink_rm)
         print(f'Es wurden {len(micsac_detec[0])} detektiert.\nEigentlich sind {len(micsac_annot)} vorhanden.')
-        detected_micsac[Path(file).stem] = len(micsac_annot)#(micsac_detec[0])
+        detected_micsac[Path(file).stem] = len(micsac_annot)  # (micsac_detec[0])
     if save:
         print('Evaluation done')
         data_name = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacDetected.xlsx"
         save_dict_to_excel(detected_micsac, data_name)
     return data, micsac_detec[0]
+
+
+def get_json_file(folderpath):
+    json_files = []
+    for filename in os.listdir(folderpath):
+        if filename.endswith('.json'):
+            json_files.append(os.path.join(folderpath, filename))
+    return json_files
+
 
 def read_all_values_from_csv(folder_path, end, column_name):
     all_names = []
@@ -111,15 +134,22 @@ def read_all_values_from_csv(folder_path, end, column_name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    all_json = get_json_file(r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\30s")
+    for file in all_json:
+        Evaluation.Evaluation.evaluate_json_hist(file)
+    json_file = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\30s\AmpDurNum_simrate=20,Cells=10,relaxationrate=0.1,hc=1.9.json"
+    r = Evaluation.Evaluation.evaluate_json_hist(json_filepath=json_file)
 
-    roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
+    #    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    #
+    #    roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
 
-
-    #OWN DATA
-    folder_path= r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\dur=5.0_cells=10.0\SamplingF=1000.0"
-    #micsac_dur = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*intermic_dur.csv', 'Intermicsac Duration [s]')
-    #micsac_amp = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*micsac_amp.csv', 'Micsac Amplitude [deg]')
+    #
+    # OWN DATA
+    #    folder_path= r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\dur=5.0_cells=10.0\SamplingF=1000.0"
+    # micsac_dur = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*intermic_dur.csv', 'Intermicsac Duration [s]')
+    # micsac_amp = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*micsac_amp.csv', 'Micsac Amplitude [deg]')
+    ''' 
     all_own_files = get_csv_files_in_folder(folder_path)
     for file in all_own_files:
 
@@ -141,7 +171,9 @@ if __name__ == '__main__':
     const_roorda = get_constants("Roorda")
     roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
     allgeier_folder = r"\\os.lsdf.kit.edu\iai-projects\iai-aida\Daten_Allgeier\fixational_eye_movement_trajectories"
-    gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1006_S1_FXS.csv"
+    '''
+    # gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1006_S1_FXS.csv"
+    '''
     gb_folder = ''
     const_gb = get_constants('GazeBase')
     gb_data = pd.read_csv(gb_file)
@@ -209,8 +241,8 @@ if __name__ == '__main__':
     print('Done')
     all_statistics = (all_micsac_amp, all_intermicsac, all_micsac_dur, all_micsac_vel, all_drift_amp, all_drift_vel, all_tremor_amp, all_tremor_vel)
     max_length = max(len(lst) for lst in all_statistics)
-
-    #with open(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Statistics(mindur=10,vfac=21).csv", 'w',
+'''
+    # with open(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Statistics(mindur=10,vfac=21).csv", 'w',
     #     newline='') as csvfile:
     '''
         writer = csv.writer(csvfile)
@@ -223,7 +255,7 @@ if __name__ == '__main__':
             except TypeError:
                 row = ['' for _ in all_statistics]
             writer.writerow(row)
-        '''
+
 
     #Vis.plot_prob_dist([i*60 for i in all_tremor_amp], 'Amplitude of tremor', 'Amplitude in arcsec')#Why does this lead to an error?
     #Mikrosakkaden
@@ -258,17 +290,17 @@ if __name__ == '__main__':
     Vis.plot_xy_trace(roorda_data[0:8000], const_roorda, label='Eye trace', color='orange')
     #data = gb_data
     #const_dict = const_gb
-
-    #Working with Roorda_data
-    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    df, micsac = detect_all_micsac(roorda_folder, mindur=10, vfac=21, const_dict=const_roorda,resample=False, save=True)
+    '''
+    # Working with Roorda_data
+    # roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    # df, micsac = detect_all_micsac(roorda_folder, mindur=10, vfac=21, const_dict=const_roorda,resample=False, save=True)
     # Visualize both:
-    #Vis.plot_xy(data, const_dict)
-    #Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
-    #Vis.plot_xy(gab_data, const_gb, colors=['blue', 'violet'], labels=['x GazeBase', 'y GazeBase'])
+    # Vis.plot_xy(data, const_dict)
+    # Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
+    # Vis.plot_xy(gab_data, const_gb, colors=['blue', 'violet'], labels=['x GazeBase', 'y GazeBase'])
 
-    #Microsaccades according to Roorda:    roorda_micsac = Microsaccades.get_roorda_micsac(roorda_data)
-    #Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
+    # Microsaccades according to Roorda:    roorda_micsac = Microsaccades.get_roorda_micsac(roorda_data)
+    # Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
     '''
     # Filtering Bandpass
     Drift_c = EventDetection.filter_drift(cubic, const_dict)
@@ -283,6 +315,5 @@ if __name__ == '__main__':
     fft2, fftfreq2 = Filt.fft_transform(Drift, const_dict, 'x_col')
     Vis.plot_fft(fft2, fftfreq2)
     micsacc = EventDetection.find_micsacc(spliced, const_dict, mindur=12)
-
-    Vis.print_microsacc(spliced, const_dict, micsacc)
     '''
+#    Vis.print_microsacc(spliced, const_dict, micsacc)

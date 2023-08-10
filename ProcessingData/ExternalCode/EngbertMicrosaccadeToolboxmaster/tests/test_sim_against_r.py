@@ -1,12 +1,13 @@
 import numpy as np
 from EngbertMicrosaccadeToolbox import data_simulation
 
+
 def load_complex(path):
     with open(path, "r") as file:
         cc = []
         for line in file:
             line = line.strip()
-            line = line[:-1]+"j"
+            line = line[:-1] + "j"
             cc.append(complex(line))
     return cc
 
@@ -50,5 +51,3 @@ def test_aaft():
     expected = np.genfromtxt("tests/aaft_out.dat")
     result = data_simulation.aaft(input_array, rand, y1)
     assert np.allclose(expected, result)
-
-

@@ -47,15 +47,15 @@ def vecvel(x, sampling):
     v = np.zeros((N, 2))
     v[2:(N - 2), ] = sampling / 6 * (x[4:N, ] + x[3:(N - 1), ]
                                      - x[1:(N - 3), ] - x[0:(N - 4), ])
-    v[1, ] = sampling / 2 * (x[2, ] - x[0, ])
-    v[(N - 2), ] = sampling / 2 * (x[N - 1, ] - x[(N - 3), ])
+    v[1,] = sampling / 2 * (x[2,] - x[0,])
+    v[(N - 2),] = sampling / 2 * (x[N - 1,] - x[(N - 3),])
     return v
 
 
 def smoothdata(x):
-    x0 = x[0, ]
+    x0 = x[0,]
     v = vecvel(x, sampling=1)
-    v[0, ] = v[0, ] + x0
+    v[0,] = v[0,] + x0
     v = v.cumsum(axis=0)
     return v
 
@@ -64,12 +64,12 @@ def _test_crit(v, VFAC):
     # Compute threshold
     med = np.median(v, axis=0)
     # median square displacement
-    msd = np.sqrt(np.median((v - med)**2, axis=0))
+    msd = np.sqrt(np.median((v - med) ** 2, axis=0))
     # TODO Warning when too small
 
     radius = VFAC * msd
     # Apply test criterion: elliptic treshold
-    test = ((v / radius)**2).sum(axis=1)
+    test = ((v / radius) ** 2).sum(axis=1)
     return test, radius
 
 
@@ -161,7 +161,7 @@ def microsacc(x, vfac=5, mindur=3, sampling=500):
             end = int(s[1])
 
             # Saccade peak velocity (vpeak)
-            vpeak = np.max(np.sqrt(v[start:end, 0]**2 + v[start:end, 1]**2))
+            vpeak = np.max(np.sqrt(v[start:end, 0] ** 2 + v[start:end, 1] ** 2))
             # Saccade vector (dx,dy)
             dx = x[end, 0] - x[start, 0]
             dy = x[end, 1] - x[start, 1]
@@ -183,7 +183,7 @@ def microsacc(x, vfac=5, mindur=3, sampling=500):
             sac_prop = [start, end, vpeak, dx, dy, x_amp, y_amp]
             sac_list.append(sac_prop)
             # in theory also the radius
-    return(sac_list, radius)
+    return (sac_list, radius)
 
 
 def _mark_combined_sacs(ixes_r, ixes_l):
@@ -233,7 +233,7 @@ def binsacc(sacl, sacr):
                 ampl = 0
                 l_ix = 0
                 for il, l in enumerate(left):
-                    new_ampl = np.sqrt(sacl[l][5]**2 + sacl[l][6]**2)
+                    new_ampl = np.sqrt(sacl[l][5] ** 2 + sacl[l][6] ** 2)
                     if new_ampl > ampl:
                         ampl = new_ampl
                         l_ix = il
@@ -241,7 +241,7 @@ def binsacc(sacl, sacr):
                 ampr = 0
                 r_ix = 0
                 for ir, r in enumerate(right):
-                    new_ampr = np.sqrt(sacr[r][5]**2 + sacr[r][6]**2)
+                    new_ampr = np.sqrt(sacr[r][5] ** 2 + sacr[r][6] ** 2)
                     if new_ampr > ampr:
                         ampr = new_ampr
                         r_ix = ir
@@ -252,13 +252,13 @@ def binsacc(sacl, sacr):
             else:
                 if len(left) == 0:
                     assert len(right) == 1
-                    ampr = np.sqrt(sacr[right[0]][5]**2 + sacr[right[0]][6]**2)
+                    ampr = np.sqrt(sacr[right[0]][5] ** 2 + sacr[right[0]][6] ** 2)
                     NR += 1
-            #           ir <- which.max(ampr)
+                    #           ir <- which.max(ampr)
                     monor.append(list(sacr[right[0]]))
                 if len(right) == 0:
                     assert len(left) == 1
-                    ampl = np.sqrt(sacl[left[0]][5]**2 + sacl[left[0]][6]**2)
+                    ampl = np.sqrt(sacl[left[0]][5] ** 2 + sacl[left[0]][6] ** 2)
                     NL += 1
                     monol.append(list(sacl[left[0]]))
     return bino, monol, monor
@@ -282,7 +282,7 @@ def sacpar(sac):
                                 (9) orientation related to amplitude vector
     """
     conv = False
-    if isinstance(sac,list):
+    if isinstance(sac, list):
         sac = np.array(sac)
         conv = True
     if not sac.size:
@@ -290,33 +290,33 @@ def sacpar(sac):
     M = len(sac)
 
     # Onset
-    a = sac[:,[0,7]]
-    a = np.array([min(a[i,:]) for i in range(M)])
-    
+    a = sac[:, [0, 7]]
+    a = np.array([min(a[i, :]) for i in range(M)])
+
     # Offset
-    b = sac[:,[1,8]]
-    b = np.array([min(b[i,:]) for i in range(M)])
-    
+    b = sac[:, [1, 8]]
+    b = np.array([min(b[i, :]) for i in range(M)])
+
     # Duration
-    DR = sac[:,1] - sac[:,0] + 1
-    DL = sac[:,8] - sac[:,7] + 1
-    D = (DR+DL)/2
+    DR = sac[:, 1] - sac[:, 0] + 1
+    DL = sac[:, 8] - sac[:, 7] + 1
+    D = (DR + DL) / 2
 
     # Delay between eyes
-    delay = b-a+1
+    delay = b - a + 1
 
     # Peak velocity
-    vpeak = (sac[:,2] + sac[:,9])/2
+    vpeak = (sac[:, 2] + sac[:, 9]) / 2
 
     # Saccade distance
-    dist = (np.sqrt(sac[:,3]**2+sac[:,4]**2) + np.sqrt(sac[:,10]**2+sac[:,11]**2))/2
-    angle = np.arctan2((sac[:,4]+sac[:,11])/2, (sac[:,3]+sac[:,10])/2)
+    dist = (np.sqrt(sac[:, 3] ** 2 + sac[:, 4] ** 2) + np.sqrt(sac[:, 10] ** 2 + sac[:, 11] ** 2)) / 2
+    angle = np.arctan2((sac[:, 4] + sac[:, 11]) / 2, (sac[:, 3] + sac[:, 10]) / 2)
 
     # Saccde amplitude and angle
-    ampl = (np.sqrt(sac[:,5]**2+sac[:,6]**2) + np.sqrt(sac[:,12]**2+sac[:,13]**2))/2
-    angle2 = np.arctan2((sac[:,6] + sac[:,13])/2, (sac[:,5]+sac[:,12])/2)
+    ampl = (np.sqrt(sac[:, 5] ** 2 + sac[:, 6] ** 2) + np.sqrt(sac[:, 12] ** 2 + sac[:, 13] ** 2)) / 2
+    angle2 = np.arctan2((sac[:, 6] + sac[:, 13]) / 2, (sac[:, 5] + sac[:, 12]) / 2)
 
-    out = np.stack([a,b,D,delay,vpeak,dist,angle,ampl,angle2]).T
+    out = np.stack([a, b, D, delay, vpeak, dist, angle, ampl, angle2]).T
 
     # if input was list convert back to list
     if conv:

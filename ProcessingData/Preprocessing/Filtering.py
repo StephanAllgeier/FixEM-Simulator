@@ -3,7 +3,7 @@ from scipy import signal
 from scipy.signal import butter, lfilter, freqz, cheby1, cheby2, filtfilt
 import numpy as np
 import matplotlib.pyplot as plt
-import statsmodels.datasets
+
 
 
 class Filtering():
@@ -29,7 +29,6 @@ class Filtering():
             plt.legend(loc='best')
         return b, a
 
-
     @staticmethod
     def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
         b, a = Filtering.butter_bandpass(lowcut, highcut, fs, order=order)
@@ -52,8 +51,9 @@ class Filtering():
     @staticmethod
     def butter_lowpass_filter(data, highcut, fs, order=5):
         b, a = Filtering.butter_lowpass(highcut, fs, order=order)
-        y = filtfilt(b, a, data,  padlen=3 * max(len(a), len(b)))
+        y = filtfilt(b, a, data, padlen=3 * max(len(a), len(b)))
         return y
+
     @staticmethod
     def kalman_filter():
         return None

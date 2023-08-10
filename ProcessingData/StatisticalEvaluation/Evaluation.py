@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
@@ -85,8 +87,8 @@ class Evaluation():
             amplitudes.append(amp)
             velocity.append(v)
         # Hier ist ein Unterschied in der AMplitude detetiert worden: Entsteht durch Filtern bei Detektion der MS
-        #Velocity in deg/s
-        micsac_vel = [i/60 for i in velocity]
+        # Velocity in deg/s
+        micsac_vel = [i / 60 for i in velocity]
         return intermic_dist, duration, amplitudes, velocity
 
     @staticmethod
@@ -101,19 +103,19 @@ class Evaluation():
         for drift_segment in drift_indexes:
             start = drift_segment[0]
             end = drift_segment[1]
-            #a = Evaluation.berechne_weitester_abstand(df, const_dict, start, end)
+            # a = Evaluation.berechne_weitester_abstand(df, const_dict, start, end)
             amplituden = np.sqrt(df[const_dict['x_col']][start:end] ** 2 + df[const_dict['y_col']][start:end] ** 2)
             amp.append(np.max(amplituden) - np.min(amplituden))
-            #amp2.append(a)
+            # amp2.append(a)
 
             v = np.max(np.sqrt(vel[start:end, 0] ** 2 + vel[start:end, 1] ** 2))  # Caluclating max speed in segment
             velocity.append(v)
         return amp, velocity
 
     @staticmethod
-    def get_tremor_statistics(df, const_dict): # df has to be without blinks
+    def get_tremor_statistics(df, const_dict):  # df has to be without blinks
         tremor = EventDetection.tremor_only(df, const_dict)
-        tremor_segments = EventDetection.drift_indexes_only(df, const_dict) # Remove Microsaccades from measurement
+        tremor_segments = EventDetection.drift_indexes_only(df, const_dict)  # Remove Microsaccades from measurement
         amp = []
         velocity = []
         x = tremor[[const_dict['x_col'], const_dict['y_col']]].to_numpy()
@@ -121,14 +123,15 @@ class Evaluation():
         for tremor_segment in tremor_segments:
             start = tremor_segment[0]
             end = tremor_segment[1]
-            amplituden = np.sqrt(tremor[const_dict['x_col']][start:end] ** 2 + tremor[const_dict['y_col']][start:end] ** 2)
+            amplituden = np.sqrt(
+                tremor[const_dict['x_col']][start:end] ** 2 + tremor[const_dict['y_col']][start:end] ** 2)
             amp.append(np.max(amplituden) - np.min(amplituden))
             v = np.max(np.sqrt(vel[start:end, 0] ** 2 + vel[start:end, 1] ** 2))
             velocity.append(v)
         return amp, velocity
 
     def berechne_weitester_abstand(dataframe, const_dict, start, end):
-        zeitbereich = dataframe[start:end-1]
+        zeitbereich = dataframe[start:end - 1]
         x = zeitbereich[const_dict['x_col']].tolist()
         y = zeitbereich[const_dict['y_col']].tolist()
 
@@ -156,7 +159,8 @@ class Evaluation():
             data = pd.read_csv(file)
             blink_rm, const_dict = Interpolation.remove_blink_annot(data, const_dict)
             micsac_detec = Microsaccades.find_micsac(blink_rm, const_dict)
-            intermicsac, dur, amplitudes, velocity = Evaluation.get_micsac_statistics(blink_rm, const_dict, micsac_detec)
+            intermicsac, dur, amplitudes, velocity = Evaluation.get_micsac_statistics(blink_rm, const_dict,
+                                                                                      micsac_detec)
             amp_drift, vel_drift = Evaluation.get_drift_statistics(blink_rm, const_dict)
             amp_tremor, vel_tremor = Evaluation.get_tremor_statistics(blink_rm, const_dict)
             all_micsac_amp.extend(amplitudes)
@@ -167,3 +171,43 @@ class Evaluation():
             all_drift_vel.extend(vel_drift)
             all_tremor_amp.extend(amp_tremor)
             all_tremor_vel.extend(vel_tremor)
+
+    @staticmethod
+    def evaluate_json_hist(json_filepath):
+        with open(json_filepath, 'r') as json_file:
+            data = json.load(json_file)
+        micsac_amp = data["MicsacAmplitudes"] * 60
+        intermic_dur = data["IntermicDur"]
+        num_micsac = data["NumMicsac"]
+
+        #Figure subplots
+        fig, axs = plt.subplots(3,1,figsize=(8,12))
+
+        axs[0].hist(micsac_amp, bins=50, alpha=0.5,
+                 label="Amplituden der Mikrosakkaden in Bogenminuten [arcmin]", density=True)
+        axs[1].hist(intermic_dur, bins=50, alpha=0.5,
+                 label="Intermikrosakkadische Intervalle in s",density=True)
+        axs[2].hist(num_micsac, bins=50, alpha=0.5,
+                 label="Anzahl an Mikrosakkaden pro Simulation", density=True)
+
+        fig.suptitle(
+            'Histogramme der Mikrosakkadenamplitude, Intermikrosakkadischen Intervalle und Anzahl der Mikrosakkaden', fontsize=16)
+        plt.legend(loc='upper right')
+
+        for ax in axs:
+            ax.set_ylabel('Häufigkeit')
+        # Überschriften für jedes Histogramm
+        axs[0].set_title("Amplituden der Mikrosakkaden in Bogenminuten [arcmin]")
+        axs[0].set_xlabel('Amplituden in Bogenminuten [arcmin]')
+        axs[0].set_xlim(0, max(micsac_amp))
+
+        axs[1].set_title("Intermikrosakkadische Intervalle in s")
+        axs[1].set_xlabel('Intermikrosakkadische Intervalldauer in s')
+        axs[1].set_xlim(0, 2)#max(intermic_dur))
+
+        axs[2].set_title("Anzahl an Mikrosakkaden pro Simulation")
+        axs[2].set_xlabel('Anzahl Mikrosakkaden pro 30s Simulation')
+        axs[2].set_xlim(min(num_micsac), max(num_micsac))
+        plt.subplots_adjust(hspace=0.5)
+        plt.savefig(f"{str(json_filepath)[:-5]}_histogram.jpeg", dpi=350)
+        plt.close()
