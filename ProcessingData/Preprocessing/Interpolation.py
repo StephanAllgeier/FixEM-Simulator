@@ -132,29 +132,6 @@ class Interpolation():
             factor), return_df[const_dict['y_col']].multiply(factor)
         return return_df
 
-    @staticmethod
-    def resample(df, const_dict, f_target=1000):
-        '''
-        resample a signal from original frequency fs to target frequency frs
-        '''
-        interm_frame = df[[const_dict['time_col'], const_dict['x_col'], const_dict['y_col']]]
-        fs = const_dict['f']
-        resampling_ratio = f_target / fs
-        num_output_samples = int(len(interm_frame) * resampling_ratio)
-
-        return_x = pd.Series(signal.resample(interm_frame[const_dict['x_col']], num_output_samples),
-                             name=const_dict['x_col'])
-        return_y = pd.Series(signal.resample(interm_frame[const_dict['y_col']], num_output_samples),
-                             name=const_dict['y_col'])
-        return_t = pd.Series(np.linspace(0, df[const_dict['time_col']].iloc[-1], num_output_samples),
-                             name=const_dict['time_col'])
-
-        # Using pydsm
-        # return_x = pydsm.resample(interm_frame[const_dict['x_col']], fs, f_target)
-        # return_y = pydsm.resample(interm_frame[const_dict['y_col']], fs, f_target)
-        # return_t = pydsm.resample(interm_frame[const_dict['t_col']], fs, f_target)
-        const_dict['f'] = f_target
-        return pd.concat([return_t, return_x, return_y], axis=1), const_dict
 
     @staticmethod
     def arcmin_to_µm(df, const_dict, r_eye=12.5):
