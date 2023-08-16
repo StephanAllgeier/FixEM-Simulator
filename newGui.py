@@ -5,6 +5,16 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QCo
 
 from GeneratingTraces_MathematicalModel import RandomWalkBased
 
+def get_combination_from_excel(excel_file):
+    wb = openpyxl.load_workbook(excel_file)
+    sheet = wb.active
+    headers = [cell.value for cell in sheet[1]][0:4]
+    all_combinations = []
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        tupel1 = dict(zip(headers, row[0:4]))
+        all_combinations.append(tupel1)
+    wb.close()
+    return all_combinations
 
 class Functs:
     @staticmethod
@@ -32,10 +42,13 @@ class MyWindow(QMainWindow):
         self.layout.addWidget(self.function_combo)
 
         # Dropdown-Menü mit 16 Optionen erstellen
-        self.float_options = [(20, 10, 0.1, 1.9), (50, 25, 0.002, 1.9), (50, 10, 0.001, 3.4), (50, 10, 0.002, 3.4),
-                              (50, 10, 0.01, 3.4), (50, 10, 0.1, 3.4), (50, 10, 0.001, 3.9), (50, 10, 0.005, 3.9),
-                              (50, 10, 0.01, 3.9), (100, 10, 0.001, 5.4), (100, 10, 0.002, 5.4), (100, 10, 0.01, 5.4),
-                              (100, 10, 0.05, 5.4), (100, 10, 0.001, 5.9), (100, 10, 0.005, 5.9), (100, 10, 0.05, 6.9)]
+        self.float_options = []
+        excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50\Filtered.xlsx"
+        # Open Excelfile
+        combinations = get_combination_from_excel(excel_file)
+        for comb in combinations:
+            self.float_options.append((comb['simulation rate'], comb['cells per degree'], comb['relaxation rate'], comb['h_crit']))
+
         self.drop_var = ['simulation_freq', "potential_resolution", "relaxation_rate", "hc"]
         self.float_combo = QComboBox(self)
         for index, option in enumerate(self.float_options):
