@@ -781,8 +781,42 @@ class RandomWalk():
         """
         Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
         """
-        tremor_x = np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
-        tremor_y = np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(y_sampled))
+
+        def generate_tremor_signal(freq_range, sample_rate, duration, amplitude_min, amplitude_max):
+            t = np.arange(0, duration, 1 / sample_rate)
+
+            # Generiere Tremor-Signal im Frequenzbereich
+            tremor_freq = np.random.uniform(*freq_range)
+            tremor_amplitude = np.random.uniform(amplitude_min, amplitude_max)
+
+            tremor = np.random.normal(0, 1, len(t))
+            tremor_freqs = np.fft.fftfreq(len(t), 1 / sample_rate)
+            tremor_freq_mask = np.logical_and(tremor_freqs >= freq_range[0], tremor_freqs <= freq_range[1])
+            tremor_freq_domain = np.zeros(len(t))
+            tremor_freq_domain[tremor_freq_mask] = np.exp(1j * 2 * np.pi * np.random.rand(np.sum(tremor_freq_mask)))
+            tremor_freq_domain *= np.sqrt(
+                np.sum(np.abs(np.fft.fft(tremor)) ** 2) / np.sum(np.abs(np.fft.fft(tremor_freq_domain)) ** 2))
+            tremor = np.fft.ifft(tremor_freq_domain)
+            tremor = np.real(tremor)
+            tremor *= tremor_amplitude
+
+            return tremor
+
+        def plot_freq_tremor(tremor_signal):
+            frequency_domain = np.fft.fft(tremor_signal)
+            frequencies = np.fft.fftfreq(len(frequency_domain), 1 / args.sampling_frequency)
+            magnitude = np.abs(frequency_domain)
+            # Frequenzbereich plotten
+            plt.figure(figsize=(10, 6))
+            plt.plot(frequencies, magnitude)
+            plt.xlabel('Frequenz (Hz)')
+            plt.ylabel('Amplitude')
+            plt.title('Frequenzbereich des Signals')
+            plt.grid()
+            plt.show()
+
+        tremor_x = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))#np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
+        tremor_y = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))
         onsets = t_sim[micsac_onset]
         offsets = t_sim[micsac_offset]
 
