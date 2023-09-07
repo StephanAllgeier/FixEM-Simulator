@@ -10,7 +10,7 @@ import scipy
 import matplotlib.pyplot as plt
 from ProcessingData.Preprocessing.Interpolation import Interpolation
 from ProcessingData.StatisticalEvaluation import Evaluation
-
+from ProcessingData.Preprocessing.Augmentation import Augmentation
 from ProcessingData.StatisticalEvaluation.Microsaccades import Microsaccades
 from ProcessingData.Visualize import Visualize as Vis
 from ProcessingData.Preprocessing.Filtering import Filtering as Filt
@@ -23,11 +23,11 @@ def get_constants(dataset_name):
                 "TimeScaling": 1,
                 'BlinkID': 3, 'Annotations': 'Flags', 'file_pattern': "\d{5}[A-Za-z]_\d{3}\.csv", 'rm_blink': False}
     elif dataset_name == "GazeBase":
-        return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling": 60,
+        return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling":1 ,
                 "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab',
-                'rm_blink': False}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
+                'rm_blink': False, 'SakkID':2}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
     elif dataset_name == "OwnData":
-        return {"Name": "OwnData", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'Time', "ValScaling": 1,
+        return {"Name": "OwnData", "f": 500, "x_col": 'x', "y_col": 'y', "time_col": 'Time', "ValScaling": 1,
                 "TimeScaling": 1, 'BlinkID': None, 'Annotations': 'lab', 'rm_blink': False}
 
 
@@ -130,38 +130,83 @@ def read_all_values_from_csv(folder_path, end, column_name):
             all_names.extend(df['Name'].tolist())
 
     return all_names
+def evaluate_all_hist():
+    all_json = get_json_file(
+        r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50")
+    # for file in all_json:
+    #    Evaluation.Evaluation.evaluate_json_hist(file)
+def Evaluate_intermic_hist(json_path):
+    Evaluation.Evaluation.generate_histogram_with_logfit(json_path, range = (0,2))
+def augmentation():
+    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+
+    # roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
+    # roorda_data = pd.read_csv(roorda_test_file)
+    const_roorda = get_constants("Roorda")
+    roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
+    for file in roorda_files:
+        data = pd.read_csv(file)
+        remove_blink, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
+        a = Augmentation.reverse_data(remove_blink, const_roorda)
+        b = Augmentation.flip_dataframe(remove_blink, const_roorda)
+        c, _ = Augmentation.resample(remove_blink, const_roorda, f_target=1000)
+        folderpath = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\Augmented\Roorda_Augmented"
+        a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
+        b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
+        c.to_csv(fr"{folderpath}\{Path(file).stem}_f=1000.csv")
+
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    all_json = get_json_file(r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\30s")
-    for file in all_json:
-        Evaluation.Evaluation.evaluate_json_hist(file)
-    json_file = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\30s\AmpDurNum_simrate=20,Cells=10,relaxationrate=0.1,hc=1.9.json"
-    r = Evaluation.Evaluation.evaluate_json_hist(json_filepath=json_file)
+    const_gb = get_constants('GazeBase')
+    gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1002_S1_FXS.csv")
+    gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
+    gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
+   #gb_file, const_gb = Interpolation.dva_to_arcmin(gb_file, const_gb)
 
-    #    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    #
-    #    roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
+    roorda_test_file = pd.read_csv(
+        r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv")
+    const_roorda = get_constants("Roorda")
+    own_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=150.0_relaxationr=0.1\Bestes\7_Signal_NumMS=21.csv"
+    own_data = pd.read_csv(own_file)
+    own_dict = get_constants('OwnData')
+    save_path = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=150.0_relaxationr=0.1\Bestes\Vergleich Simulation Roorda"
+    Vis.plot_xy_dual(own_data, roorda_test_file, own_dict, const_roorda, 'Simulation', 'Roorda Lab', savepath=save_path, t_on=10, t_off=13, title='Augenbewegungen in x- und y-Koordinaten')
+    json_path = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\AmpDurNum_simrate=150,Cells=25,relaxationrate=0.1,hc=3.9_n=50.json"
+    Evaluate_intermic_hist(json_path)
+    roorda_folder =r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    speicherpfad_roorda = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    const_roorda = get_constants('Roorda')
+    Evaluation.Evaluation.get_intermic_hist_dataset_rooda(folderpath=roorda_folder, speicherpfad=speicherpfad_roorda, const_dict=const_roorda)
 
-    #
     # OWN DATA
-    #    folder_path= r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\dur=5.0_cells=10.0\SamplingF=1000.0"
+    #folder_path= r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50\Traces AmpDurNum_simrate=100,Cells=25,relaxationrate=0.09,hc=3.4\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=100.0_relaxationr=0.09"
     # micsac_dur = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*intermic_dur.csv', 'Intermicsac Duration [s]')
     # micsac_amp = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*micsac_amp.csv', 'Micsac Amplitude [deg]')
-    ''' 
-    all_own_files = get_csv_files_in_folder(folder_path)
+    #all_own_files = get_csv_files_in_folder(folder_path)
+    own_file =pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=100.0_relaxationr=0.09\2_Signal_NumMS=17.csv")
+    const_own = get_constants('OwnData')
+    roorda_test_file =  pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv")
+    const_roorda = get_constants("Roorda")
+    const_gb = get_constants('GazeBase')
+    gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1006_S1_FXS.csv")
+    gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
+    gb_file , const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
+    Vis.plot_xy_dual(own_file, gb_file, const_own, const_gb, 'Eigene Daten', 'GazeBase', color1=None, color2=None, t_on=10, t_off=14)
+    '''
     for file in all_own_files:
 
         own_data = pd.read_csv(file)
         x = own_data['x']
         y = own_data['y']
-        f = 1000
+        f = 500
         t = own_data['Time']
         own_dict =get_constants('OwnData')
         plt.plot(t, x, label='x', color='g')
         plt.plot(t, y, label='y', color='b')
         plt.xlabel('Zeit in s')
+        plt.ylabel('Auslenkung in Grad [°]')
         plt.title('Test1')
         plt.legend()
         plt.show()
@@ -170,8 +215,9 @@ if __name__ == '__main__':
     roorda_data = pd.read_csv(roorda_test_file)
     const_roorda = get_constants("Roorda")
     roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
-    allgeier_folder = r"\\os.lsdf.kit.edu\iai-projects\iai-aida\Daten_Allgeier\fixational_eye_movement_trajectories"
     '''
+    #allgeier_folder = r"\\os.lsdf.kit.edu\iai-projects\iai-aida\Daten_Allgeier\fixational_eye_movement_trajectories"
+    
     # gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1006_S1_FXS.csv"
     '''
     gb_folder = ''
