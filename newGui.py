@@ -1,9 +1,9 @@
 import sys
-
+import openpyxl
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QComboBox, QLabel, QLineEdit, QPushButton, \
     QFileDialog, QCheckBox, QHBoxLayout, QButtonGroup
 
-from GeneratingTraces_MathematicalModel import RandomWalkBased
+from GeneratingTraces_MathematicalModel import RandomWalkBased_final
 
 def get_combination_from_excel(excel_file):
     wb = openpyxl.load_workbook(excel_file)
@@ -43,7 +43,7 @@ class MyWindow(QMainWindow):
 
         # Dropdown-Menü mit 16 Optionen erstellen
         self.float_options = []
-        excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50\Filtered.xlsx"
+        excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\GuiInput.xlsx"
         # Open Excelfile
         combinations = get_combination_from_excel(excel_file)
         for comb in combinations:
@@ -81,14 +81,14 @@ class MyWindow(QMainWindow):
                 self.layout.addWidget(browse_button)
             elif display_name == "Show plots":
                 label = QLabel(variable_name + ":")
-                checkbox_yes = QCheckBox("Yes")
-                checkbox_no = QCheckBox("No")
-                checkbox_yes.clicked.connect(lambda: self.handle_checkbox(checkbox_yes, checkbox_no))
-                checkbox_no.clicked.connect(lambda: self.handle_checkbox(checkbox_no, checkbox_yes))
-                self.input_fields.append((variable_name, checkbox_yes, checkbox_no))
+                self.checkbox_yes = QCheckBox("Yes")
+                self.checkbox_no = QCheckBox("No")
+                self.checkbox_yes.clicked.connect(lambda: self.handle_checkbox(self.checkbox_yes, self.checkbox_no))
+                self.checkbox_no.clicked.connect(lambda: self.handle_checkbox(self.checkbox_no, self.checkbox_yes))
+                self.input_fields.append((variable_name, self.checkbox_yes, self.checkbox_no))
                 hbox = QHBoxLayout()
-                hbox.addWidget(checkbox_yes)
-                hbox.addWidget(checkbox_no)
+                hbox.addWidget(self.checkbox_yes)
+                hbox.addWidget(self.checkbox_no)
                 self.layout.addWidget(label)
                 self.layout.addLayout(hbox)
             else:
@@ -115,9 +115,11 @@ class MyWindow(QMainWindow):
 
     def browse_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Ordner auswählen")
-        for variable_name, line_edit, _ in self.input_fields:
-            if variable_name == "Variable 9":
-                line_edit.setText(folder_path)
+        for element in self.input_fields:
+            if len(element) == 3:
+                variable_name, line_edit, _ = element
+                if variable_name == "folderpath":
+                    line_edit.setText(folder_path)
 
     def toggle_input_field(self, line_edit, checkbox_default):
         line_edit.setDisabled(checkbox_default.isChecked())
@@ -148,10 +150,12 @@ class MyWindow(QMainWindow):
                     else:
                         variable_value = float(line_edit.text())
                 else:
-                    if line_edit.text() == 'Yes':
-                        variable_value = True
-                    elif line_edit.text == 'No':
-                        variable_value = False
+                    if variable_name == 'show_plots':
+                        if self.checkbox_yes.isChecked():
+                            variable_value = True
+                        elif self.checkbox_no.isChecked():
+                            variable_value = False
+
                     else:
                         variable_value = line_edit.text()
                 variables[variable_name] = variable_value
@@ -175,8 +179,10 @@ class MyWindow(QMainWindow):
         if selected_function == 'RandomWalk based':
             if isinstance(variables['number'], type(None)):
                 variables['number'] =1
-            for i in range(1, int(variables['number']) + 1):
-                RandomWalkBased.RandomWalk.randomWalk(**variables, number_id=i)
+            range_end = int(variables['number'])
+            variables.pop('number')
+            for i in range(1, range_end + 1):
+                RandomWalkBased_final.RandomWalk.randomWalk(**variables, number_id=i)
         if selected_function == 'GAN based':
             print('Not yet implemented.')
 
