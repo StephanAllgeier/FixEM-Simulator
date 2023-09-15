@@ -32,7 +32,7 @@ class Microsaccades():
         return df
 
     @staticmethod
-    def find_micsac(df, constant_dict, mindur=10, vfac=21, highcut=40, threshold=50):  # threshold in ms
+    def find_micsac(df, constant_dict, mindur=6, vfac=21, highcut=40, threshold=50):  # threshold in ms
         '''
         parameters:
         df=dataframe to work with, units of the traces is in degrees of visual angle
@@ -86,7 +86,7 @@ class Microsaccades():
         return micsac_onoff
 
     @staticmethod
-    def interpolate_micsac(df, const_dict, mindur=10, vfac=21):
+    def interpolate_micsac(df, const_dict, mindur=6, vfac=21):
         dataframe = df.copy()
         micsac = Microsaccades.find_micsac(dataframe, const_dict, mindur=mindur, vfac=vfac)
         if const_dict['rm_blink'] == False:
@@ -114,7 +114,7 @@ class Microsaccades():
         return dataframe
 
     @staticmethod
-    def remove_micsac(df, const_dict, mindur=10, vfac=21):
+    def remove_micsac(df, const_dict, mindur=6, vfac=21):
         dataframe = df.copy()
         micsac = Microsaccades.find_micsac(dataframe, const_dict, mindur=mindur, vfac=vfac)
         if const_dict['rm_blink'] == False:
