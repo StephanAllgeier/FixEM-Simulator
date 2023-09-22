@@ -179,5 +179,6 @@ def Versuchsplanung_excelcombinations(excel_file=None):
 
 if __name__ == '__main__':
     Versuchsplanung()
+    print('Statement')
 
 
