@@ -1,10 +1,12 @@
 import json
+import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-from scipy.stats import norm
+from matplotlib.table import Table
 import math
 
 from ProcessingData.ExternalCode.EngbertMicrosaccadeToolboxmaster.EngbertMicrosaccadeToolbox.microsac_detection import \
@@ -235,7 +237,7 @@ class Evaluation():
         plt.savefig(f"{str(json_filepath)[:-5]}_histogram.jpeg", dpi=350)
         plt.close()
     @staticmethod
-    def generate_histogram_with_logfit(json_filepath, range = (0,4)):
+    def generate_histogram_with_logfit(json_filepath, range = (0,4), compare_to_roorda=False):
         """
         Erstellt ein Histogramm aus Daten in einer JSON-Datei und fügt eine Anpassungslinie auf einer logarithmischen Skala hinzu.
 
@@ -256,9 +258,6 @@ class Evaluation():
         range_limits = range
         hist_vals, hist_edges, _ = axs.hist(intermic_dur, bins=hist_bins, range=range_limits, edgecolor='black',
                                             label="Intermikrosakkadische Intervalle in s", density=True)
-        hist_vals_small = [np.log10(i) for i in hist_vals]
-        # Figure und Axes für das Haupt-Histogramm erstellen
-        fig, axs = plt.subplots(1, 1, figsize=(10, 6))
 
         # Anpassende Gerade im kleinen Diagramm plotten (logarithmische Skala)
         def line_function(params, x, y):
@@ -302,6 +301,7 @@ class Evaluation():
         axs.set_ylabel("Häufigkeit")
         axs.set_title(f"Histogramm der intermikrosakkadischen Intervalle\n Mean={round(mean,3)}, Median={round(median,3)}, Stdev={round(stdev,3)}")
         axs.legend()
+
 
 
         plt.savefig(f"{str(json_filepath)[:-5]}_{range}_histogram.jpeg", dpi=350)
@@ -381,29 +381,127 @@ class Evaluation():
         plt.close()
 
     @staticmethod
-    def get_intermicsac_roorda(dataframe):
-        # Diese Funktion nimmt als INput einen Dataframe und gibt eine LIste aus Listen zurück, mit ONset und Offset der INtermikrosakkadischen INtervalle gegeben als Indizes
-        micsacs = Microsaccades.get_roorda_micsac(dataframe)
-        intermic_dist = []
-        for i in range(0, len(micsacs)):
-            if i == 0:
-                intermic_dist.append([0, micsacs[i][0]])
-            else:
-                intermic_dist.append([micsacs[i - 1][1], micsacs[i][0]])
-        return intermic_dist
+    def normalized_histogram_difference(list1, list2, num_bins=10):
+        """
+        Berechnet die normalisierte Histogrammdifferenz zwischen zwei Listen.
+
+        Args:
+            list1 (list): Die erste Liste.
+            list2 (list): Die zweite Liste.
+            num_bins (int): Die Anzahl der Bins im Histogramm.
+
+        Returns:
+            float: Die normalisierte Histogrammdifferenz zwischen den beiden Listen.
+        """
+        # Erstellen Sie Histogramme für beide Listen und normalisieren Sie sie
+        hist1, _ = np.histogram(list1, bins=num_bins, density=True)
+        hist2, _ = np.histogram(list2, bins=num_bins, density=True)
+
+        # Normalisieren Sie die Histogramme auf [0, 1]
+        hist1 /= np.max(hist1)
+        hist2 /= np.max(hist2)
+
+        # Berechnen Sie die Differenz zwischen den normalisierten Histogrammen
+        diff = np.abs(hist1 - hist2)
+
+        # Berechnen Sie die Gesamtdifferenz
+        total_diff = np.sum(diff)
+
+        return total_diff
 
     @staticmethod
-    def get_intermic_hist_dataset_rooda(folderpath, speicherpfad, const_dict, return_data = False):
+    def dual_hist_w_histdiff(varlist1, varlist2, label1, label2, savefigpath, range_limits = (0, 4)):
+        if not (isinstance(varlist1, list) and isinstance(varlist2, list)):
+            return None
+        intermic_dur1 = varlist1
+        intermic_dur2 = varlist2
+
+        # Berechnung der Statistiken für beide Datensätze
+        mean1, median1, stdev1 = np.mean(intermic_dur1), np.median(intermic_dur1), np.std(intermic_dur1)
+        mean2, median2, stdev2 = np.mean(intermic_dur2), np.median(intermic_dur2), np.std(intermic_dur2)
+
+        # Figure und Axes für das Haupt-Histogramm erstellen
+        fig, axs = plt.subplots(1, 1, figsize=(10, 6))
+
+        hist_bins = 50
+        histdiff = Evaluation.normalized_histogram_difference(intermic_dur1, intermic_dur2, hist_bins)
+        # Histogramm für den ersten Datensatz plotten
+        axs.hist(intermic_dur1,label=label1, bins=hist_bins, range=range_limits, edgecolor='black',
+                  alpha=0.5, density=True)
+
+        # Histogramm für den zweiten Datensatz plotten
+        axs.hist(intermic_dur2, label=label2, bins=hist_bins, range=range_limits, edgecolor='black',
+                  alpha=0.5, density=True)
+
+        # Beschriftungen und Legende hinzufügen
+        axs.set_xlabel("Intervalldauer in Sekunden [s]")
+        axs.set_ylabel("Relative Häufigkeit")
+        axs.set_title(f"Histogramm der intermikrosakkadischen Intervalle\n Vergleich {label1} / {label2}", fontweight='bold', fontsize=14)
+        #axs.text(0.95, 0.85, f"HD = {histdiff}", transform=axs.transAxes, ha='right', va='top', fontsize=12)
+
+        axs.legend()
+        # Tabelle erstellen
+        table_data = [["", "Mean", "Median", "Stdev"],
+            [label1, round(mean1, 3), round(median1, 3), round(stdev1, 3)],
+            [label2, round(mean2, 3), round(median2, 3), round(stdev2, 3)],
+            [f"HD={round(histdiff,3)}", "", "", ""]
+        ]
+        table = axs.table(cellText=table_data, colLabels= None,loc='center right', cellLoc='center')
+        table.auto_set_font_size(False)
+        table.set_fontsize(12)
+        table.scale(0.6, 1.2)
+        plt.tight_layout()
+        plt.savefig(f"{savefigpath[:-5]}_histogram_intermicsac.jpeg", dpi=600)
+        plt.close()
+
+class Roorda():
+    @staticmethod
+    def get_intermic_hist_dataset_rooda(folderpath, speicherpfad, const_dict, return_data=False):
+        """
+           Generiert ein Histogramm und berechnet statistische Werte für die intermicrosakkadischen Intervalle basierend auf
+           den gegebenen CSV-Dateien im angegebenen Ordner.
+
+           Parameter:
+           - folderpath (str): Der Pfad zum Ordner, der die CSV-Dateien enthält.
+           - speicherpfad (str): Der Pfad, unter dem das Histogramm und die statistischen Werte gespeichert werden.
+           - const_dict (dict): Ein Dictionary mit Konstanten, das Spaltennamen und andere Werte enthält.
+           - return_data (bool): Ein optionaler Parameter, der angibt, ob die berechneten Daten zurückgegeben werden sollen.
+
+           Rückgabewert (falls return_data=True):
+           - intermic_dur (list): Eine Liste der intermicrosakkadischen Intervalle in Sekunden.
+           - amp (list): Eine Liste der Amplituden der Intervalle.
+           - micsac_vel (list): Eine Liste der Geschwindigkeiten der Intervalle.
+
+           Hinweise:
+           - Die Funktion liest CSV-Dateien aus dem angegebenen Ordner und führt verschiedene Berechnungen an den Daten aus.
+           - Sie entfernt Blink-Annotationen aus den Daten und berechnet intermicrosakkadische Intervalle, Amplituden und Geschwindigkeiten.
+           - Ein Histogramm der Intervalle wird erstellt und unter 'speicherpfad' als JPEG-Datei gespeichert.
+           - Zusätzlich werden logarithmische Histogrammdaten gespeichert.
+
+           Beispielaufruf:
+           get_intermic_hist_dataset_rooda("pfad_zum_ordner", "speicherort", const_dict, return_data=True)
+
+           """
         all_files = Evaluation.get_csv_files_in_folder(folderpath)
         intermic_dur = []
+        amp = []
+        micsac_vel = []
         for filepath in all_files:
             dataframe = pd.read_csv(filepath)
             dataframe, const_dict = Interpolation.remove_blink_annot(dataframe, const_dict)
-            intermic_dist = Evaluation.get_intermicsac_roorda(dataframe)
+            intermic_dist = Roorda.get_intermicsac_roorda(dataframe)
             durations = [(i[1] - i[0]) / 1920 for i in intermic_dist]
+            x_amplitude = [(dataframe[const_dict['x_col']][i[1]] - dataframe[const_dict['x_col']][i[0]]) for i in
+                           intermic_dist]
+            y_amplitude = [(dataframe[const_dict['y_col']][i[1]] - dataframe[const_dict['y_col']][i[0]]) for i in
+                           intermic_dist]
+            amplitude = [np.sqrt(x_amplitude[i] ** 2 + y_amplitude[i] ** 2) for i in range(len(x_amplitude))]
+            vel = [amplitude[i] / durations[i] for i in range(len(amplitude))]
             intermic_dur.extend(durations)
+            amp.extend(amplitude)
+            micsac_vel.extend(vel)
         if return_data:
-            return intermic_dur
+            return intermic_dur, amp, micsac_vel
         plt.hist(intermic_dur, bins=200, edgecolor='black')
 
         # Titel und Beschriftungen hinzufügen
@@ -414,34 +512,17 @@ class Evaluation():
         # Diagramm speichern
         plt.savefig(f'{speicherpfad}\histogram_Roorda_intermicsac.jpeg', dpi=600)
         plt.close()
-        Evaluation.Evaluation.get_histogram_log_from_list(intermic_dur, speicherpfad, const_dict=const_dict)
+        Evaluation.get_histogram_log_from_list(intermic_dur, speicherpfad, const_dict=const_dict)
 
     @staticmethod
-    def histogram_difference(list1, list2, num_bins=10, normalize=True):
-        """
-        Berechnet die Histogrammdifferenz zwischen zwei Listen.
+    def get_intermicsac_roorda(dataframe):
+        # Diese Funktion nimmt als Input einen Dataframe und gibt eine LIste aus Listen zurück, mit ONset und Offset der INtermikrosakkadischen INtervalle gegeben als Indizes
+        micsacs = Microsaccades.get_roorda_micsac(dataframe)
+        intermic_dist = []
+        for i in range(0, len(micsacs)):
+            if i == 0:
+                intermic_dist.append([0, micsacs[i][0]])
+            else:
+                intermic_dist.append([micsacs[i - 1][1], micsacs[i][0]])
+        return intermic_dist
 
-        Args:
-            list1 (list): Die erste Liste.
-            list2 (list): Die zweite Liste.
-            num_bins (int): Die Anzahl der Bins im Histogramm.
-            normalize (bool): Wenn True, wird die Differenz auf [0, 1] normalisiert.
-
-        Returns:
-            float: Die Histogrammdifferenz zwischen den beiden Listen.
-        """
-        # Erstellen Sie Histogramme für beide Listen
-        hist1, _ = np.histogram(list1, bins=num_bins, density=True)
-        hist2, _ = np.histogram(list2, bins=num_bins, density=True)
-
-        # Berechnen Sie die Differenz zwischen den Histogrammen
-        diff = np.abs(hist1 - hist2)
-
-        # Normalisieren Sie die Differenz auf [0, 1], wenn gewünscht
-        if normalize:
-            diff /= np.max(diff)
-
-        # Berechnen Sie die Gesamtdifferenz
-        total_diff = np.sum(diff)
-
-        return total_diff

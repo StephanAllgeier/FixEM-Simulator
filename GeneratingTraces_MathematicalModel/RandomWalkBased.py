@@ -407,7 +407,7 @@ class RandomWalk():
                    dist_sigma=None, dist_weight=None, duration=None, field_size=None, fixation_potential_factor=None,
                    potential_norm_exponent=None, random_seed=None, potential_resolution=None, potential_weight=None,
                    relaxation_rate=None, sampling_duration=None, sampling_frequency=None, sampling_start=None,
-                   show_plots=None, start_position_sigma=None, num_step_candidates=None, step_through=None,
+                   show_plots=True, start_position_sigma=None, num_step_candidates=None, step_through=None,
                    number=None, use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False):
         # Init
         global warned_mirror
@@ -531,6 +531,32 @@ class RandomWalk():
             #------------------------------------------------
             #Fabian Anzlinger
             #------------------------------------------------
+            '''
+            if float(i) % float(5*args.simulation_frequency) == 0:
+                plt.figure(figsize=(8, 6))
+                plt.imshow(visited_activation, cmap='viridis', interpolation='nearest')
+
+                # Füge die Achsengeschriftung hinzu
+                N_cell= visited_activation.shape[0]
+                step = 10
+                ticks = np.arange(0, N_cell, step)
+                tick_labels = [str(int(t - (N_cell-1) / 2)) for t in ticks]  # Achsenbeschriftung von -N/2 bis +N/2
+                plt.xticks(ticks, tick_labels)
+                plt.yticks(ticks, tick_labels)
+                plt.xlabel('Gitterzellen')
+                plt.ylabel('Gitterzellen')
+
+                # Füge die Überschrift hinzu
+                plt.title('Heatmap des Aktivierungspotenzials')
+
+                # Farbleiste hinzufügen
+                plt.colorbar()
+                '''
+                #plt.savefig(fr'C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\Heatmap{number_id}_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}, T={i/args.simulation_frequency}.jpeg',
+                #dpi=600)
+                ## Zeige den Plot an
+                #plt.close()
+
             if skip>0:
                 micsac_array[i + 1] = True
                 skip-=1
@@ -709,7 +735,7 @@ class RandomWalk():
         drift_segments_after10s = []
         #TODO: WIEDER ENTFERNEN!!!
         for segment in drift_segments:
-            if segment[1] > 10 * args.simulation_frequency:
+            if segment[0] > 10 * args.simulation_frequency:
                 drift_segments_after10s.append(segment)
         for segment in drift_segments_after10s:
             intermicsac_dur.append((segment[1] - segment[0]) / args.simulation_frequency)
@@ -843,13 +869,15 @@ class RandomWalk():
         mic_amplitude= pd.DataFrame({headers_statistics[0]:np.array(micsac_amp)})
         intermic_duration = pd.DataFrame({headers_statistics[1]:np.array(intermicsac_dur)})
 
-        '''
-        if args.fpath_sim is not None:
-            RandomWalk.create_folder_if_not_exists(args.fpath_sim)
-            np.save(args.fpath_sim, np.stack((x, y), axis=1))
 
-            np.savetxt(f'{args.fpath_sim}_NumMS={0 if len(drift_segments)-1 < 0 else len(drift_segments)-1}.csv', np.stack((x, y), axis=1), delimiter=',')
-        '''
+        if args.fpath_sim is not None:
+            RandomWalk.create_folder_if_not_exists(args.fpath_sampled)
+            #np.save(args.fpath_sim, np.stack((x, y), axis=1))
+
+            #np.savetxt(f'{args.fpath_sim}_NumMS={0 if len(drift_segments)-1 < 0 else len(drift_segments)-1}.csv', np.stack((x, y), axis=1), delimiter=',')
+            df.to_csv(
+                f'{args.fpath_sampled}_Signal_NumMS={0 if len(drift_segments_after10s) - 1 < 0 else len(drift_segments_after10s) - 1}.csv',
+                index=False)
         if save:
             if args.fpath_sampled is not None:
                 RandomWalk.create_folder_if_not_exists(args.fpath_sampled)
@@ -863,12 +891,12 @@ class RandomWalk():
 
         #TODO: RETURN ENTFERNEN
         num_of_micsac = 0 if len(drift_segments_after10s)-1 < 0 else len(drift_segments_after10s)-1
-        return micsac_amp, intermicsac_dur, num_of_micsac
-
+        return np.array(micsac_amp), np.array(intermicsac_dur), num_of_micsac
         """
         PLOT: Plotting the movement of the eye as well as the two potentials of the random walk
         """
-
+        #TODO: ENTFERNEN DASS AUTOMATISCH TRUE IST
+        args.show_plots=True
         if args.show_plots:
             x_range_sampled = x[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
             y_range_sampled = y[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
@@ -876,19 +904,23 @@ class RandomWalk():
 
             plt.plot(t, x_sampled*60, label='x', color='blue') #*60 um von grad auf Bogenminuten
             plt.plot(t, y_sampled*60, label='y', color='orange')
+            plt.xlim(22,25)
             plt.xlabel('Zeit in s')
             plt.ylabel('Position in Bogenminuten [arcmin]')
             plt.title('Augenbewegungen in x-y-Koordinaten')
+            plt.legend()
+            plt.plot()
+            plt.savefig(
+                fr'{args.fpath_sampled}_xy_trace_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}_woMicSac.jpeg',
+                dpi=600)
             #Mikrosakkaden plotten
             onsets = t_sim[micsac_onset]
             offsets = t_sim[micsac_offset]
             plt.vlines(x=onsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='red', linewidth=1)
             plt.vlines(x=offsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='black', linewidth=1)
-            plt.savefig(fr'C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Bilder\xy_trace_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}.jpeg',
-                dpi=350)
-            plt.legend()
-            plt.plot()
+            plt.savefig(fr'{args.fpath_sampled}_xy_trace_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}.jpeg',dpi=600)
             plt.close()
+            #plt.show()
             '''
             if args.debug_colors:
                 # samples with both lines and points gradient-colored, but with different frequency such that the course of the line is evident in most situations

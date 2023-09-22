@@ -65,7 +65,7 @@ class Microsaccades():
 
     @staticmethod
     def get_roorda_micsac(df):
-        # Input is dataframe from Roorda_Database. It Returns list of lists containing onset and offset of microsaccades
+        # Input is dataframe from Roorda_Database. It Returns list of lists containing onset and offset index of microsaccades
         mic_sac_idx = df[df['Flags'] == 1].index
         current_sublist = []
         indexes = []

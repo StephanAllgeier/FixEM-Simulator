@@ -1,5 +1,6 @@
 import csv
 import glob
+import json
 import os
 import re
 from pathlib import Path
@@ -16,6 +17,56 @@ from ProcessingData.Visualize import Visualize as Vis
 from ProcessingData.Preprocessing.Filtering import Filtering as Filt
 from ProcessingData.StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
 
+
+class DatasetConstants:
+    def __init__(self, dataset_name):
+        if dataset_name == "Roorda":
+            self.Name = "Roorda"
+            self.f = 1920
+            self.x_col = 'xx'
+            self.y_col = 'yy'
+            self.time_col = 'TimeAxis'
+            self.ValScaling = 1 / 60
+            self.TimeScaling = 1
+            self.BlinkID = 3
+            self.Annotations = 'Flags'
+            self.file_pattern = "\d{5}[A-Za-z]_\d{3}\.csv"
+            self.rm_blink = False
+        elif dataset_name == "GazeBase":
+            self.Name = "GazeBase"
+            self.f = 1000
+            self.x_col = 'x'
+            self.y_col = 'y'
+            self.time_col = 'n'
+            self.ValScaling = 1
+            self.TimeScaling = 1 / 1000
+            self.BlinkID = -1
+            self.Annotations = 'lab'
+            self.rm_blink = False
+            self.SakkID = 2  # Einheiten für y-Koordinate sind in dva (degrees of vision angle)
+        elif dataset_name == "GazeBase_arcmin":
+            self.Name = "GazeBase"
+            self.f = 1000
+            self.x_col = 'x'
+            self.y_col = 'y'
+            self.time_col = 'n'
+            self.ValScaling = 1/60
+            self.TimeScaling = 1 / 1000
+            self.BlinkID = -1
+            self.Annotations = 'lab'
+            self.rm_blink = False
+            self.SakkID = 2  
+        elif dataset_name == "OwnData":
+            self.Name = "OwnData"
+            self.f = 500
+            self.x_col = 'x'
+            self.y_col = 'y'
+            self.time_col = 'Time'
+            self.ValScaling = 1
+            self.TimeScaling = 1
+            self.BlinkID = None
+            self.Annotations = 'lab'
+            self.rm_blink = False
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
@@ -136,7 +187,7 @@ def evaluate_all_hist():
     # for file in all_json:
     #    Evaluation.Evaluation.evaluate_json_hist(file)
 def Evaluate_intermic_hist(json_path):
-    Evaluation.Evaluation.generate_histogram_with_logfit(json_path, range = (0,2))
+    Evaluation.Evaluation.generate_histogram_with_logfit(json_path, range = (0,4))
 def augmentation():
     roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
 
@@ -154,12 +205,133 @@ def augmentation():
         a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
         b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
         c.to_csv(fr"{folderpath}\{Path(file).stem}_f=1000.csv")
-
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
+def GB_to_arcmin(input_folder):
     const_gb = get_constants('GazeBase')
+    gb_files = get_csv_files_in_folder(input_folder)
+    for file in gb_files:
+        try:
+            data = pd.read_csv(file)
+            # Multiply with 60 to convert from DVA to Arcmin
+            data, const_gb = Interpolation.remove_blink_annot(data, const_gb)
+            data, const_gb = Interpolation.remove_sacc_annot(data, const_gb)
+            data['x'] *= 60
+            data['y'] *= 60
+            file_name = Path(f"{Path(file).parents[1]}/Arcmin/{Path(file).stem}_arcmin.csv")
+            data.to_csv(file_name, index=False)
+        except Exception as e:
+            print(e)
+
+def get_best_HD(folderpath_to_jsons,variable, compare_json_file):
+    simulation_dict={}
+    json_files = get_json_file(folderpath_to_jsons)
+    with open(compare_json_file,'r') as compare:
+        compare_data = json.load(compare)[variable]
+    for file in json_files:
+        with open(file, 'r') as open_file:
+            data = json.load(open_file)[variable]
+        file_name = Path(file).stem.replace('_n=50','').split(',')
+        sim_rate = file_name[0].split('=')[1]
+        cells_per_deg=file_name[1].split('=')[1]
+        relaxation_rate = file_name[2].split('=')[1]
+        hc=file_name[3].split('=')[1]
+        HD = Evaluation.Evaluation.normalized_histogram_difference(data, compare_data, num_bins= 50)
+
+        name = f'simulation rate={sim_rate}, cells per degree={cells_per_deg}, relaxation rate={relaxation_rate}, h_crit={hc}'
+        simulation_dict.update({name: HD})
+    # Sammle alle HD-Werte aus dem Dictionary
+    hd_werte = list(simulation_dict.values())
+    # Sortiere die HD-Werte in aufsteigender Reihenfolge
+    hd_werte.sort()
+    schwellenwert_index = int(0.3 * len(hd_werte))
+    schwellenwert = hd_werte[schwellenwert_index]
+    # Durchsuche das Dictionary nach Namen mit HD-Werten kleiner oder gleich dem Schwellenwert
+    namen_mit_gueltigen_hd = [name for name, hd in simulation_dict.items() if hd <= schwellenwert]
+    columns= ['simulation rate','cells per degree','relaxation rate','h_crit']
+    my_list=[]
+    for element in namen_mit_gueltigen_hd:
+
+        split_element = element.split(',')
+        simrate = split_element[0].split('=')[1]
+        cells =split_element[1].split('=')[1]
+        relax =split_element[2].split('=')[1]
+        hc = split_element[3].split('=')[1]
+        my_list.append([simrate,cells,relax,hc])
+    df = pd.DataFrame(my_list, columns=columns)
+    excel_datei = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.xlsx"
+    df.to_excel(excel_datei, index=False)
+    csv_datei = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.csv"
+    df.to_csv(csv_datei, index=False)
+
+
+def merge_excel(file1_path, file2_path, output_path):
+    """
+    Merge two Excel files with identical column names and save the merged data as a new Excel file.
+
+    Parameters:
+    - file1_path (str): The file path to the first Excel file.
+    - file2_path (str): The file path to the second Excel file.
+    - output_path (str): The file path where the merged Excel data will be saved.
+
+    Returns:
+    - None
+
+    """
+    try:
+        # Lese beide Excel-Dateien in Pandas DataFrames ein
+        df1 = pd.read_excel(file1_path)
+        df2 = pd.read_excel(file2_path)
+
+        # Überprüfe, ob die beiden DataFrames die gleiche Anzahl an Spalten und identische Spaltennamen haben
+        if len(df1.columns) != len(df2.columns) or list(df1.columns) != list(df2.columns):
+            raise ValueError("Die beiden Excel-Dateien haben unterschiedliche Spaltenstrukturen.")
+
+        # Füge die Daten der zweiten Datei an die erste an
+        merged_df = pd.concat([df1, df2], ignore_index=True)
+
+        # Speichere das gemergte DataFrame als Excel-Datei
+        merged_df.to_excel(f'{output_path}.xlsx', index=False)
+        merged_df.to_csv(f'{output_path}.csv', index=False)
+    except Exception as e:
+        print(f"Fehler beim Mergen der Excel-Dateien: {str(e)}")
+
+
+
+
+
+if __name__ == '__main__':
+    merge_excel(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test1.xlsx", r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test2.xlsx",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test3")
+    jsonfiles= get_json_file(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput")
+    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    const_roorda = get_constants('Roorda')
+    speicherpfad_roorda = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json"
+    get_best_HD(
+        r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput",
+        'IntermicDur',
+        r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json")
+    with open(
+            r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\intermic_dist.json",
+            'r') as comp:
+        compare_data = json.load(comp)
+    folderpath = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput"
+    json_files = get_json_file(folderpath)
+    for file in json_files:
+        with open(file, 'r') as intermic_json:
+            try:
+                intermic_dur = json.load(intermic_json)['IntermicDur']
+            except:
+                pass
+        hist_bins = 50
+        savefigpath = file
+        savefig = f"{savefigpath[:-5]}_histogram_intermicsac.jpeg"
+        if not Path(savefig).is_file():
+            Evaluation.Evaluation.dual_hist_w_histdiff(compare_data, intermic_dur, 'Roorda Lab', 'Math. Modell',
+                                                               savefigpath, range_limits=(0, 2.5))
+
+    Evaluation.Evaluation.generate_histogram_with_logfit(folderpath, range=(0, 4), compare_to_roorda=True)
+
+    GB_to_arcmin(
+        r"E:\GazeBase Dataset\DVA")
+
     gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1002_S1_FXS.csv")
     gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
     gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
