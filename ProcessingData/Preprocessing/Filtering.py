@@ -55,5 +55,9 @@ class Filtering():
         return y
 
     @staticmethod
-    def kalman_filter():
-        return None
+    def barlet_filter(signal_df, const_dict, window_duration_ms=20):
+        x = signal_df[const_dict['x']].to_numpy()
+        y = signal_df[const_dict['y']].to_numpy()
+
+        #Anzahl Abtastpunkte im 210ms Fenster
+        win_length = int((window_duration_ms / 1000) * const_dict['f'])
