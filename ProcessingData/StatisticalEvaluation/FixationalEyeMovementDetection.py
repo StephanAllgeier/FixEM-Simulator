@@ -17,7 +17,6 @@ class EventDetection():
     @staticmethod
     def filter_tremor(df, constant_dict, lowcut=40, highcut=103, order=5):
         # [70,103] laut "Eye Movement Analysis in Simple Visual Tasks"
-        # Andere Quellen
         return_frame = copy.deepcopy(df)
         return_frame[constant_dict['x_col']] = Filtering.butter_bandpass_filter(df[constant_dict['x_col']],
                                                                                 lowcut=lowcut, highcut=highcut,
@@ -40,7 +39,7 @@ class EventDetection():
         return df
 
     @staticmethod
-    def drift_only_wo_micsac(df, const_dict, micsac_mindur=10, micsac_vfac=21):
+    def drift_only_wo_micsac(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)  # Noch alle Frequenzbänder vorhanden
@@ -56,7 +55,7 @@ class EventDetection():
         return filtered
 
     @staticmethod
-    def drift_interpolated(df, const_dict, micsac_mindur=10, micsac_vfac=21):
+    def drift_interpolated(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)  # Noch alle Frequenzbänder vorhanden
@@ -67,7 +66,7 @@ class EventDetection():
         return filtered
 
     @staticmethod
-    def drift_only(df, const_dict, micsac_mindur=10, micsac_vfac=21):
+    def drift_only(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
@@ -76,7 +75,7 @@ class EventDetection():
         return filtered
 
     @staticmethod
-    def tremor_only_wo_micsac(df, const_dict, micsac_mindur=10, micsac_vfac=21):
+    def tremor_only_wo_micsac(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
@@ -88,7 +87,7 @@ class EventDetection():
         return filtered
 
     @staticmethod
-    def tremor_only(df, const_dict, micsac_mindur=10, micsac_vfac=21):
+    def tremor_only(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
@@ -97,7 +96,7 @@ class EventDetection():
         return filtered
 
     @staticmethod
-    def drift_indexes_only(df, const_dict, mindur=10, vfac=21):
+    def drift_indexes_only(df, const_dict, mindur=6, vfac=21):
         dataframe = copy.deepcopy(df)
         if const_dict['rm_blink'] == False:
             # remove blinks
@@ -119,7 +118,7 @@ class EventDetection():
         return drift_segment_indexes
 
     @staticmethod
-    def micsac_only(df, const_dict, micsac_mindur=10, micsac_vfac=21):
+    def micsac_only(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         new_dataframe = df.copy()
         if const_dict['rm_blink'] == False:
             # remove blinks
