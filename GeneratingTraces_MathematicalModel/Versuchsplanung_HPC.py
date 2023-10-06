@@ -16,17 +16,18 @@ def Versuchsplanung():
     cells_per_degree = [10, 25, 50, 100, 150]
     relaxation_rates = [0.001, 0.002, 0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07, 0.075, 0.08, 0.085, 0.09, 0.095, 0.1]
     all_combinations = generate_combinations([simulations_rates, cells_per_degree, relaxation_rates])
-    folder_names = ["hc=2,4", "hc=3,4", "hc=4,4", "hc=5,4", "hc=6,4", "hc=7,4", "hc=8,4", "hc=9,4"]
+    folder_names = ["hc=7,4"]
     n = 10
     headers = ["simulation rate", "cells per degree", "relaxation rate", 'h_crit', "mean intermicsac duration [s]",
                "median intermicsac duration [s]", "stdev intermicsac duration [s]", "mean micsac amp [deg]",
                "median micsac amp [deg]", "stdev micsac amp [deg]", "Number of Micsac - Mean",
                "Number of Micsac - Median"]
-    all_data = []
+    all_data=[]
     foldernum=0
     for folder in folder_names:
         foldernum+=1
         j = 0
+        all_part_data = []
         for combination in all_combinations:
             j += 1
             print(
@@ -39,7 +40,7 @@ def Versuchsplanung():
                 cells_per_deg = combination[1]
                 relaxation_rate = combination[2]
                 hc = float(folder[-3:].replace(',', '.'))
-                folderpath = rf'C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\{folder}'
+                folderpath = None
                 micsac_amp, intermic_duration, num_of_micsac = RandomWalkBased.RandomWalk.randomWalk(
                     simulation_freq=simulation_rate, potential_resolution=cells_per_deg,
                     relaxation_rate=relaxation_rate, hc=hc, folderpath=folderpath, duration=30, sampling_frequency=500,
@@ -63,12 +64,13 @@ def Versuchsplanung():
                     sigma_intermicsac_dur, mean_micsac_amp, median_micsac_amp, sigma_intermicsac_amp, micsacs_mean,
                     micsacs_median]
             all_data.append(data)
+            all_part_data.append(data)
             print(f"{datetime.datetime.now()}: {j * foldernum / len(all_combinations) / len(folder_names)}% done")
-        partially_df = pd.DataFrame(data, columns=headers)
-        filename_excel_partially = f"MicsacStatistics30s10_,4vals, {folder}.xlsx"
-        filename_csv_partially = f"MicsacStatistics30s10_,4vals, {folder}.csv"
-        partially_df.to_excel(rf"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Teiltabellen\0.4 vals\{filename_excel_partially}")
-        partially_df.to_csv(rf"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Teiltabellen\0.4 vals\{filename_csv_partially}")
+        partially_df = pd.DataFrame(all_part_data, columns=headers)
+        filename_excel_partially = f"MicsacStatistics30s10, {folder}.xlsx"
+        filename_csv_partially = f"MicsacStatistics30s10, {folder}.csv"
+        partially_df.to_excel(rf"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Teiltabellen\0.4 vals\{filename_excel_partially}", index=False)
+        partially_df.to_csv(rf"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Teiltabellen\0.4 vals\{filename_csv_partially}", index=False)
 
     df = pd.DataFrame(all_data, columns=headers)
     file_name_excel = "MicsacStatistics30s25_,4vals.xlsx"

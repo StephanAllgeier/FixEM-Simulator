@@ -43,7 +43,7 @@ class MyWindow(QMainWindow):
 
         # Dropdown-Menü mit 16 Optionen erstellen
         self.float_options = []
-        excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\GuiInput.xlsx"
+        excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.xlsx"
         # Open Excelfile
         combinations = get_combination_from_excel(excel_file)
         for comb in combinations:

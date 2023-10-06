@@ -14,7 +14,7 @@ from ProcessingData.StatisticalEvaluation import Evaluation
 from ProcessingData.Preprocessing.Augmentation import Augmentation
 from ProcessingData.StatisticalEvaluation.Microsaccades import Microsaccades
 from ProcessingData.Visualize import Visualize as Vis
-from ProcessingData.Preprocessing.Filtering import Filtering as Filt
+from ProcessingData.Preprocessing.Filtering import Filtering as Filt, Filtering
 from ProcessingData.StatisticalEvaluation.FixationalEyeMovementDetection import EventDetection
 
 
@@ -294,30 +294,16 @@ def merge_excel(file1_path, file2_path, output_path):
     except Exception as e:
         print(f"Fehler beim Mergen der Excel-Dateien: {str(e)}")
 
-
-
-
-
-if __name__ == '__main__':
-    merge_excel(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test1.xlsx", r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test2.xlsx",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test3")
-    jsonfiles= get_json_file(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput")
-    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    const_roorda = get_constants('Roorda')
-    speicherpfad_roorda = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json"
-    get_best_HD(
-        r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput",
-        'IntermicDur',
-        r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json")
+def create_histogram_w_HD(compare_filepath, folderpath, feature, dataset1name, dataset2name):
     with open(
-            r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\intermic_dist.json",
+            compare_filepath,
             'r') as comp:
-        compare_data = json.load(comp)
-    folderpath = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput"
+        compare_data = json.load(comp)[feature]
     json_files = get_json_file(folderpath)
     for file in json_files:
         with open(file, 'r') as intermic_json:
             try:
-                intermic_dur = json.load(intermic_json)['IntermicDur']
+                intermic_dur = json.load(intermic_json)[feature]
             except:
                 pass
         hist_bins = 50
@@ -327,6 +313,31 @@ if __name__ == '__main__':
             Evaluation.Evaluation.dual_hist_w_histdiff(compare_data, intermic_dur, 'Roorda Lab', 'Math. Modell',
                                                                savefigpath, range_limits=(0, 2.5))
 
+if __name__ == '__main__':
+    roorda_file= r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_004.csv"
+    data = pd.read_csv(roorda_file)
+    const_roorda = get_constants('Roorda')
+    data, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
+
+    const_gb = get_constants('GazeBase')
+    gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\GazeBase_v2_0\Fixation_Only\DVA\S_1004_S1_FXS.csv")
+    gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
+    #gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
+    fft, fftfreq = Filtering.fft_transform(gb_file, const_gb, 'x_col')
+    Vis.plot_fft(fft, fftfreq)
+
+
+    #merge_excel(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test1.xlsx", r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test2.xlsx",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test3")
+    #jsonfiles= get_json_file(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput")
+    #roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    #const_roorda = get_constants('Roorda')
+    #speicherpfad_roorda = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json"
+    #get_best_HD(
+    #    r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput",
+    #    'IntermicDur',
+    #    r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json")
+    create_histogram_w_HD( r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Parameterinput Json&Histogramme", 'IntermicDur', 'Roorda Lab', 'Math. Modell')
+
     Evaluation.Evaluation.generate_histogram_with_logfit(folderpath, range=(0, 4), compare_to_roorda=True)
 
     GB_to_arcmin(
@@ -334,7 +345,7 @@ if __name__ == '__main__':
 
     gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1002_S1_FXS.csv")
     gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
-    gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
+    #gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
    #gb_file, const_gb = Interpolation.dva_to_arcmin(gb_file, const_gb)
 
     roorda_test_file = pd.read_csv(
