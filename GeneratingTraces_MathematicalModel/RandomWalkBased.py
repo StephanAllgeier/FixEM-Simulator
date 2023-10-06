@@ -738,7 +738,7 @@ class RandomWalk():
             if segment[0] > 10 * args.simulation_frequency:
                 drift_segments_after10s.append(segment)
         for segment in drift_segments_after10s:
-            intermicsac_dur.append((segment[1] - segment[0]) / args.simulation_frequency)
+            intermicsac_dur.append(round(float((segment[1] - segment[0]) / args.simulation_frequency), 4))
 
         """
         BSpline Interpolation for random Walk and Linear Interpolation for Microsaccades
