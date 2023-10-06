@@ -24,6 +24,8 @@ class Visualize():
         plt.legend()
         plt.show()
 
+    '''
+    @staticmethod
     def plot_xy_dual(dataset1, dataset2, const_dict1, const_dict2, color1=None, color2=None, labels1=None, labels2=None,
                      title='Augenbewegungen in x- und y-Koordinaten'):
         if labels1 is None:
@@ -45,8 +47,8 @@ class Visualize():
         x2 = dataset2[const_dict2['x_col']] * const_dict2['ValScaling']
         y2 = dataset2[const_dict2['y_col']] * const_dict2['ValScaling']
 
-        mask1 = (t1 >= 2) & (t1 <= 6)
-        mask2 = (t2 >= 2) & (t2 <= 6)
+        mask1 = (t1 >= 12) & (t1 <= 15)
+        mask2 = (t2 >= 12) & (t2 <= 15)
         t1 = np.array(t1[mask1])
         x1 = np.array(x1[mask1])
         y1 = np.array(y1[mask1])
@@ -58,28 +60,29 @@ class Visualize():
         plt.subplot(2, 1, 1)
         plt.plot(t1, x1, label=labels1[0], color=color1[0])
         plt.plot(t1, y1, label=labels1[1], color=color1[1])
-        plt.xlim(2, 6)
+        plt.xlim(12, 15)
         plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
         plt.xlabel('Zeit in s')
         plt.ylabel('Position in Bogenminuten [arcmin]')
-        plt.title(title + ' - Roorda Lab Datensatz')
+        plt.title(title + f' - Simulation')
         plt.legend()
 
         plt.subplot(2, 1, 2)
         plt.plot(t2, x2, label=labels2[0], color=color2[0])
         plt.plot(t2, y2, label=labels2[1], color=color2[1])
-        plt.xlim(2, 6)
+        plt.xlim(12, 15)
         plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
         plt.xlabel('Zeit in s')
         plt.ylabel('Position in Bogenminuten [arcmin]')
-        plt.title(title + ' - Gazebase')
+        plt.title(title + f' - GazeBase')
         plt.legend()
 
-        save_path = r"C:\Users\fanzl\bwSyncShare\Documents\Texte\Masterarbeit_AnzlingerFabian\Bilder\DualPlot_GB_ROODA\Comparison_GB_ROORDA"
+        
         plt.savefig(save_path + '.svg', format='svg', dpi=600)
         plt.savefig(save_path + '.jpeg', format='jpeg', dpi=600)
         plt.savefig(save_path + '.pdf', format='pdf')
         plt.show()
+    '''
 
     @staticmethod
     def plot_xy_µm(dataset, const_dict, color=None, labels=None):
@@ -110,8 +113,8 @@ class Visualize():
         plt.legend()
         plt.show()
 
-    def plot_xy_dual(dataset1, dataset2, const_dict1, const_dict2, color1=None, color2=None, labels1=None, labels2=None,
-                     title='Augenbewegungen in x- und y-Koordinaten'):
+    def plot_xy_dual(dataset1, dataset2, const_dict1, const_dict2, subtitle1, subtitle2, savepath = None, color1=None, color2=None, labels1=None, labels2=None,
+                     title='Augenbewegungen in x- und y-Koordinaten', t_on=0, t_off=5):
         if labels1 is None:
             labels1 = ['x', 'y']
         if labels2 is None:
@@ -131,37 +134,37 @@ class Visualize():
         x2 = dataset2[const_dict2['x_col']] * const_dict2['ValScaling']
         y2 = dataset2[const_dict2['y_col']] * const_dict2['ValScaling']
 
-        mask1 = (t1 >= 2) & (t1 <= 6)
-        mask2 = (t2 >= 2) & (t2 <= 6)
+        mask1 = (t1 >= t_on) & (t1 <= t_off)
+        mask2 = (t2 >= t_on) & (t2 <= t_off)
         t1 = np.array(t1[mask1])
         x1 = np.array(x1[mask1])
         y1 = np.array(y1[mask1])
         t2 = np.array(t2[mask2])
         x2 = np.array(x2[mask2])
         y2 = np.array(y2[mask2])
-        plt.figure(figsize=(6, 8))
+        plt.figure(figsize=(6,8))
 
         plt.subplot(2, 1, 1)
         plt.plot(t1, x1, label=labels1[0], color=color1[0])
         plt.plot(t1, y1, label=labels1[1], color=color1[1])
-        plt.xlim(2, 6)
+        plt.xlim(t_on, t_off)
         plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
         plt.xlabel('Zeit in s')
-        plt.ylabel('Position in Bogenminuten [arcmin]')
-        plt.title(title + ' - Roorda Lab Datensatz')
+        plt.ylabel('Position in Grad [°]')
+        plt.title(title +' - '+ subtitle1)
         plt.legend()
 
         plt.subplot(2, 1, 2)
         plt.plot(t2, x2, label=labels2[0], color=color2[0])
         plt.plot(t2, y2, label=labels2[1], color=color2[1])
-        plt.xlim(2, 6)
+        plt.xlim(t_on, t_off)
         plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
         plt.xlabel('Zeit in s')
-        plt.ylabel('Position in Bogenminuten [arcmin]')
-        plt.title(title + ' - Gazebase')
+        plt.ylabel('Position in Grad [°]')
+        plt.title(title +' - ' +  subtitle2)
         plt.legend()
         plt.subplots_adjust(hspace=0.4)
-        save_path = r"C:\Users\fanzl\bwSyncShare\Documents\Texte\Masterarbeit_AnzlingerFabian\Bilder\DualPlot_GB_ROODA\Comparison_GB_ROORDA"
+        save_path = savepath
         plt.savefig(save_path + '.svg', format='svg', dpi=600)
         plt.savefig(save_path + '.jpeg', format='jpeg', dpi=600)
         plt.savefig(save_path + '.pdf', format='pdf')
