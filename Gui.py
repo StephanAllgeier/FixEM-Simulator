@@ -3,7 +3,7 @@ import openpyxl
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QComboBox, QLabel, QLineEdit, QPushButton, \
     QFileDialog, QCheckBox, QHBoxLayout, QButtonGroup
 
-from GeneratingTraces_MathematicalModel import RandomWalkBased
+from GeneratingTraces_MathematicalModel import RandomWalk
 
 def get_combination_from_excel(excel_file):
     wb = openpyxl.load_workbook(excel_file)
@@ -217,7 +217,7 @@ class MyWindow(QMainWindow):
             range_end = int(variables['number'])
             variables.pop('number')
             for i in range(1, range_end + 1):
-                RandomWalkBased.RandomWalk.randomWalk(**variables, number_id=i)
+                RandomWalk.RandomWalk.randomWalk(**variables, number_id=i)
         if selected_function == 'GAN based':
             print('Not yet implemented.')
 
