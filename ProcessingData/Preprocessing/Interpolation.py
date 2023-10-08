@@ -66,7 +66,10 @@ class Interpolation():
 
         # Delete Rows from Frame
         for liste in indexes:
-            data_frame = data_frame.drop(liste)
+            try:
+                data_frame = data_frame.drop(liste)
+            except:
+                pass
         if remove_end:
             data_frame = data_frame[0:-remove_end_time * const_dict['f'] // 1000]
         if remove_start:
