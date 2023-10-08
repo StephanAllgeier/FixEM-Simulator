@@ -1,19 +1,34 @@
 import sys
+import openpyxl
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QComboBox, QLabel, QLineEdit, QPushButton, \
-    QFileDialog, QCheckBox, QHBoxLayout
+    QFileDialog, QCheckBox, QHBoxLayout, QButtonGroup
+
 from GeneratingTraces_MathematicalModel import RandomWalkBased
 
+def get_combination_from_excel(excel_file):
+    wb = openpyxl.load_workbook(excel_file)
+    sheet = wb.active
+    headers = [cell.value for cell in sheet[1]][0:4]
+    all_combinations = []
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        tupel1 = dict(zip(headers, row[0:4]))
+        all_combinations.append(tupel1)
+    wb.close()
+    return all_combinations
+
+class Functs:
+    @staticmethod
+    def getWalk():
+        print("getWalk() wurde aufgerufen.")
+
+
 class MyWindow(QMainWindow):
-    def show_selection(self):
-        selected = self.dropdown.currentText()
-        self.selected_combination.setText(selected)
     def __init__(self):
         super().__init__()
 
-
         # Hauptfenster-Einstellungen
         self.setWindowTitle("Funktionsauswahl")
-        self.setGeometry(200, 200, 400, 300)
+        self.setGeometry(200, 200, 400, 400)
 
         # Haupt-Widget und Layout erstellen
         self.central_widget = QWidget(self)
@@ -26,35 +41,36 @@ class MyWindow(QMainWindow):
         self.function_combo.addItem("GAN based")
         self.layout.addWidget(self.function_combo)
 
-        #Parameterauswahl Combo-Box
-        self.param_combo = QComboBox(self)
+        # Dropdown-Menü mit 16 Optionen erstellen
+        self.float_options = []
+        excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.xlsx"
+        # Open Excelfile
+        combinations = get_combination_from_excel(excel_file)
+        for comb in combinations:
+            self.float_options.append((comb['simulation rate'], comb['cells per degree'], comb['relaxation rate'], comb['h_crit']))
+
         self.drop_var = ['simulation_freq', "potential_resolution", "relaxation_rate", "hc"]
-        self.combinations = [(20, 10, 0.1, 1.9), (50, 25, 0.002, 1.9), (50, 10, 0.001, 3.4), (50, 10, 0.002, 3.4),
-                             (50, 10, 0.01, 3.4), (50, 10, 0.1, 3.4), (50, 10, 0.001, 3.9), (50, 10, 0.005, 3.9),
-                             (50, 10, 0.01, 3.9), (100, 10, 0.001, 5.4), (100, 10, 0.002, 5.4), (100, 10, 0.002, 5.4),
-                             (100, 10, 0.01, 5.4), (100, 10, 0.05, 5.4), (100, 10, 0.001, 5.4), (100, 10, 0.05, 5.9)]
-        for elem in self.combinations:
-            self.function_combo.addItem(str(elem))
-        self.layout.addWidget(self.param_combo)
-        # Liste von Variablennamen erstellen
-        self.variable_names = ["Duration", "Field size in degree", "Simulation Frequency", "Sampling Frequency", "Sampling duration",
-                               "Relaxation Rate", "Start Position Sigma", 'Number of step candidates', 'Folderpath to save to', 'Show plots', 'Cells per degree', 'Number of simulations']
-        self.variable_mapping = {"Number of simulations":"number", "Cells per degree": "potential_resolution", "Duration": 'duration', "Field size in degree":'field_size', "Simulation Frequency":'simulation_freq', "Sampling Frequency":'sampling_frequency', "Sampling duration":'sampling_duration',
-                               "Relaxation Rate":'relaxation_rate', "Start Position Sigma":'start_position_sigma', 'Number of step candidates':'num_step_candidates', 'Folderpath to save to':'folderpath', 'Show plots':'show_plots'}
-        self.drop_var = ['simulation_freq', "potential_resolution", "relaxation_rate", "hc"]
+        self.float_combo = QComboBox(self)
+        for index, option in enumerate(self.float_options):
+            self.float_combo.addItem(
+                f"{self.drop_var[0]}={option[0]},{self.drop_var[1]}={option[1]},{self.drop_var[2]}={option[2]},{self.drop_var[3]}={option[3]}")
+        self.layout.addWidget(self.float_combo)
 
-        self.dropdown = QComboBox()
-        for combination in self.combinations:
-            self.dropdown.addItem(" - ".join(str(combination)))
-        self.layout.addWidget(self.dropdown)
-
-        self.button = QPushButton("Auswahl anzeigen")
-        self.button.clicked.connect(self.show_selection)
-        self.layout.addWidget(self.button)
-
+        self.float_combo.currentIndexChanged.connect(self.toggle_input_fields_enabled)  # Event handler hinzufügen
+        self.layout.addWidget(self.float_combo)
+        # Zuordnung von Anzeigenamen zu Variablennamen
+        self.variable_mapping = {"Number of simulations": "number",
+                            "Duration": 'duration',
+                            "Sampling Frequency": 'sampling_frequency',
+                            'Folderpath to save to': 'folderpath',
+                            'Show plots': 'show_plots'}
+        # Felder für Variableneingabe erstellen
         self.input_fields = []
-        for variable_name in self.variable_names:
-            if variable_name == "Folderpath to save to":
+        self.default_checkboxes = []
+        self.variable10_checkbox_group = QButtonGroup(self)  # ButtonGroup für Variable 10 Checkboxen
+        self.variable10_checkbox_group.setExclusive(True)  # Nur eine Checkbox kann ausgewählt sein
+        for display_name, variable_name in self.variable_mapping.items():
+            if display_name == "Folderpath to save to":
                 label = QLabel(variable_name + ":")
                 line_edit = QLineEdit()
                 browse_button = QPushButton("Browse folder")
@@ -63,100 +79,150 @@ class MyWindow(QMainWindow):
                 self.layout.addWidget(label)
                 self.layout.addWidget(line_edit)
                 self.layout.addWidget(browse_button)
-            elif variable_name == "Show plots":
+            elif display_name == "Show plots":
                 label = QLabel(variable_name + ":")
-                checkbox_yes = QCheckBox("Yes")
-                checkbox_no = QCheckBox("No")
-                checkbox_yes.clicked.connect(lambda: self.handle_checkbox(checkbox_yes, checkbox_no))
-                checkbox_no.clicked.connect(lambda: self.handle_checkbox(checkbox_no, checkbox_yes))
-                self.input_fields.append((variable_name, checkbox_yes, checkbox_no))
+                self.checkbox_yes = QCheckBox("Yes")
+                self.checkbox_no = QCheckBox("No")
+                self.checkbox_yes.clicked.connect(lambda: self.handle_checkbox(self.checkbox_yes, self.checkbox_no))
+                self.checkbox_no.clicked.connect(lambda: self.handle_checkbox(self.checkbox_no, self.checkbox_yes))
+                self.input_fields.append((variable_name, self.checkbox_yes, self.checkbox_no))
                 hbox = QHBoxLayout()
-                hbox.addWidget(checkbox_yes)
-                hbox.addWidget(checkbox_no)
+                hbox.addWidget(self.checkbox_yes)
+                hbox.addWidget(self.checkbox_no)
                 self.layout.addWidget(label)
                 self.layout.addLayout(hbox)
             else:
-                label = QLabel(variable_name + ":")
+                label = QLabel(display_name + ":")
                 line_edit = QLineEdit()
                 checkbox_default = QCheckBox("Default")
                 checkbox_default.clicked.connect(
-                    lambda state, line_edit=line_edit: self.toggle_input_field(line_edit, state))
+                    lambda state, line_edit=line_edit, checkbox_default=checkbox_default: self.toggle_input_field(
+                        line_edit, checkbox_default))
                 self.input_fields.append((variable_name, line_edit, checkbox_default))
+                self.default_checkboxes.append(checkbox_default)
                 hbox = QHBoxLayout()
                 hbox.addWidget(line_edit)
                 hbox.addWidget(checkbox_default)
                 self.layout.addWidget(label)
                 self.layout.addLayout(hbox)
 
+        self.checkbox_no.setChecked(True)
+
+        # Einheitenauswahl hinzufügen
+        self.unit_label = QLabel("Unit:")
+        self.unit_dva_checkbox = QCheckBox("DVA")
+        self.unit_arcmin_checkbox = QCheckBox("Arcmin")
+        self.unit_um_checkbox = QCheckBox("µm")
+
+        self.unit_dva_checkbox.setChecked(True)
+
+        # Hinzufügen der Checkboxen zur ButtonGroup, um sicherzustellen, dass nur eine gleichzeitig ausgewählt ist
+        self.unit_checkbox_group = QButtonGroup(self)
+        self.unit_checkbox_group.addButton(self.unit_dva_checkbox)
+        self.unit_checkbox_group.addButton(self.unit_arcmin_checkbox)
+        self.unit_checkbox_group.addButton(self.unit_um_checkbox)
+        self.unit_checkbox_group.setExclusive(True)
+
+        # Layout für die Einheiten-Checkboxen erstellen
+        unit_layout = QHBoxLayout()
+        unit_layout.addWidget(self.unit_dva_checkbox)
+        unit_layout.addWidget(self.unit_arcmin_checkbox)
+        unit_layout.addWidget(self.unit_um_checkbox)
+
+        # Hinzufügen zur Haupt-Layout
+        self.layout.addWidget(self.unit_label)
+        self.layout.addLayout(unit_layout)
+
         # Button zum Ausführen der Funktion erstellen
         self.run_button = QPushButton("Funktion ausführen", self)
         self.run_button.clicked.connect(self.run_function)
         self.layout.addWidget(self.run_button)
 
-    def handle_checkbox(self, clicked_checkbox, other_checkbox):
-        if clicked_checkbox.isChecked():
-            other_checkbox.setChecked(False)
 
-    def toggle_input_field(self, line_edit, checkbox_default):
-        line_edit.setDisabled(checkbox_default)
 
     def browse_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Ordner auswählen")
         for element in self.input_fields:
             if len(element) == 3:
                 variable_name, line_edit, _ = element
-                if variable_name == "Folderpath to save to":
+                if variable_name == "folderpath":
                     line_edit.setText(folder_path)
 
+    def toggle_input_field(self, line_edit, checkbox_default):
+        line_edit.setDisabled(checkbox_default.isChecked())
+
+    def handle_checkbox(self, checkbox, other_checkbox):
+        if checkbox.isChecked():
+            other_checkbox.setChecked(False)
+
+    def toggle_input_fields_enabled(self):
+        selected_index = self.float_combo.currentIndex()
+        selected_option = self.float_options[selected_index]
+        disable_variables = ["variable1",
+                             "variable2"]  # Fügen Sie hier die Variablennamen hinzu, die deaktiviert werden sollen
+
+        for variable_name, line_edit, _ in self.input_fields:
+            line_edit.setEnabled(variable_name not in disable_variables)
 
     def run_function(self):
         selected_function = self.function_combo.currentText()
-        selected_combo = [float(i) for i in self.param_combo.currentText().split(',')]
         # Variablenwerte sammeln
         variables = {}
         for element in self.input_fields:
             if len(element) == 3:
                 variable_name, line_edit, checkbox_default = element
-                if variable_name != 'Folderpath to save to' and variable_name != 'Show plots':
+                if variable_name != 'folderpath' and variable_name != 'show_plots':
                     if checkbox_default.isChecked() or line_edit.text() == '':
-                        variable_value=None
+                        variable_value = None
                     else:
                         variable_value = float(line_edit.text())
                 else:
-                    if line_edit.text() == 'Yes':
-                        variable_value=True
-                    elif line_edit.text == 'No':
-                        variable_value=False
+                    if variable_name == 'show_plots':
+                        if self.checkbox_yes.isChecked():
+                            variable_value = True
+                        elif self.checkbox_no.isChecked():
+                            variable_value = False
+
                     else:
-                        variable_value=line_edit.text()
+                        variable_value = line_edit.text()
                 variables[variable_name] = variable_value
             elif len(element) == 2:
                 variable_name, line_edit = element
                 variable_value = line_edit.text()
                 variables[variable_name] = variable_value
             else:
-                variable_name, line_edit,_ = element
+                variable_name, line_edit, _ = element
                 variable_value = line_edit.text()
                 variables[variable_name] = variable_value
-        variables_dict={}
+        if self.unit_dva_checkbox.isChecked():
+            variables['unit'] = 'DVA'
+        elif self.unit_arcmin_checkbox.isChecked():
+            variables['unit'] = 'Arcmin'
+        elif self.unit_um_checkbox.isChecked():
+            variables['unit'] = 'µm'
+        '''
+        variables_dict = {}
         for key in variables.keys():
             if key in self.variable_mapping.keys():
                 variables_dict[self.variable_mapping[key]] = variables[key]
+        '''
+        current_combo = self.float_combo.currentText().split(',')
+        for comb_elem in current_combo:
+            comb_name=comb_elem.split('=')[0]
+            comb_val = float(comb_elem.split('=')[1])
+            variables.update({comb_name: comb_val})
         if selected_function == 'RandomWalk based':
-            for i in range(1,int(variable_value)+1):
-                RandomWalkBased.RandomWalk.randomWalk(**variables_dict, number_id=i)
+            if isinstance(variables['number'], type(None)):
+                variables['number'] =1
+            range_end = int(variables['number'])
+            variables.pop('number')
+            for i in range(1, range_end + 1):
+                RandomWalkBased.RandomWalk.randomWalk(**variables, number_id=i)
         if selected_function == 'GAN based':
             print('Not yet implemented.')
 
-        # Hier können Sie den Code einfügen, um die ausgewählte Funktion mit den gegebenen Variablen auszuführen
-        # und das Ergebnis anzuzeigen
-        # Beispiel:
-        print("Ausgewählte Funktion:", selected_function)
-        print("Eingegebene Variablen:", variables)
 
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MyWindow()
-    window.show()
-    sys.exit(app.exec_())
+app = QApplication(sys.argv)
+window = MyWindow()
+window.show()
+sys.exit(app.exec_())
