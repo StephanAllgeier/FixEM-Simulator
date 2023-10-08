@@ -802,21 +802,11 @@ class RandomWalk():
 
             return tremor
 
-        def plot_freq_tremor(tremor_signal):
-            frequency_domain = np.fft.fft(tremor_signal)
-            frequencies = np.fft.fftfreq(len(frequency_domain), 1 / args.sampling_frequency)
-            magnitude = np.abs(frequency_domain)
-            # Frequenzbereich plotten
-            plt.figure(figsize=(10, 6))
-            plt.plot(frequencies, magnitude)
-            plt.xlabel('Frequenz (Hz)')
-            plt.ylabel('Amplitude')
-            plt.title('Frequenzbereich des Signals')
-            plt.grid()
-            plt.show()
-
         tremor_x = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))#np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
         tremor_y = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))
+        #tremor_x = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(x_sampled))
+        #tremor_y = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(y_sampled))
+
         onsets = t_sim[micsac_onset]
         offsets = t_sim[micsac_offset]
 
