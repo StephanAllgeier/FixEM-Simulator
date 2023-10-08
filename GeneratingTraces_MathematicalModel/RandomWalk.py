@@ -407,7 +407,7 @@ class RandomWalk():
                    potential_norm_exponent=None, random_seed=None, potential_resolution=None, potential_weight=None,
                    relaxation_rate=None, sampling_duration=None, sampling_frequency=None, sampling_start=None,
                    show_plots=False, start_position_sigma=None, num_step_candidates=None, step_through=None,
-                   use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False):
+                   use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False, unit=None):
         # Init
         global warned_mirror
         warned_mirror = False
@@ -473,8 +473,6 @@ class RandomWalk():
             args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\Signal{number_id}'
 
         N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
-        effective_potential_resolution = N / args.field_size
-        #print('effective potential_resolution:', effective_potential_resolution, '[1/°] (N = ' + str(N) + ')')
 
         if args.base_dir is not None:
             chdir(args.base_dir)
@@ -781,7 +779,7 @@ class RandomWalk():
         """
         Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
         """
-
+        '''
         def generate_tremor_signal(freq_range, sample_rate, duration, amplitude_min, amplitude_max):
             t = np.arange(0, duration, 1 / sample_rate)
 
@@ -804,8 +802,9 @@ class RandomWalk():
 
         tremor_x = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))#np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
         tremor_y = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))
-        #tremor_x = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(x_sampled))
-        #tremor_y = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(y_sampled))
+        '''
+        tremor_x = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(x_sampled))
+        tremor_y = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(y_sampled))
 
         onsets = t_sim[micsac_onset]
         offsets = t_sim[micsac_offset]
@@ -888,9 +887,20 @@ class RandomWalk():
         df = pd.DataFrame(data)
 
         if save:
+            if unit == "DVA":
+                print('Unit chosen is DVA.')
+            elif unit == "Arcmin":
+                print('Unit chosen is Arcmin.')
+                df['x'] *= 60
+                df['y'] *= 60
+            elif unit == "µm":
+                r = 24500
+                print('Unit chosen is µm.')
+                df['x'] = r * np.sin(df['x'])
+                df['y'] = r * np.sin(df['y'])
             if args.fpath_sampled is not None:
                 RandomWalk.create_folder_if_not_exists(args.fpath_sampled)
-                df.to_csv(f'{args.fpath_sampled}_NumMS={num_micsac}.csv', index=False)
+                df.to_csv(f'{args.fpath_sampled}.csv', index=False)
 
         """
         PLOT: Plotting the movement of the eye as well as the two potentials of the random walk
