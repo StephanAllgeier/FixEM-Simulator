@@ -341,7 +341,7 @@ def dump_parameters(identifier, sess):
     """
     Save model parmaters to a numpy file
     """
-    dump_path = './experiments/parameters/' + identifier + '.npy'
+    dump_path = './GeneratingTraces_RGAN/experiments/parameters/' + identifier + '.npy'
     model_parameters = dict()
     for v in tf.compat.v1.trainable_variables():
         model_parameters[v.name] = sess.run(v)
@@ -353,7 +353,7 @@ def load_parameters(identifier):
     """
     Load parameters from a numpy file
     """
-    load_path = './experiments/parameters/' + identifier + '.npy'
+    load_path = './GeneratingTraces_RGAN/experiments/parameters/' + identifier + '.npy'
     model_parameters = np.load(load_path).item()
     return model_parameters
 
@@ -365,7 +365,7 @@ def sample_trained_model(settings, epoch, num_samples, Z_samples=None, C_samples
     """
     # if settings is a string, assume it's an identifier and load
     if type(settings) == str:
-        settings = json.load(open('./experiments/settings/' + settings + '.txt', 'r'))
+        settings = json.load(open('./GeneratingTraces_RGAN/experiments/settings/' + settings + '.txt', 'r'))
     print('Sampling', num_samples, 'samples from', settings['identifier'], 'at epoch', epoch)
     # get the parameters, get other variables
     parameters = load_parameters(settings['identifier'] + '_' + str(epoch))
@@ -410,7 +410,7 @@ def invert(settings, epoch, samples, g_tolerance=None, e_tolerance=0.1,
     samples = np.float32(samples[:, :, :])
     # get the model
     if type(settings) == str:
-        settings = json.load(open('./experiments/settings/' + settings + '.txt', 'r'))
+        settings = json.load(open('./GeneratingTraces_RGAN/experiments/settings/' + settings + '.txt', 'r'))
     num_samples = samples.shape[0]
     print('Inverting', num_samples, 'samples using model', settings['identifier'], 'at epoch', epoch,)
     if not g_tolerance is None:

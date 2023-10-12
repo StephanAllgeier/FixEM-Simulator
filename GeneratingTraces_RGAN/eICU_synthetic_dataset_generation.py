@@ -173,7 +173,7 @@ for identifier in identifiers:
                 identifier=identifier + '_real', idx=0)
 
 
-    trace = open('./experiments/traces/' + identifier + '.trace.txt', 'w')
+    trace = open('./GeneratingTraces_RGAN/experiments/traces/' + identifier + '.trace.txt', 'w')
     trace.write('epoch D_loss G_loss time\n')
     print('epoch\tD_loss\tG_loss\ttime\n')
     t0 = time.time()

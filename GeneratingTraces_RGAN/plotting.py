@@ -66,7 +66,7 @@ def save_plot_sample(samples, idx, identifier, n_samples=6, num_epochs=None, nco
         axarr[-1, n].xaxis.set_ticks(range(0, sample_length, int(sample_length/4)))
     fig.suptitle(idx)
     fig.subplots_adjust(hspace = 0.15)
-    fig.savefig("./experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png")
+    fig.savefig("./GeneratingTraces_RGAN/experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png")
     plt.clf()
     plt.close()
     return
@@ -118,8 +118,8 @@ def save_plot_interpolate(input_samples, samples, idx, identifier,  num_epochs=N
     axarr[-1].xaxis.set_ticks(range(0, sample_length, int(sample_length/4)))
     fig.suptitle(idx)
     fig.subplots_adjust(hspace = 0.2)
-    fig.savefig("./experiments/plots/" + identifier + "_interpolate.png")
-    fig.savefig("./experiments/plots/" + identifier + "_interpolate.pdf")
+    fig.savefig("./GeneratingTraces_RGAN/experiments/plots/" + identifier + "_interpolate.png")
+    fig.savefig("./GeneratingTraces_RGAN/experiments/plots/" + identifier + "_interpolate.pdf")
     plt.clf()
     plt.close()
     return
@@ -149,7 +149,7 @@ def reconstruction_errors(identifier, train_errors, vali_errors,
         ax.get_yaxis().set_visible(False)
     axarr[3].set_xlim(0, 0.05)
     plt.tight_layout()
-    plt.savefig('./experiments/plots/' + identifier + '_reconstruction_errors.png')
+    plt.savefig('./GeneratingTraces_RGAN/experiments/plots/' + identifier + '_reconstruction_errors.png')
     return True
 
 def save_plot_reconstruct(real_samples, model_samples, identifier):
@@ -169,7 +169,7 @@ def save_plot_reconstruct(real_samples, model_samples, identifier):
     axarr[0, 0].set_title('real')
     axarr[0, 1].set_title('reconstructed')
     fig.subplots_adjust(hspace = 0.15)
-    fig.savefig("./experiments/plots/" + identifier + "_reconstruct.png")
+    fig.savefig("./GeneratingTraces_RGAN/experiments/plots/" + identifier + "_reconstruct.png")
     plt.clf()
     plt.close()
     return
@@ -202,7 +202,7 @@ def save_plot_vary_dimension(samples_list, idx, identifier, n_dim):
         axarr[-1, dim].xaxis.set_ticks(range(0, sample_length, int(sample_length/4)))
     fig.suptitle(idx)
     fig.subplots_adjust(hspace = 0.11, wspace=0.11)
-    fig.savefig("./experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png")
+    fig.savefig("./GeneratingTraces_RGAN/experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png")
     plt.clf()
     plt.close()
     return True
@@ -259,7 +259,7 @@ def plot_sine_evaluation(real_samples, fake_samples, idx, identifier):
     axarr[0, 1].set_title("amplitude", fontsize=16)
     axarr[1, 1].hist(A_fake, normed=True, color='#ba4730', bins=30)
 
-    fig.savefig('./experiments/plots/' + identifier + '_eval' + str(idx).zfill(4) +'.png')
+    fig.savefig('./GeneratingTraces_RGAN/experiments/plots/' + identifier + '_eval' + str(idx).zfill(4) +'.png')
     plt.clf()
     plt.close()
     return True
@@ -268,11 +268,11 @@ def plot_trace(identifier, xmax=250, final=False, dp=False):
     """
     """
 
-    trace_path = './experiments/traces/' + identifier + '.trace.txt'
+    trace_path = './GeneratingTraces_RGAN/experiments/traces/' + identifier + '.trace.txt'
     da = read_table(trace_path, sep=' ')
     nrow = 3
     if dp:
-        trace_dp_path = './experiments/traces/' + identifier + '.dptrace.txt'
+        trace_dp_path = './GeneratingTraces_RGAN/experiments/traces/' + identifier + '.dptrace.txt'
         da_dp = read_table(trace_dp_path, sep=' ')
         nrow += 1
 
@@ -374,8 +374,8 @@ def plot_trace(identifier, xmax=250, final=False, dp=False):
 
     # bottom one
 
-    fig.savefig('./experiments/traces/' + identifier + '_trace.png')
-    fig.savefig('./experiments/traces/' + identifier + '_trace.pdf')
+    fig.savefig('./GeneratingTraces_RGAN/experiments/traces/' + identifier + '_trace.png')
+    fig.savefig('./GeneratingTraces_RGAN/experiments/traces/' + identifier + '_trace.pdf')
     plt.clf()
     plt.close()
     return True
@@ -466,7 +466,7 @@ def save_mnist_plot_sample(samples, idx, identifier, n_samples, labels=None):
     fig.suptitle(idx)
     fig.suptitle(idx)
     fig.subplots_adjust(hspace = 0.15)
-    fig.savefig("./experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png")
+    fig.savefig("./GeneratingTraces_RGAN/experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png")
     plt.clf()
     plt.close()
     return
@@ -484,7 +484,7 @@ def visualise_latent(Z, identifier):
 #    plt.plot(Z[:, 0], Z[:, 1], c='grey', alpha=0.5)
     for i in range(seq_length):
         plt.scatter(Z[i, 0], Z[i, 1], marker='o', c=colours[i])
-    plt.savefig('./experiments/plots/' + identifier + '_Z.png')
+    plt.savefig('./GeneratingTraces_RGAN/experiments/plots/' + identifier + '_Z.png')
     plt.clf()
     plt.close()
     return True
@@ -523,7 +523,7 @@ def plot_parameters(parameters, identifier):
         a.get_yaxis().set_visible(False)
 #        a.tick_params(bottom='off', left='off', top='off')
     plt.tight_layout()
-    plt.savefig('./experiments/plots/' + identifier + '_weights.png')
+    plt.savefig('./GeneratingTraces_RGAN/experiments/plots/' + identifier + '_weights.png')
     return True
 
 
@@ -569,9 +569,9 @@ def vis_eICU_patients_downsampled(pat_arrs, time_step, time_steps_to_plot=None,
     axarr[-1].get_xaxis().tick_bottom()
     if not identifier is None:
         plt.suptitle(idx)
-        fig.savefig("./experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png", bbox_inches='tight')
+        fig.savefig("./GeneratingTraces_RGAN/experiments/plots/" + identifier + "_epoch" + str(idx).zfill(4) + ".png", bbox_inches='tight')
     else:
-        fig.savefig('./experiments/plots/eICU_patients.png', bbox_inches='tight')
+        fig.savefig('./GeneratingTraces_RGAN/experiments/plots/eICU_patients.png', bbox_inches='tight')
     plt.clf()
     plt.close()
     return True
@@ -626,7 +626,7 @@ def view_mnist_eval(identifier, train_X, train_Y, synth_X, synth_Y, test_X, test
             plt.title('%i' % prediction)
     plt.tight_layout()
     plt.title(identifier)
-    plt.savefig('./experiments/tstr/' + identifier + '_preds.png')
+    plt.savefig('./GeneratingTraces_RGAN/experiments/tstr/' + identifier + '_preds.png')
     return True
 
 def view_marginals_raw(data, label=''):
@@ -676,7 +676,7 @@ def view_marginals_raw(data, label=''):
     axarr[-1].set_xticks(np.arange(16)[::2])
 
     plt.tight_layout(pad=0.0, w_pad=-5.0, h_pad=0.1)
-    plt.savefig("./experiments/eval/eICU_marginals_" + label + ".png")
+    plt.savefig("./GeneratingTraces_RGAN/experiments/eval/eICU_marginals_" + label + ".png")
 
     return True
 
@@ -809,7 +809,7 @@ def view_marginals_cristobal(rep=0, epoch=300, zoom=False):
         plt.suptitle('(zoomed)')
 
     plt.tight_layout(pad=0.0, w_pad=-5.0, h_pad=0.1)
-    plt.savefig("./experiments/eval/eICU_cristobal_marginals_r" + str(rep) + "_epoch" + str(epoch) + ".png")
+    plt.savefig("./GeneratingTraces_RGAN/experiments/eval/eICU_cristobal_marginals_r" + str(rep) + "_epoch" + str(epoch) + ".png")
 
     # now make the histograms
     fig, axarr = plt.subplots(nrows=1, ncols=4)
@@ -835,7 +835,7 @@ def view_marginals_cristobal(rep=0, epoch=300, zoom=False):
 
     plt.gcf().subplots_adjust(bottom=0.2)
     fig.set_size_inches(10, 3)
-    plt.savefig("./experiments/eval/eICU_cristobal_hist_r" + str(rep) + "_epoch" + str(epoch) + ".png")
+    plt.savefig("./GeneratingTraces_RGAN/experiments/eval/eICU_cristobal_hist_r" + str(rep) + "_epoch" + str(epoch) + ".png")
 
     return True
 

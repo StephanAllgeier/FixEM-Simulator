@@ -28,7 +28,7 @@ def get_samples_and_labels(settings):
     dictionaries.
     """
     if settings['data_load_from']:
-        data_path = './experiments/data/' + settings['data_load_from'] + '.data.npy'
+        data_path = './GeneratingTraces_RGAN/experiments/data/' + settings['data_load_from'] + '.data.npy'
         print('Loading data from', data_path)
         samples, pdf, labels = get_data('load', data_path)
         train, vali, test = samples['train'], samples['vali'], samples['test']
@@ -295,6 +295,9 @@ def eICU_task(predict_label=False):
     for (k, X) in samples.items():
         samples[k] = X.reshape(-1, 16, 4)
     return samples, labels
+
+def FEM_task():
+    print('To be programmed...')
 
 def mnist(randomize=False):
     """ Load and serialise """
@@ -891,13 +894,13 @@ def generate_synthetic(identifier, epoch, n_train, predict_labels=False):
     - Generate num_examples synthetic training data (+labels)
     - Save to format easy for training classifier on (see Eval)
     """
-    settings = json.load(open('./experiments/settings/' + identifier + '.txt', 'r'))
+    settings = json.load(open('./GeneratingTraces_RGAN/experiments/settings/' + identifier + '.txt', 'r'))
     if not settings['cond_dim'] > 0:
         assert settings['predict_labels']
         assert predict_labels
     # get the test data
     print('Loading test (real) data for', identifier)
-    data_dict = np.load('./experiments/data/' + identifier + '.data.npy').item()
+    data_dict = np.load('./GeneratingTraces_RGAN/experiments/data/' + identifier + '.data.npy').item()
     test_data = data_dict['samples']['test']
     test_labels = data_dict['labels']['test']
     train_data = data_dict['samples']['train']
@@ -938,5 +941,5 @@ def generate_synthetic(identifier, epoch, n_train, predict_labels=False):
     exp_data['synth_data'] = synth_data
     exp_data['synth_labels'] = synth_labels
     # save it all up
-    np.save('./experiments/tstr/' + identifier + '_' + str(epoch) + '.data.npy', exp_data)
+    np.save('./GeneratingTraces_RGAN/experiments/tstr/' + identifier + '_' + str(epoch) + '.data.npy', exp_data)
     return True

@@ -39,10 +39,10 @@ def experiment_function(settings_file=False):
     # WARNING: at this point a lot of variables appear
     locals().update(settings)
     identifier = settings['identifier']
-    json.dump(settings, open('./experiments/settings/' + identifier + '.txt', 'w'), indent=0)
+    json.dump(settings, open('./GeneratingTraces_RGAN/experiments/settings/' + identifier + '.txt', 'w'), indent=0)
     data = settings['data']
     if not data == 'load':
-        data_path = './experiments/data/' + identifier + '.data.npy'
+        data_path = './GeneratingTraces_RGAN/experiments/data/' + identifier + '.data.npy'
         np.save(data_path, {'samples': samples, 'pdf': pdf, 'labels': labels})
         print('Saved training data to', data_path)
 
@@ -179,10 +179,10 @@ def experiment_function(settings_file=False):
 
     # for dp
     target_eps = [0.125, 0.25, 0.5, 1, 2, 4, 8]
-    dp_trace = open('./experiments/traces/' + identifier + '.dptrace.txt', 'w')
+    dp_trace = open('./GeneratingTraces_RGAN/experiments/traces/' + identifier + '.dptrace.txt', 'w')
     dp_trace.write('epoch ' + ' eps'.join(map(str, target_eps)) + '\n')
 
-    trace = open('./experiments/traces/' + identifier + '.trace.txt', 'w')
+    trace = open('./GeneratingTraces_RGAN/experiments/traces/' + identifier + '.trace.txt', 'w')
     trace.write('epoch time D_loss G_loss mmd2 that pdf real_pdf\n')
 
     # --- train --- #
