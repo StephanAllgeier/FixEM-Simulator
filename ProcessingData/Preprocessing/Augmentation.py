@@ -65,7 +65,7 @@ class Augmentation():
         while start_idx+samples_per_segment <= len(dataframe):
             end_idx = start_idx + samples_per_segment
             segment = dataframe.iloc[start_idx:end_idx]
-            segments.append(segment)
+            segments.append(segment.values)
             start_idx = end_idx
         return segments
     @staticmethod
