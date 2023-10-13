@@ -705,6 +705,9 @@ class RandomWalk():
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
             if micsac_array[i]:
                 micsac_array[i+1] = False
+            #Wenn Mikrosakkade in den letzten 15 ms generiert wurde, dann verhindere Auslösung von Mikrosakkaden [file:///C:/Users/uvuik/bwSyncShare/Documents/Quellen/Eye%20Movement%20Detection/Gelesen/Eye%20movements%20between%20saccades_Measuring%20occular%20drift%20and%20tremor.pdf]
+            #elif any(micsac_array[max(0, i-round(f_sim*0.015)):i]):
+            #    micsac_array[i+1] = False
             else:
                 micsac_array[i + 1] = micsac_flag
 
