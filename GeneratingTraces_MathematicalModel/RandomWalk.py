@@ -776,9 +776,7 @@ class RandomWalk():
             bspline_dist_half = dist_prev_approx
             bspline_velocity_std = RandomWalk.line_segment_length_std(x_e, y_e) * f_sampling * 2 ** f_sampling_power
 
-        """
-        Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
-        """
+
         '''
         def generate_tremor_signal(freq_range, sample_rate, duration, amplitude_min, amplitude_max):
             t = np.arange(0, duration, 1 / sample_rate)
@@ -803,8 +801,13 @@ class RandomWalk():
         tremor_x = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))#np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
         tremor_y = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))
         '''
-        tremor_x = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(x_sampled))
-        tremor_y = np.random.normal(-np.sqrt(1 / 3600), np.sqrt(1 / 3600), len(y_sampled))
+        """
+                Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
+        """
+        max_val=(5/np.sqrt(2))/3600
+        std_dev = max_val/3
+        tremor_x = np.clip(np.random.normal(0, std_dev, len(x_sampled)), -max_val, max_val)
+        tremor_y = np.clip(np.random.normal(0, std_dev, len(y_sampled)), -max_val, max_val)
 
         onsets = t_sim[micsac_onset]
         offsets = t_sim[micsac_offset]
