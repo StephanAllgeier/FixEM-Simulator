@@ -673,7 +673,7 @@ class RandomWalk():
             h_crit = hc # 7.9 Value from "An integrated model of fixational eye movements and microsaccades
             #micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger PUnkt auf LInie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
-            if micsac_array[i]:
+            if any(micsac_array[max(0, i-round(f_sim*0.015)):i]):
                 micsac_array[i+1] = False
             else:
                 micsac_array[i + 1] = micsac_flag
