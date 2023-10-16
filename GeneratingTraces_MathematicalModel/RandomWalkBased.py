@@ -700,14 +700,12 @@ class RandomWalk():
             walked_mask[line_i, line_j] = True
 
             #Micsac Criterion
-            h_crit = hc # 7.9 Value from "An integrated model of fixational eye movements and microsaccades
+            h_crit = hc
             #micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger PUnkt auf LInie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
-            if micsac_array[i]:
-                micsac_array[i+1] = False
             #Wenn Mikrosakkade in den letzten 15 ms generiert wurde, dann verhindere Auslösung von Mikrosakkaden [file:///C:/Users/uvuik/bwSyncShare/Documents/Quellen/Eye%20Movement%20Detection/Gelesen/Eye%20movements%20between%20saccades_Measuring%20occular%20drift%20and%20tremor.pdf]
-            #elif any(micsac_array[max(0, i-round(f_sim*0.015)):i]):
-            #    micsac_array[i+1] = False
+            if any(micsac_array[max(0, i-round(f_sim*0.015)):i]):
+                micsac_array[i+1] = False
             else:
                 micsac_array[i + 1] = micsac_flag
 
@@ -812,8 +810,10 @@ class RandomWalk():
         """
         Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
         """
-        tremor_x = np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
-        tremor_y = np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(y_sampled))
+        max_val = (5 / np.sqrt(2)) / 3600
+        std_dev = max_val / 3
+        tremor_x = np.clip(np.random.normal(0, std_dev, len(x_sampled)), -max_val, max_val)
+        tremor_y = np.clip(np.random.normal(0, std_dev, len(y_sampled)), -max_val, max_val)
         onsets = t_sim[micsac_onset]
         offsets = t_sim[micsac_offset]
 
