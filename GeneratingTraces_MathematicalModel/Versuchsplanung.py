@@ -84,7 +84,9 @@ def save_combination_evaluation_to_json(combinations=None, folder_to_save_to=Non
                "median micsac amp [deg]", "stdev micsac amp [deg]", "Number of Micsac - Mean",
                "Number of Micsac - Median"]
     all_data = []
+    j=0
     for comb in combinations_to_eval:
+        j+=1
         comb_micsac_amp = []
         comb_intermic_dur = []
         comb_micsacs = []
@@ -104,6 +106,7 @@ def save_combination_evaluation_to_json(combinations=None, folder_to_save_to=Non
                 fr'{folder_to_save_to}\AmpDurNum_simrate={str(simulation_rate)},Cells={str(cells_per_deg)},relaxationrate={str(relaxation_rate)},hc={str(hc)}_n={n}.json',
                 'w') as fp:
             json.dump(my_dict, fp, indent=4)
+        print(f"{j}/{len(combinations_to_eval)} erledigt.")
 def get_combination_from_excel(excel_file):
     wb = openpyxl.load_workbook(excel_file)
     sheet = wb.active
@@ -168,8 +171,8 @@ def alt():
 
 
 if __name__ == '__main__':
-    excel_file=r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\MicsacStatistics30s25_filtered.xlsx"
+    excel_file=r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\FINAL\Parametertuning_Ergebnisse_0.3-0.8_gefiltert.xlsx"
     #Open Excelfile
     combinations = get_combination_from_excel(excel_file)
-    folder_to_save_to = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen"
+    folder_to_save_to = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TIMEOUT_0.015s"
     save_combination_evaluation_to_json(combinations=combinations, folder_to_save_to=folder_to_save_to)
