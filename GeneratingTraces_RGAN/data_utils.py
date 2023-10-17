@@ -7,6 +7,7 @@ import json
 import random
 import os
 
+import main
 import model
 import paths
 
@@ -19,6 +20,9 @@ from math import ceil
 
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.preprocessing import MinMaxScaler
+
+from ProcessingData.Preprocessing.Augmentation import Augmentation
+
 
 # --- to do with loading --- #
 def get_samples_and_labels(settings):
@@ -98,7 +102,7 @@ def get_samples_and_labels(settings):
             # this is already one-hot!
 
     if 'predict_labels' in settings and settings['predict_labels']:
-        samples, labels = data_utils.make_predict_labels(samples, labels)
+        samples, labels = make_predict_labels(samples, labels)
         print('Setting cond_dim to 0 from', settings['cond_dim'])
         settings['cond_dim'] = 0
 
@@ -139,6 +143,8 @@ def get_data(data_type, data_options=None):
         samples, labels = eICU_task()
     elif data_type == 'resampled_eICU':
         samples, labels = resampled_eICU(**data_options)
+    elif data_type == 'FEM':
+        samples, labels = FEM_task()
     else:
         raise ValueError(data_type)
     print('Generated/loaded', len(samples), 'samples from data-type', data_type)
@@ -191,11 +197,11 @@ def scale_data(train, vali, test, scale_range=(-1, 1)):
     signal_length = train.shape[1]
     num_signals = train.shape[2]
     # reshape everything
-    train_r = train.reshape(-1, signal_length*num_signals)
+    train_r = train.reshape(-1, signal_length*num_signals) #TODO: Was wird hier gemacht, wenn ein 2D Signal eingeht
     vali_r = vali.reshape(-1, signal_length*num_signals)
     test_r = test.reshape(-1, signal_length*num_signals)
     # fit scaler using train, vali
-    scaler = MinMaxScaler(feature_range=scale_range).fit(np.vstack([train_r, vali_r]))
+    scaler = MinMaxScaler(feature_range=scale_range).fit(np.vstack([train_r, vali_r])) #Compute min and max to be used for later
     # scale everything
     scaled_train = scaler.transform(train_r).reshape(-1, signal_length, num_signals)
     scaled_vali = scaler.transform(vali_r).reshape(-1, signal_length, num_signals)
@@ -296,8 +302,50 @@ def eICU_task(predict_label=False):
         samples[k] = X.reshape(-1, 16, 4)
     return samples, labels
 
-def FEM_task():
-    print('To be programmed...')
+def FEM_task(folderpath, dataset_name, seq_length=3):
+    """
+    Load the FEM dataset information
+    """
+
+    def load_dataset(folderpath, dataset_name, seq_length):
+        csv_files = [f for f in os.listdir(folderpath) if f.endswith('.csv')]
+        samples_x = []
+        samples_y = []
+        const_dict = main.get_constants(dataset_name)
+
+        for i, file in enumerate(csv_files):
+            filepath = os.path.join(folderpath, file)
+            df = pd.read_csv(filepath)
+
+            if i == 0:
+                col_x = len(df.columns)  # Assuming all CSV files have the same number of columns
+                col_y = len(df.columns)
+
+            segments_x = Augmentation.slice_df(df[[const_dict['x_col']]], const_dict, seq_length)
+            segments_y = Augmentation.slice_df(df[[const_dict['y_col']]], const_dict, seq_length)
+
+            samples_x.extend(segments_x)
+            samples_y.extend(segments_y)
+
+        # Convert List to ndarray
+        samples_x = np.array(samples_x)
+        samples_y = np.array(samples_y)
+
+        return samples_x, samples_y, np.concatenate((samples_x, samples_y), axis=2)
+
+    samples_x, samples_y, samples = load_dataset(folderpath, dataset_name, seq_length)
+    norm=True
+    proportions = [0.6, 0.2, 0.2]
+    train, vali, test = split(samples, proportions, normalise=norm)
+    print(f'Training with {seq_length}s segments. \n'
+          f'The split of data is: \n'
+          f'Training-Set: {proportions[0]*100}%, {len(train)} datasets,\n'
+          f'Validation-Set: {proportions[1]*100}%, {len(vali)} datasets,\n'
+          f'Test-Set: {proportions[2] * 100}%, {len(test)} datasets.')
+    samples = {'train': train, 'vali': vali, 'test': test}
+    #TODO: ÄNDERN!!!!
+    labels = {'train': np.zeros(len(train)), 'vali': np.zeros(len(vali)), 'test': np.zeros(len(test))}
+    return samples, labels
 
 def mnist(randomize=False):
     """ Load and serialise """
