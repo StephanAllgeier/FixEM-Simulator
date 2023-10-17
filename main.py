@@ -4,7 +4,7 @@ import json
 import os
 import re
 from pathlib import Path
-
+import shutil
 import pandas as pd
 import numpy as np
 import scipy
@@ -221,7 +221,7 @@ def GB_to_arcmin(input_folder):
         except Exception as e:
             print(e)
 
-def get_best_HD(folderpath_to_jsons,variable, compare_json_file):
+def get_best_HD(folderpath_to_jsons,variable, compare_json_file, normalize_01):
     simulation_dict={}
     json_files = get_json_file(folderpath_to_jsons)
     with open(compare_json_file,'r') as compare:
@@ -234,7 +234,7 @@ def get_best_HD(folderpath_to_jsons,variable, compare_json_file):
         cells_per_deg=file_name[1].split('=')[1]
         relaxation_rate = file_name[2].split('=')[1]
         hc=file_name[3].split('=')[1]
-        HD = Evaluation.Evaluation.normalized_histogram_difference(data, compare_data, num_bins= 50)
+        HD = Evaluation.Evaluation.normalized_histogram_difference(data, compare_data, num_bins= 50, normalize_01=normalize_01)
 
         name = f'simulation rate={sim_rate}, cells per degree={cells_per_deg}, relaxation rate={relaxation_rate}, h_crit={hc}'
         simulation_dict.update({name: HD})
@@ -245,21 +245,28 @@ def get_best_HD(folderpath_to_jsons,variable, compare_json_file):
     schwellenwert_index = int(0.3 * len(hd_werte))
     schwellenwert = hd_werte[schwellenwert_index]
     # Durchsuche das Dictionary nach Namen mit HD-Werten kleiner oder gleich dem Schwellenwert
-    namen_mit_gueltigen_hd = [name for name, hd in simulation_dict.items() if hd <= schwellenwert]
+    namen_mit_gueltigen_hd = [(name,hd) for name, hd in simulation_dict.items() if hd <= schwellenwert]
     columns= ['simulation rate','cells per degree','relaxation rate','h_crit']
     my_list=[]
     for element in namen_mit_gueltigen_hd:
 
-        split_element = element.split(',')
+        split_element = element[0].split(',')
         simrate = split_element[0].split('=')[1]
         cells =split_element[1].split('=')[1]
         relax =split_element[2].split('=')[1]
         hc = split_element[3].split('=')[1]
         my_list.append([simrate,cells,relax,hc])
+        hd = round(element[1],3)
+        file_name = rf'C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TIMEOUT_0.015s\AmpDurNum_simrate={simrate},Cells={cells},relaxationrate={relax},hc={hc}_n=50.json'
+        file_name_new = f'HD={hd}_simulation_rate={simrate}_CellsPerDegree={cells}_RelaxationRate={relax}_HCrit={hc}.json'
+        new_file_path = Path(folderpath_to_jsons) / 'BestHD_Intermicsac_woNormalice01' / file_name_new
+
+
+        shutil.copyfile(Path(file_name), new_file_path)
     df = pd.DataFrame(my_list, columns=columns)
-    excel_datei = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.xlsx"
+    excel_datei = r"C:\Users\uvuik\Desktop\Test1\ParameterInput_Intermicsac_woNormalize01.xlsx"
     df.to_excel(excel_datei, index=False)
-    csv_datei = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.csv"
+    csv_datei = r"C:\Users\uvuik\Desktop\Test1\ParameterInput_Intermicsac_woNormalize01.csv"
     df.to_csv(csv_datei, index=False)
 
 
@@ -294,7 +301,7 @@ def merge_excel(file1_path, file2_path, output_path):
     except Exception as e:
         print(f"Fehler beim Mergen der Excel-Dateien: {str(e)}")
 
-def create_histogram_w_HD(compare_filepath, folderpath, feature, dataset1name, dataset2name):
+def create_histogram_w_HD(compare_filepath, folderpath, feature, xlabel, dataset1name, dataset2name):
     with open(
             compare_filepath,
             'r') as comp:
@@ -310,21 +317,20 @@ def create_histogram_w_HD(compare_filepath, folderpath, feature, dataset1name, d
         savefigpath = file
         savefig = f"{savefigpath[:-5]}_histogram_intermicsac.jpeg"
         if not Path(savefig).is_file():
-            Evaluation.Evaluation.dual_hist_w_histdiff(compare_data, intermic_dur, 'Roorda Lab', 'Math. Modell',
-                                                               savefigpath, range_limits=(0, 2.5))
+            Evaluation.Evaluation.dual_hist_w_histdiff(compare_data, intermic_dur,'Roorda Lab', 'Math. Modell', savefigpath, xlabel,range_limits=(0, 2.5), normalize_01=False)
 
 if __name__ == '__main__':
-    roorda_file= r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_004.csv"
-    data = pd.read_csv(roorda_file)
-    const_roorda = get_constants('Roorda')
-    data, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
+    #roorda_file=    r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_004.csv"
+    #data = pd.read_csv(roorda_file)
+    #const_roorda = get_constants('Roorda')
+    #data, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
 
-    const_gb = get_constants('GazeBase')
-    gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\GazeBase_v2_0\Fixation_Only\DVA\S_1004_S1_FXS.csv")
-    gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
+    #const_gb = get_constants('GazeBase')
+    #gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\GazeBase_v2_0\Fixation_Only\DVA\S_1004_S1_FXS.csv")
+    #gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
     #gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
-    fft, fftfreq = Filtering.fft_transform(gb_file, const_gb, 'x_col')
-    Vis.plot_fft(fft, fftfreq)
+    #fft, fftfreq = Filtering.fft_transform(gb_file, const_gb, 'x_col')
+    #Vis.plot_fft(fft, fftfreq)
 
 
     #merge_excel(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test1.xlsx", r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test2.xlsx",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test3")
@@ -332,11 +338,20 @@ if __name__ == '__main__':
     #roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
     #const_roorda = get_constants('Roorda')
     #speicherpfad_roorda = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json"
-    #get_best_HD(
-    #    r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput",
-    #    'IntermicDur',
-    #    r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json")
-    create_histogram_w_HD( r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Parameterinput Json&Histogramme", 'IntermicDur', 'Roorda Lab', 'Math. Modell')
+    #create_histogram_w_HD(
+    #    r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
+    #    r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur",
+    #    'IntermicDur', 'Intermikrosakkadischer Abstand in Sekunden [s]', 'Roorda Lab', 'Math. Modell')
+    create_histogram_w_HD(
+        r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_Intermicsac_woNormalice01",
+        'IntermicDur', 'Intermic Abstand in s', 'Roorda Lab', 'Math. Modell')
+
+    get_best_HD(
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s",
+        'IntermicDur',
+        r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json", normalize_01=False)
+
 
     Evaluation.Evaluation.generate_histogram_with_logfit(folderpath, range=(0, 4), compare_to_roorda=True)
 
