@@ -576,6 +576,53 @@ def vis_eICU_patients_downsampled(pat_arrs, time_step, time_steps_to_plot=None,
     plt.close()
     return True
 
+def vis_FEM_downsampled(pat_arrs, time_step, folder_to_save_to, time_steps_to_plot=None,
+        variable_names=['x-Achse', 'y-Achse'],
+        identifier=None, idx=0):
+    """
+    Given a list of patient dataframes, visualize the chosen variables.
+    (if only one patient given, only vis one patient)
+    """
+    # set up the plot
+    fig, axarr = plt.subplots(2, 1, sharex=True, figsize=(6.5, 9))
+    # fix the same color for each patient for each axis
+    n_patients = len(pat_arrs)
+    colours = [hsv_to_rgb((i/n_patients, 0.8, 0.8)) for i in range(n_patients)]
+    for (i, pat_arr) in enumerate(pat_arrs):
+        if not time_steps_to_plot is None:
+            pat_arr = pat_arr[0:time_steps_to_plot]
+        for col, ax in zip(range(pat_arr.shape[1]), axarr):
+            ax.plot(range(0, len(pat_arr)*time_step, time_step), pat_arr[:, col], alpha=0.5, color=colours[i])
+    # aesthetics
+    xmin, xmax = axarr[0].get_xlim()
+    for variable, ax in zip(variable_names, axarr):
+        ax.set_ylabel(variable)
+        ax.get_yaxis().set_label_coords(-0.15, 0.5)
+        ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.tick_params(bottom='off')
+        ymin, ymax = ax.get_ylim()
+        # expand the ylim ever so slightly
+        yrange = np.abs(ymax - ymin)
+        ybuffer = yrange*0.08
+        ymin_new = ymin - ybuffer
+        ymax_new = ymax + ybuffer
+        for x in np.linspace(xmin, xmax - (xmax - xmin)*0.005, num=10):
+            ax.plot((x, x), (ymin_new, ymax_new), ls='dotted', lw=0.5, color='black', alpha=0.25, zorder=0)
+        ax.set_ylim(-1.5, 1.5)
+    axarr[-1].set_xlabel("time since admission (minutes)")
+    axarr[-1].get_xaxis().tick_bottom()
+    if not identifier is None:
+        plt.suptitle(idx)
+        fig.savefig(f"{folder_to_save_to}/{identifier}_epoch_{str(idx).zfill(4)}.png", bbox_inches='tight')
+    else:
+        fig.savefig(f"{folder_to_save_to}/{str(idx).zfill(4)}.png", bbox_inches='tight')
+    plt.clf()
+    plt.close()
+    return True
+
 ### TSTR ###
 def view_mnist_eval(identifier, train_X, train_Y, synth_X, synth_Y, test_X, test_Y, synth_predY, real_predY):
     """
