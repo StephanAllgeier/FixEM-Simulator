@@ -8,15 +8,14 @@ import time
 import json
 import os
 import math
-
-import main
 import plotting
-from ProcessingData.Preprocessing import Augmentation
-from main import get_constants
+#from ProcessingData.Preprocessing import Augmentation
+
 import tkinter as tk
 from tkinter import filedialog
 
 import model
+tf.debugging.set_log_device_placement(True)
 
 def get_batch(samples, labels, batch_size, batch_idx):
     start_pos = batch_idx * batch_size
@@ -27,15 +26,38 @@ def load_dataset(folderpath, dataset_name, seq_length=3):
     csv_files = [f for f in os.listdir(folderpath) if f.endswith('.csv')]
     samples_x = []
     samples_y = []
-    const_dict = main.get_constants(dataset_name)
+    const_dict = {'x_col':'xx', 'y_col':'yy', 'f':1920}#main.get_constants(dataset_name)
+    def slice_df(dataframe, const_dict, segment_length):
+        """
+           Teilt den DataFrame in Unter-DataFrames von jeweils {segment_length} Sekunden Länge auf.
 
+           Args:
+               dataframe (pd.DataFrame): Der DataFrame, der aufgeteilt werden soll.
+                                         Er muss eine Spalte "Zeit" haben.
+               f (float): Die Abtastfrequenz des DataFrames.
+
+           Returns:
+               List[pd.DataFrame]: Eine Liste von Unter-DataFrames mit jeweils {segment_length} Sekunden Länge.
+           """
+        f = const_dict['f']
+        samples_per_segment = int(f*segment_length)
+        segments = []
+        start_idx = 0
+
+        while start_idx+samples_per_segment <= len(dataframe):
+            end_idx = start_idx + samples_per_segment
+            segment = dataframe.iloc[start_idx:end_idx]
+            segments.append(segment.values)
+            start_idx = end_idx
+        return segments
     for i, file in enumerate(csv_files):
         filepath = os.path.join(folderpath, file)
         df = pd.read_csv(filepath)
 
-        segments_x = Augmentation.Augmentation.slice_df(df[[const_dict['x_col']]], const_dict, seq_length)
-        segments_y = Augmentation.Augmentation.slice_df(df[[const_dict['y_col']]], const_dict, seq_length)
-
+        #segments_x = Augmentation.Augmentation.slice_df(df[[const_dict['x_col']]], const_dict, seq_length)
+        #segments_y = Augmentation.Augmentation.slice_df(df[[const_dict['y_col']]], const_dict, seq_length)
+        segments_x = slice_df(df[[const_dict['x_col']]], const_dict, seq_length)
+        segments_y = slice_df(df[[const_dict['y_col']]], const_dict, seq_length)
         samples_x.extend(segments_x)
         samples_y.extend(segments_y)
 
@@ -56,7 +78,7 @@ def folder_input():
 
     return folder_path
 
-def run_training(folderpath, dataset_name, seq_len):
+def run_training(folderpath, dataset_name, seq_len, output_folder):
     if folderpath == None:
         folderpath  = input("Geben Sie den Pfad zum Eingabeordner ein: ")
 
@@ -72,7 +94,6 @@ def run_training(folderpath, dataset_name, seq_len):
     #root = tk.Tk()
     #root.withdraw()
     #output_folder = filedialog.askdirectory(title="Wählen Sie einen Speicherordner aus")
-    output_folder =r"C:\Users\uvuik\Desktop\Test"
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     print(f"Speicherort festgelegt auf: {output_folder}")
@@ -82,15 +103,7 @@ def run_training(folderpath, dataset_name, seq_len):
     for identifier in identifiers:
         tf.compat.v1.reset_default_graph()
         print(f'loading data for {identifier}...')
-
         samples, labels = data_utils.FEM_task(folderpath, dataset_name, seq_len)
-
-        #TODO: Herausfinden, wieso hier ein reshape vorgang duerchgeführt wird, eventuell überflüssig
-        # zunächst mal nur die x-Koordinate testen, muss wieder entfernt werden
-        samples['train'] = samples['train'][:, :, 0].reshape(samples['train'].shape[0], samples['train'].shape[1],1)
-        samples['vali'] = samples['vali'][:, :, 0].reshape(samples['vali'].shape[0], samples['vali'].shape[1],1)
-        samples['test'] = samples['test'][:, :, 0].reshape(samples['test'].shape[0], samples['test'].shape[1],1)
-
 
         train_seqs = samples['train']
         vali_seqs = samples['vali']
@@ -105,7 +118,7 @@ def run_training(folderpath, dataset_name, seq_len):
 
         #Training cofiguration
         lr = 0.1 #Learning-rate
-        batch_size = 10
+        batch_size = 50
         num_epochs = 1000
         D_rounds = 1
         G_rounds = 3
@@ -180,6 +193,7 @@ def run_training(folderpath, dataset_name, seq_len):
                 generator_input = tf.concat([repeated_encoding, z], 2)
 
                 cell = tf.compat.v1.nn.rnn_cell.LSTMCell(num_units=hidden_units_g, state_is_tuple=True)
+                #cell = tf.keras.layers.LSTMCell(units=hidden_units_g)
                 rnn_outputs, rnn_states = tf.compat.v1.nn.dynamic_rnn(
                     cell=cell,
                     dtype=tf.float32,
@@ -217,6 +231,7 @@ def run_training(folderpath, dataset_name, seq_len):
                 decoder_input = tf.concat([repeated_encoding, x], 2)
 
                 cell = tf.compat.v1.nn.rnn_cell.LSTMCell(num_units=hidden_units_d, state_is_tuple=True)
+                #cell = tf.keras.layers.LSTMCell(units=hidden_units_d)
                 rnn_outputs, rnn_states = tf.compat.v1.nn.dynamic_rnn(
                     cell=cell,
                     dtype=tf.float32,
@@ -229,7 +244,7 @@ def run_training(folderpath, dataset_name, seq_len):
         #---------------------------------------------------------------------------------------------------------------
         #Generative Adversarial Network (GAN) Training:
 
-        #1. Generierung von Fake-Daten durch den Generator
+        #1. Generierung von Fake-Daten durch den Generatore
         #2. Diskriminierung von Realen Daten
         #3. Diskriminierung von Fake-Daten (mit Wiederverwendung von Variablen)
         #4. Definition der Trainierbaren Variablen für Generator und Discriminator
@@ -272,13 +287,15 @@ def run_training(folderpath, dataset_name, seq_len):
         #X_mb_vis, Y_mb_vis = get_batch(train_seqs, train_targets, batch_size, 0)
         vis_sample = sess.run(G_sample, feed_dict={Z: vis_z, CG: Y_mb_vis})
         #TODO: ÄNDERN!!!!!
-        plotting.vis_FEM_downsampled(vis_sample, seq_length, folder_to_save_to=r"C:\Users\uvuik\Desktop\Test",
+        if dataset_name == 'Roorda':
+            const_dict = {'x_col':'xx', 'y_col':'yy', 'f':1920, 'Annotations': 'Flags'}
+        plotting.vis_FEM_downsampled_2patients(vis_sample, seq_length, f_sample=const_dict['f'], folder_to_save_to=output_folder,
                                                identifier=identifier, idx=0)
 
         # visualise some real samples
         vis_real = np.float32(vali_seqs[np.random.choice(len(vali_seqs), size=batch_size), :, :])
         #TODO: ÄNDERN!!!!!!
-        plotting.vis_FEM_downsampled(vis_real, seq_length,folder_to_save_to=r"C:\Users\uvuik\Desktop\Test",
+        plotting.vis_FEM_downsampled_2patients(vis_real, seq_length, f_sample=const_dict['f'],folder_to_save_to=output_folder,
                                                identifier=identifier + '_real', idx=0)
 
         trace = open(output_folder + '/' + identifier + '.trace.txt', 'w')
@@ -331,7 +348,7 @@ def run_training(folderpath, dataset_name, seq_len):
 
             vis_sample = sess.run(G_sample, feed_dict={Z: vis_z, CG: Y_mb_vis})
 
-            plotting.vis_FEM_downsampled(vis_sample, seq_length, folder_to_save_to=r"C:\Users\uvuik\Desktop\Test",
+            plotting.vis_FEM_downsampled_2patients(vis_sample, seq_length, f_sample=const_dict['f'], folder_to_save_to=output_folder,
                                          identifier=identifier, idx=num_epoch+1)
 
             # save synthetic data
@@ -346,7 +363,7 @@ def run_training(folderpath, dataset_name, seq_len):
                     gen_samples_mb = sess.run(G_sample, feed_dict={Z: z_, CG: Y_mb})
                     gen_samples.append(gen_samples_mb)
                     labels_gen_samples.append(Y_mb)
-                    print(batch_idx)
+                    #print(batch_idx)
 
                 for batch_idx in range(int(len(vali_seqs) / batch_size)):
                     X_mb, Y_mb = get_batch(vali_seqs, vali_targets, batch_size, batch_idx)
@@ -365,12 +382,13 @@ def run_training(folderpath, dataset_name, seq_len):
                     pickle.dump(file=f, obj=labels_gen_samples)
 
                 # save the model used to generate this dataset
-                model.dump_parameters(identifier + '_' + str(num_epoch), sess)
+                model.dump_parameters(identifier + '_' + str(num_epoch), sess, output_folder)
             end_time = time.time()
             print(f'Epoche {num_epoch} hat {end_time-start_epoch}s benötigt.')
 
 
 if __name__ == '__main__':
-    folderpath = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\Augmented\Roorda_Augmented"
-    run_training(folderpath, 'Roorda', 3)
+    folderpath = r"/mnt/c/Users/uvuik/bwSyncShare/Documents/Dataset/External/Augmented/Roorda_Augmented"
+    output_folder = r"/mnt/c/Users/uvuik/Desktop/Test x_y"
+    run_training(folderpath, 'Roorda', 2.5, output_folder)
     load_dataset(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley", dataset_name='Roorda', seq_length=3)
