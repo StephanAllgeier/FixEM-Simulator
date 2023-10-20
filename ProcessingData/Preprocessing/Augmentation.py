@@ -82,6 +82,7 @@ class Augmentation():
         modified_data = dataframe.copy()
         x_col = const_dict['x_col']
         y_col = const_dict['y_col']
+        annotations = const_dict['Annotations']
         modified_data[[x_col, y_col]] = -modified_data[[x_col, y_col]]
         return modified_data
 
@@ -90,7 +91,7 @@ class Augmentation():
         '''
         resample a signal from original frequency fs to target frequency frs
         '''
-        interm_frame = df[[const_dict['time_col'], const_dict['x_col'], const_dict['y_col']]]
+        interm_frame = df[[const_dict['time_col'], const_dict['x_col'], const_dict['y_col'], const_dict['Annotations']]]
         fs = const_dict['f']
         resampling_ratio = f_target / fs
         num_output_samples = int(len(interm_frame) * resampling_ratio)
@@ -102,9 +103,10 @@ class Augmentation():
         return_t = pd.Series(np.linspace(0, df[const_dict['time_col']].iloc[-1], num_output_samples),
                              name=const_dict['time_col'])
 
-        # Using pydsm
-        # return_x = pydsm.resample(interm_frame[const_dict['x_col']], fs, f_target)
-        # return_y = pydsm.resample(interm_frame[const_dict['y_col']], fs, f_target)
-        # return_t = pydsm.resample(interm_frame[const_dict['t_col']], fs, f_target)
+        return_annot = round(pd.Series(signal.resample(interm_frame[const_dict['Annotations']], num_output_samples),
+                   name=const_dict['Annotations'])).astype(int)
+        #pd.Series(signal.resample(interm_frame[const_dict['Annotations']], num_output_samples, axis=0, method='nearest'),
+        #                         name=const_dict['Annotations'])
         const_dict['f'] = f_target
-        return pd.concat([return_t, return_x, return_y], axis=1), const_dict
+        resampled_df = pd.concat([return_t, return_x, return_y, return_annot], axis=1)
+        return resampled_df, const_dict
