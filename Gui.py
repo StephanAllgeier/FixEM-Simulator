@@ -43,11 +43,48 @@ class MyWindow(QMainWindow):
 
         # Dropdown-Menü mit 16 Optionen erstellen
         self.float_options = []
-        excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.xlsx"
+        #excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.xlsx"
         # Open Excelfile
-        combinations = get_combination_from_excel(excel_file)
+        #combinations = get_combination_from_excel(excel_file)
+        data1 = {
+            'simulation_rate': 150,
+            'cells_per_degree': 10,
+            'relaxation_rate': 0.085,
+            'h_crit': 8.9
+        }
+        data2 = {
+            'simulation_rate': 100,
+            'cells_per_degree': 10,
+            'relaxation_rate': 0.1,
+            'h_crit': 6.9
+        }
+        data3 = {
+            'simulation_rate': 200,
+            'cells_per_degree': 10,
+            'relaxation_rate': 0.1,
+            'h_crit': 9.9
+        }
+        data4 = {
+            'simulation_rate': 200,
+            'cells_per_degree': 25,
+            'relaxation_rate': 0.08,
+            'h_crit': 5.4
+        }
+        data5 = {
+            'simulation_rate': 250,
+            'cells_per_degree': 25,
+            'relaxation_rate': 0.01,
+            'h_crit': 8.4
+        }
+        data6 = {
+            'simulation_rate': 150,
+            'cells_per_degree': 25,
+            'relaxation_rate': 0.08,
+            'h_crit': 4.4
+        }
+        combinations = [data1,data2,data3,data4,data5,data6]
         for comb in combinations:
-            self.float_options.append((comb['simulation rate'], comb['cells per degree'], comb['relaxation rate'], comb['h_crit']))
+            self.float_options.append((comb['simulation_rate'], comb['cells_per_degree'], comb['relaxation_rate'], comb['h_crit']))
 
         self.drop_var = ['simulation_freq', "potential_resolution", "relaxation_rate", "hc"]
         self.float_combo = QComboBox(self)
