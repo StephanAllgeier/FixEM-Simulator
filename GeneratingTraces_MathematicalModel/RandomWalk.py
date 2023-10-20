@@ -776,31 +776,6 @@ class RandomWalk():
             bspline_dist_half = dist_prev_approx
             bspline_velocity_std = RandomWalk.line_segment_length_std(x_e, y_e) * f_sampling * 2 ** f_sampling_power
 
-
-        '''
-        def generate_tremor_signal(freq_range, sample_rate, duration, amplitude_min, amplitude_max):
-            t = np.arange(0, duration, 1 / sample_rate)
-
-            # Generiere Tremor-Signal im Frequenzbereich
-            tremor_freq = np.random.uniform(*freq_range)
-            tremor_amplitude = np.random.uniform(amplitude_min, amplitude_max)
-
-            tremor = np.random.normal(0, 1, len(t))
-            tremor_freqs = np.fft.fftfreq(len(t), 1 / sample_rate)
-            tremor_freq_mask = np.logical_and(tremor_freqs >= freq_range[0], tremor_freqs <= freq_range[1])
-            tremor_freq_domain = np.zeros(len(t))
-            tremor_freq_domain[tremor_freq_mask] = np.exp(1j * 2 * np.pi * np.random.rand(np.sum(tremor_freq_mask)))
-            tremor_freq_domain *= np.sqrt(
-                np.sum(np.abs(np.fft.fft(tremor)) ** 2) / np.sum(np.abs(np.fft.fft(tremor_freq_domain)) ** 2))
-            tremor = np.fft.ifft(tremor_freq_domain)
-            tremor = np.real(tremor)
-            tremor *= tremor_amplitude
-
-            return tremor
-
-        tremor_x = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))#np.random.normal(-np.sqrt(1/3600), np.sqrt(1/3600), len(x_sampled))
-        tremor_y = generate_tremor_signal(freq_range=(30,100), sample_rate=args.sampling_frequency, duration=args.duration, amplitude_min=-np.sqrt(1/2)*(1/3600), amplitude_max=np.sqrt(1/2)*(1/3600))
-        '''
         """
                 Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
         """
@@ -911,23 +886,56 @@ class RandomWalk():
 
         if args.show_plots:
             t = t_sampled
-            plt.plot(t, x_sampled*60, label='x', color='blue') #*60 um von grad auf Bogenminuten
-            plt.plot(t, y_sampled*60, label='y', color='orange')
-            plt.xlim(22,25)
-            plt.xlabel('Zeit in s')
-            plt.ylabel('Position in Bogenminuten [arcmin]')
-            plt.title('Augenbewegungen in x-y-Koordinaten')
-            plt.savefig(
-                fr'{args.fpath_sampled}_xy_trace_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}_woMicSac.jpeg',
-                dpi=600)
-            #Mikrosakkaden plotten
-            onsets = t_sim[micsac_onset]
-            offsets = t_sim[micsac_offset]
-            plt.vlines(x=onsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='red', linewidth=1)
-            plt.vlines(x=offsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='black', linewidth=1)
-            #plt.savefig(fr'{args.fpath_sampled}_xy_trace_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}.jpeg',dpi=600)
-            plt.legend()
-            plt.plot()
+            fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+            # Subplot 1: Bereich 22 bis 24 Sekunden
+            if unit == "DVA":
+                unit_symb = "°"
+                print('Unit chosen is DVA.')
+            elif unit == "Arcmin":
+                x_sampled*= 60
+                y_sampled *= 60
+                unit_symb = "Bogenminuten [arcmin]"
+            elif unit == "µm":
+                r = 24500
+                print('Unit chosen is µm.')
+                x_sampled = r * np.sin(x_sampled)
+                y_sampled= r * np.sin(y_sampled)
+                unit_symb = "µm"
+            ax1 = axs[0]
+            ax1.plot(t, x_sampled, label='x', color='blue')
+            ax1.plot(t, y_sampled, label='y', color='orange')
+
+            ax1.set_xlim(22, 24)
+            ax1.set_ylim(min(y_sampled), max(y_sampled))
+            ax1.set_xlabel('Zeit in s')
+            ax1.set_ylabel(f'Position in {unit_symb}')
+            ax1.set_title(f'Augenbewegungen in x-y-Koordinaten - Positiv Beispiel')
+
+            # Subplot 2: Bereich 24 bis 25 Sekunden
+            ax2 = axs[1]
+            ax2.plot(t, x_sampled, label='x', color='blue')
+            ax2.plot(t, y_sampled, label='y', color='orange')
+            ax2.set_xlim(12, 14)
+            ax2.set_ylim(min(y_sampled * 60), max(y_sampled * 60))
+            ax2.set_xlabel('Zeit in s')
+            ax2.set_ylabel(f'Position in {unit_symb}')
+            ax2.set_title('Augenbewegungen in x-y-Koordinaten - Negativ Beispiel')
+
+            # Hinzufügen der Mikrosakkaden-Linien zu beiden Subplots
+            onset_adj = [onset - 10 for onset in onsets if onset > 10]
+            offset_adj = [offset - 10 for offset in offsets if
+                                 offset > 10]
+
+            for ax in axs:
+                ax.vlines(x=onset_adj, ymin=ax.get_ylim()[0], ymax=ax.get_ylim()[1], colors='red', linewidth=1)
+                ax.vlines(x=offset_adj, ymin=ax.get_ylim()[0], ymax=ax.get_ylim()[1], colors='black', linewidth=1)
+                ax.legend()
+
+            # Einstellungen für das Layout
+            plt.tight_layout()
+
+            # Anzeigen oder Speichern der Figur
             plt.show()
 
 if __name__ == '__main__':
