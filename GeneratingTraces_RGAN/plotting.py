@@ -623,6 +623,69 @@ def vis_FEM_downsampled(pat_arrs, time_step, folder_to_save_to, time_steps_to_pl
     plt.close()
     return True
 
+
+def vis_FEM_downsampled_2patients(pat_arrs, time_step, f_sample, folder_to_save_to,
+                                          variable_names=['x-Achse', 'y-Achse'],
+                                          identifier=None, idx=0):
+    """
+       Visualize the chosen variables for the first two patients in separate subplots.
+       """
+    if len(pat_arrs) < 2:
+        raise ValueError("At least two patients are required for comparison.")
+
+    # Extract data for the first two patients
+    pat_arr1 = pat_arrs[0]
+    pat_arr2 = pat_arrs[1]
+    assert pat_arr1.shape == pat_arr2.shape, 'SIND NICHT GLEICH LANG'
+    # set up the plot
+    fig, axarr = plt.subplots(2, 1, sharex=True, figsize=(6.5, 9))
+
+    # fix the same color for each patient for each axis
+    colours = [hsv_to_rgb((i / 2, 0.8, 0.8)) for i in range(2)]
+
+    # Plot the values from pat_arr1[:, 0] and pat_array2[:, 0] in the upper subplot
+    axarr[0].plot(np.linspace(0, pat_arr1.shape[0]/f_sample, len(pat_arr1)), pat_arr1[:, 0], alpha=0.5,
+                  color=colours[0])
+    axarr[0].plot(np.linspace(0, pat_arr1.shape[0]/f_sample, len(pat_arr1)), pat_arr2[:, 0], alpha=0.5,
+                  color=colours[1])
+
+    # Plot the values from pat_arr2[:, 1] in the lower subplot
+    axarr[1].plot(np.linspace(0, pat_arr1.shape[0]/f_sample, len(pat_arr1)), pat_arr1[:, 1], alpha=0.5,
+                  color=colours[0])
+    axarr[1].plot(np.linspace(0, pat_arr1.shape[0]/f_sample, len(pat_arr1)), pat_arr2[:, 1], alpha=0.5,
+                  color=colours[1])
+
+    # aesthetics
+    for i, ax in enumerate(axarr):
+        ax.set_ylabel(variable_names[i])
+        ax.get_yaxis().set_label_coords(-0.15, 0.5)
+        ax.spines["top"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.tick_params(bottom='off')
+        ymin, ymax = ax.get_ylim()
+        yrange = np.abs(ymax - ymin)
+        ybuffer = yrange * 0.08
+        ymin_new = ymin - ybuffer
+        ymax_new = ymax + ybuffer
+        for x in np.linspace(0, pat_arr1.shape[0]/f_sample, num=10):
+            ax.plot((x, x), (ymin_new, ymax_new), ls='dotted', lw=0.5, color='black', alpha=0.25, zorder=0)
+        ax.set_ylim(-1.5, 1.5)
+
+    axarr[-1].set_xlabel("Zeit in Sekunden [s]")
+    axarr[-1].get_xaxis().tick_bottom()
+
+    if not identifier is None:
+        plt.suptitle(idx)
+        fig.savefig(f"{folder_to_save_to}/{identifier}_epoch_{str(idx).zfill(4)}.png", bbox_inches='tight')
+    else:
+        fig.savefig(f"{folder_to_save_to}/{str(idx).zfill(4)}.png", bbox_inches='tight')
+
+    plt.clf()
+    plt.close()
+    return True
+
 ### TSTR ###
 def view_mnist_eval(identifier, train_X, train_Y, synth_X, synth_Y, test_X, test_Y, synth_predY, real_predY):
     """

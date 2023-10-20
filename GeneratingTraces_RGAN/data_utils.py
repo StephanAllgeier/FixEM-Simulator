@@ -7,7 +7,7 @@ import json
 import random
 import os
 
-import main
+
 import model
 import paths
 
@@ -21,7 +21,7 @@ from math import ceil
 from sklearn.metrics.pairwise import rbf_kernel
 from sklearn.preprocessing import MinMaxScaler
 
-from ProcessingData.Preprocessing.Augmentation import Augmentation
+#from ProcessingData.Preprocessing.Augmentation import Augmentation
 
 
 # --- to do with loading --- #
@@ -308,32 +308,49 @@ def FEM_task(folderpath, dataset_name, seq_length=3):
     """
 
     def load_dataset(folderpath, dataset_name, seq_length):
+        def slice_df(dataframe, const_dict, segment_length):
+            f = const_dict['f']
+            samples_per_segment = int(f * segment_length)
+            segments = []
+            start_idx = 0
+
+            while start_idx + samples_per_segment <= len(dataframe):
+                end_idx = start_idx + samples_per_segment
+                segment = dataframe.iloc[start_idx:end_idx]
+                segments.append(segment.values)
+                start_idx = end_idx
+            return segments
+
         csv_files = [f for f in os.listdir(folderpath) if f.endswith('.csv')]
         samples_x = []
         samples_y = []
-        const_dict = main.get_constants(dataset_name)
+        labels = []
+        if dataset_name == 'Roorda':
+            const_dict = {'x_col':'xx', 'y_col':'yy', 'f':1920, 'Annotations': 'Flags'}#main.get_constants(dataset_name)
+
 
         for i, file in enumerate(csv_files):
             filepath = os.path.join(folderpath, file)
             df = pd.read_csv(filepath)
 
-            if i == 0:
-                col_x = len(df.columns)  # Assuming all CSV files have the same number of columns
-                col_y = len(df.columns)
-
-            segments_x = Augmentation.slice_df(df[[const_dict['x_col']]], const_dict, seq_length)
-            segments_y = Augmentation.slice_df(df[[const_dict['y_col']]], const_dict, seq_length)
+            segments_x = slice_df(df[[const_dict['x_col']]], const_dict, seq_length)
+            segments_y = slice_df(df[[const_dict['y_col']]], const_dict, seq_length)
+            segment_labels = slice_df(df[[const_dict['Annotations']]], const_dict, seq_length)
+            #segments_x = Augmentation.slice_df(df[[const_dict['x_col']]], const_dict, seq_length)
+            #segments_y = Augmentation.slice_df(df[[const_dict['y_col']]], const_dict, seq_length)
 
             samples_x.extend(segments_x)
             samples_y.extend(segments_y)
+            labels.extend(segment_labels)
 
         # Convert List to ndarray
         samples_x = np.array(samples_x)
         samples_y = np.array(samples_y)
+        labels = np.array(labels)
+        assert labels.shape == samples_x.shape and labels.shape == samples_y.shape, "Die Dimensionen sind nicht identisch"
+        return np.concatenate((samples_x, samples_y), axis=2), np.concatenate((labels, labels), axis=2)
 
-        return samples_x, samples_y, np.concatenate((samples_x, samples_y), axis=2)
-
-    samples_x, samples_y, samples = load_dataset(folderpath, dataset_name, seq_length)
+    samples, labels = load_dataset(folderpath, dataset_name, seq_length)
     norm=True
     proportions = [0.6, 0.2, 0.2]
     train, vali, test = split(samples, proportions, normalise=norm)
@@ -343,8 +360,8 @@ def FEM_task(folderpath, dataset_name, seq_length=3):
           f'Validation-Set: {proportions[1]*100}%, {len(vali)} datasets,\n'
           f'Test-Set: {proportions[2] * 100}%, {len(test)} datasets.')
     samples = {'train': train, 'vali': vali, 'test': test}
-    #TODO: ÄNDERN!!!!
-    labels = {'train': np.zeros(len(train)), 'vali': np.zeros(len(vali)), 'test': np.zeros(len(test))}
+    train_labels, vali_labels, test_labels = split(labels, proportions, normalise=False)
+    labels = {'train': train_labels, 'vali': vali_labels, 'test': test_labels}
     return samples, labels
 
 def mnist(randomize=False):

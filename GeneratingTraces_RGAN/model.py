@@ -337,11 +337,14 @@ def discriminator(x, hidden_units_d, seq_length, batch_size, reuse=False,
 
 # --- to do with saving/loading --- #
 
-def dump_parameters(identifier, sess):
+def dump_parameters(identifier, sess, outputfile=None):
     """
     Save model parmaters to a numpy file
     """
-    dump_path = './GeneratingTraces_RGAN/experiments/parameters/' + identifier + '.npy'
+    if outputfile:
+        dump_path = f"{outputfile}/{identifier}.npy"
+    else:
+        dump_path = './GeneratingTraces_RGAN/experiments/parameters/' + identifier + '.npy'
     model_parameters = dict()
     for v in tf.compat.v1.trainable_variables():
         model_parameters[v.name] = sess.run(v)
