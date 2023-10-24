@@ -171,8 +171,7 @@ def alt():
 
 
 if __name__ == '__main__':
-    excel_file=r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\FINAL\Parametertuning_Ergebnisse_0.3-0.8_gefiltert.xlsx"
-    #Open Excelfile
+    excel_file=r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\Parameterinput gefiltert 0.8-0.9.xlsx"
     combinations = get_combination_from_excel(excel_file)
-    folder_to_save_to = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TIMEOUT_0.015s"
+    folder_to_save_to = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s"
     save_combination_evaluation_to_json(combinations=combinations, folder_to_save_to=folder_to_save_to)
