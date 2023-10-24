@@ -98,9 +98,11 @@ class MyWindow(QMainWindow):
         # Zuordnung von Anzeigenamen zu Variablennamen
         self.variable_mapping = {"Number of simulations": "number",
                             "Duration": 'duration',
+                                 "Field size in degree": 'field_size',
                             "Sampling Frequency": 'sampling_frequency',
                             'Folderpath to save to': 'folderpath',
-                            'Show plots': 'show_plots'}
+                            'Show plots': 'show_plots'
+                            }
         # Felder für Variableneingabe erstellen
         self.input_fields = []
         self.default_checkboxes = []
