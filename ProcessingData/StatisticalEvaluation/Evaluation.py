@@ -619,9 +619,8 @@ def dual_hist_subplot_w_histdiff_log(varlist1, varlist2_1, varlist2_2, label1, l
              alpha=0.5, density=True)
     hist_vals1, hist_edges1, _ =ax1.hist(intermic_dur2_1, label=label2_1, bins=hist_bins, range=range_limits, edgecolor='black',
              alpha=0.5, density=True)
-    ax1.set_xlabel(xlabel,fontsize=12)
     ax1.set_ylabel("Wahrscheinlichkeitsdichte", fontsize=12)
-    ax1.set_title(f"Histogramm der intermikrosakkadischen Intervalle\n Vergleich {label1} / Geringste HD", fontweight='bold', fontsize=14)
+    ax1.set_title(f"Histogramm der intermikrosakkadischen Intervalle\n Vergleich {label1} / {label2_1}", fontweight='bold', fontsize=14)
     ax1.set_ylim(0, max(hist_vals1)*1.1)
     ax1.legend()
 
@@ -669,6 +668,7 @@ def dual_hist_subplot_w_histdiff_log(varlist1, varlist2_1, varlist2_2, label1, l
     ax1_scatter.set_ylabel('Wahrscheinlichkeitsdichte', fontsize=12)
     ax1_scatter.set_title("Logarithmischer Histogramm-Vergleich",  fontweight='bold', fontsize=14)
     ax1_scatter.legend(loc='upper right')
+    ax1_scatter.grid(True)
 
     # Subplot 2
     ax2 = axs[1, 0]
@@ -679,7 +679,7 @@ def dual_hist_subplot_w_histdiff_log(varlist1, varlist2_1, varlist2_2, label1, l
              alpha=0.5, density=True)
     ax2.set_xlabel(xlabel, fontsize=12)
     ax2.set_ylabel("Wahrscheinlichkeitsdichte",fontsize=12)
-    ax2.set_title(f"Histogramm der intermikrosakkadischen Intervalle\n Vergleich {label1} / {label2_2}", fontweight='bold', fontsize=14)
+    ax2.set_title(f"Vergleich {label1} / {label2_2}", fontweight='bold', fontsize=14)
     ax2.legend()
     ax2.set_ylim(0, max(hist_vals1)*1.1)
 
@@ -711,27 +711,119 @@ def dual_hist_subplot_w_histdiff_log(varlist1, varlist2_1, varlist2_2, label1, l
     ax2_scatter.set_ylabel('Wahrscheinlichkeitsdichte', fontsize=12)
     ax2_scatter.set_title(f"Logarithmischer Histogramm-Vergleich", fontweight='bold', fontsize=14)
     ax2_scatter.legend(loc='upper right')
+    ax2_scatter.grid(True)
     # Tabelle erstellen
-    table_data = [["", "Mittelwert", "Median", "Standardabw."],
+    table_data = [[f"HD={round(histdiff_1, 3)}", "Mittelwert", "Median", "Standardabw."],
                   [label1, round(mean1, 3), round(median1, 3), round(stdev1, 3)],
-                  ['Math. Modell', round(mean2_1, 3), round(median2_1, 3), round(stdev2_1, 3)],
-                  [f"HD={round(histdiff_1, 3)}", "", "", ""]
+                  ['Math. Modell', round(mean2_1, 3), round(median2_1, 3), round(stdev2_1, 3)]
                   ]
     table1 = ax1.table(cellText=table_data, colLabels=None, loc='center right', cellLoc='center')
     table1.auto_set_font_size(False)
     table1.set_fontsize(12)
     table1.scale(0.6, 1.2)
+    # Fette Schrift für HD-Zelle
+    table1[(0, 0)].set_text_props(fontweight='bold')
 
-    table_data = [["",  "Mittelwert", "Median", "Standardabw."],
+    table_data = [[f"HD={round(histdiff_1, 3)}",  "Mittelwert", "Median", "Standardabw."],
                   [label1, round(mean1, 3), round(median1, 3), round(stdev1, 3)],
-                  ['Math. Modell', round(mean2_2, 3), round(median2_2, 3), round(stdev2_2, 3)],
-                  [f"HD={round(histdiff_2, 3)}", "", "", ""]
+                  ['Math. Modell', round(mean2_2, 3), round(median2_2, 3), round(stdev2_2, 3)]
                   ]
     table2 = ax2.table(cellText=table_data, colLabels=None, loc='center right', cellLoc='center')
+    table2[(0, 0)].set_text_props(fontweight='bold')
     table2.auto_set_font_size(False)
     table2.set_fontsize(12)
     table2.scale(0.6, 1.2)
 
     plt.tight_layout()
     plt.savefig(f"{savefigpath[:-5]}_histogram_intermicsac_subplot.jpeg", dpi=600)
+    plt.close()
+
+def hist_subplot_w_histdiff_log(varlist1, varlist2_1,  label1, label2_1, savefigpath, xlabel, range_limits=(0, 2.5), normalize_01=False):
+    if not isinstance(varlist1, list) and isinstance(varlist2_1, list):
+        return None
+
+    intermic_dur1 = varlist1
+    intermic_dur2_1 = varlist2_1
+
+    # Berechnung der Statistiken für beide Datensätze
+    mean1, median1, stdev1 = np.mean(intermic_dur1), np.median(intermic_dur1), np.std(intermic_dur1)
+    mean2_1, median2_1, stdev2_1 = np.mean(intermic_dur2_1), np.median(intermic_dur2_1), np.std(intermic_dur2_1)
+
+    # Figure und Axes für das Haupt-Histogramm erstellen
+    fig, axs  = plt.subplots(1, 2, figsize=(15, 8), gridspec_kw={'width_ratios': [2, 1]})
+
+    # Subplot 1
+    ax1 = axs[0]
+    hist_bins = 50
+    histdiff_1 = Evaluation.normalized_histogram_difference(intermic_dur1, intermic_dur2_1, hist_bins, normalize_01)
+    hist_vals_roorda, hist_edges_roorda , _ = ax1.hist(intermic_dur1, label=label1, bins=hist_bins, range=range_limits, edgecolor='black',
+             alpha=0.5, density=True)
+    hist_vals1, hist_edges1, _ =ax1.hist(intermic_dur2_1, label=label2_1, bins=hist_bins, range=range_limits, edgecolor='black',
+             alpha=0.5, density=True)
+    ax1.set_ylabel("Wahrscheinlichkeitsdichte", fontsize=12)
+    ax1.set_title(f"Histogramm der intermikrosakkadischen Intervalle\n Vergleich {label1} / {label2_1}", fontweight='bold', fontsize=14)
+    ax1.set_ylim(0, max(hist_vals1)*1.1)
+    ax1.set_xlabel(xlabel, fontsize=12)
+    ax1.legend()
+
+    def line_function(params, x, y):
+        slope, intercept = params
+        y_fit = slope * x + intercept
+        return np.sum((y - y_fit) ** 2)
+
+    #Scatter für Roorda
+    x_fit = np.linspace(range_limits[0], range_limits[1], 100)
+    bin_centers_roorda = (hist_edges_roorda[:-1] + hist_edges_roorda[1:]) / 2
+    initial_params = [0.1, 0.1]
+    total_samples_roorda = len(intermic_dur1)
+    relative_freq_roorda= hist_vals_roorda / total_samples_roorda
+    relative_freq_log_roorda = np.log10(hist_vals_roorda / total_samples_roorda)
+    result_roorda = minimize(line_function, initial_params, args=(bin_centers_roorda, relative_freq_log_roorda))
+    slope_fit_roorda, intercept_fit_roorda = result_roorda.x
+    y_fit_roorda = slope_fit_roorda * x_fit + intercept_fit_roorda
+
+    # Scatterplot für Subplot 1
+    bin_centers_1 = (hist_edges1[:-1] + hist_edges1[1:]) / 2
+    initial_params = [0.1, 0.1]
+    total_samples_1 = len(intermic_dur2_1)
+    relative_freq_1 = hist_vals1 / total_samples_1
+    hist_vals1[46] = 1
+    relative_freq_log_1 = np.log10(hist_vals1 / (total_samples_1+1))
+    result_1= minimize(line_function, initial_params, args=(bin_centers_1, relative_freq_log_1))
+    slope_fit_1, intercept_fit_1 = result_1.x
+    y_fit_1= slope_fit_1 * x_fit + intercept_fit_1
+
+
+    ax1_scatter = axs[1]
+    ax1_scatter.plot(bin_centers_roorda, relative_freq_roorda, 'o', color='red')
+    ax1_scatter.plot(bin_centers_1, relative_freq_1, 'o', color="blue")
+    ax1_scatter.plot(x_fit, 10 ** y_fit_roorda, color='red',
+                 label="Anpassende Gerade (log) Roorda")  # Gerade auf logarithmischer Skala
+    ax1_scatter.plot(x_fit, 10 ** y_fit_1, color='blue',
+                     label="Anpassende Gerade (log) math. Modell")
+    ax1_scatter.set_xscale('linear')
+    ax1_scatter.set_yscale('log')
+    ax1_scatter.set_xlim(range_limits)
+    ax1_scatter.set_ylim(10 ** np.floor(np.log10(min(relative_freq_roorda))),
+                     10 ** np.ceil(np.log10(max(relative_freq_roorda))))  # Anpassung der y-Achsenbegrenzung
+    ax1_scatter.set_xlabel(xlabel,fontsize=12)
+    ax1_scatter.set_ylabel('Wahrscheinlichkeitsdichte', fontsize=12)
+    ax1_scatter.set_title("Logarithmischer Histogramm-Vergleich",  fontweight='bold', fontsize=14)
+    ax1_scatter.legend(loc='upper right')
+    ax1_scatter.grid(True)
+
+
+    # Tabelle erstellen
+    table_data = [[f"HD={round(histdiff_1, 3)}", "Mittelwert", "Median", "Standardabw."],
+                  [label1, round(mean1, 3), round(median1, 3), round(stdev1, 3)],
+                  ['Math. Modell', round(mean2_1, 3), round(median2_1, 3), round(stdev2_1, 3)]
+                  ]
+    table1 = ax1.table(cellText=table_data, colLabels=None, loc='center right', cellLoc='center')
+    table1.auto_set_font_size(False)
+    table1.set_fontsize(12)
+    table1.scale(0.6, 1.2)
+    # Fette Schrift für HD-Zelle
+    table1[(0, 0)].set_text_props(fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(f"{savefigpath[:-5]}_singlehistogram_intermicsac_subplot.jpeg", dpi=600)
     plt.close()
