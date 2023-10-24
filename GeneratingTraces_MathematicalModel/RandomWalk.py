@@ -472,7 +472,9 @@ class RandomWalk():
             args.fpath_sampled=fr"{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}_SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}_relaxationr={args.relaxation_rate}\Trace{number_id}"
             args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\Signal{number_id}'
 
-        N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
+
+        N = int(args.potential_resolution * 2 + 1)
+        #N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
 
         if args.base_dir is not None:
             chdir(args.base_dir)
@@ -917,7 +919,7 @@ class RandomWalk():
             ax2.plot(t, x_sampled, label='x', color='blue')
             ax2.plot(t, y_sampled, label='y', color='orange')
             ax2.set_xlim(12, 14)
-            ax2.set_ylim(min(y_sampled * 60), max(y_sampled * 60))
+            ax2.set_ylim(min(y_sampled), max(y_sampled))
             ax2.set_xlabel('Zeit in s')
             ax2.set_ylabel(f'Position in {unit_symb}')
             ax2.set_title('Augenbewegungen in x-y-Koordinaten - Negativ Beispiel')
@@ -937,6 +939,7 @@ class RandomWalk():
 
             # Anzeigen oder Speichern der Figur
             plt.show()
+            plt.savefig(folderpath)
 
 if __name__ == '__main__':
     print('Start')
