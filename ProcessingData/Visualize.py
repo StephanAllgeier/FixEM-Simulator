@@ -225,10 +225,11 @@ class Visualize():
         # y = norm.pdf(x, mean, std)
         # Plot erstellen
         # plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
-        plt.hist(data, bins='auto', density=True, alpha=0.6, label='Histogram')
-        plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {mean}', linewidth=2)
-        plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {median}', linewidth=2)
-        plt.axvline(x=mean + std, color='b', linestyle='--', label=f'1 Sigma = {std}', linewidth=2)
+        counts, bins , _ = plt.hist(data, bins=50, density=True, alpha=0.5, label='Histogram', edgecolor='black')
+        # Bestimme den Index des Bins, dessen x-Wert größer als 1 ist
+        plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {round(mean,3)}', linewidth=2)
+        plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {round(median,3)}', linewidth=2)
+        plt.axvline(x=mean + std, color='b', linestyle='--', label=f'Stdev. = {round(std,3)}', linewidth=2)
         plt.axvline(x=mean - std, color='b', linestyle='--', linewidth=2)
         # Achsenbeschriftung und Legende hinzufügen
         plt.xlabel(x_value)
@@ -236,6 +237,5 @@ class Visualize():
         plt.ylabel('Wahrscheinlichkeitsdichte')
         plt.legend()
         plt.savefig(
-            fr'C:\Users\fanzl\bwSyncShare\Documents\Texte\Masterarbeit_AnzlingerFabian\Bilder\Statistische Verteilungen\AutomaticallyGenerated\{title}.svg',
-            dpi=350)
+            fr'C:\Users\uvuik\Desktop\{title}.jpeg',dpi=350)
         plt.show()
