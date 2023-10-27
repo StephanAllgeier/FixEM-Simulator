@@ -197,7 +197,7 @@ def scale_data(train, vali, test, scale_range=(-1, 1)):
     signal_length = train.shape[1]
     num_signals = train.shape[2]
     # reshape everything
-    train_r = train.reshape(-1, signal_length*num_signals) #TODO: Was wird hier gemacht, wenn ein 2D Signal eingeht
+    train_r = train.reshape(-1, signal_length*num_signals)
     vali_r = vali.reshape(-1, signal_length*num_signals)
     test_r = test.reshape(-1, signal_length*num_signals)
     # fit scaler using train, vali
