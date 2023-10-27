@@ -76,7 +76,7 @@ def get_constants(dataset_name):
     elif dataset_name == "GazeBase":
         return {"Name": "GazeBase", "f": 1000, "x_col": 'x', "y_col": 'y', "time_col": 'n', "ValScaling":1 ,
                 "TimeScaling": 1 / 1000, 'BlinkID': -1, 'Annotations': 'lab',
-                'rm_blink': False, 'SakkID':2}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
+                'rm_blink': False, 'SakkID':2, 'file_pattern':"[A-Za-z0-9]+\.csv"}  # Einheiten für y-Kooridnate ist in dva (degrees of vision angle)
     elif dataset_name == "OwnData":
         return {"Name": "OwnData", "f": 500, "x_col": 'x', "y_col": 'y', "time_col": 'Time', "ValScaling": 1,
                 "TimeScaling": 1, 'BlinkID': None, 'Annotations': 'lab', 'rm_blink': False}
@@ -188,23 +188,49 @@ def evaluate_all_hist():
     #    Evaluation.Evaluation.evaluate_json_hist(file)
 def Evaluate_intermic_hist(json_path):
     Evaluation.Evaluation.generate_histogram_with_logfit(json_path, range = (0,4))
-def augmentation():
-    roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
 
-    # roorda_test_file = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv"
-    # roorda_data = pd.read_csv(roorda_test_file)
-    const_roorda = get_constants("Roorda")
-    roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
-    for file in roorda_files:
+def remove_blink_gb(data_inp, const_gb, timecutoff):
+    data = data_inp.iloc[1000:]
+    data.reset_index(drop=True, inplace=True)
+    indices_to_remove = data[(data[const_gb['Annotations']] == -1) | (data[const_gb['Annotations']] == 2)].index
+
+    # Sammle die Indizes der Zeilen, die du entfernen möchtest (15 vorher und 15 danach)
+    indices_to_remove_extended = []
+    for idx in indices_to_remove:
+        start_idx = idx - timecutoff
+        end_idx = idx + timecutoff + 1
+        if start_idx<0:
+            start_idx = 0
+        if end_idx > len(data):
+            end_idx = len(data)-1
+        indices_to_remove_extended.extend(range(start_idx,end_idx))
+        indices_to_remove_extended = list(set(indices_to_remove_extended))
+    data_cleaned = data.drop(indices_to_remove_extended)
+
+    # Setze die Indizes neu
+    data_cleaned.reset_index(drop=True, inplace=True)
+    data_cleaned['n'] = data_cleaned.index
+    return data_cleaned
+def augmentation():
+    gb_folder = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\GazeBase_v2_0\Fixation_Only\DVA\*.csv"
+    const_gb = get_constants("GazeBase")
+    gb_files = glob.glob(gb_folder)# get_files_with_pattern(gb_folder, const_gb['file_pattern'])
+    for file in gb_files:
         data = pd.read_csv(file)
-        remove_blink, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
-        a = Augmentation.reverse_data(remove_blink, const_roorda)
-        b = Augmentation.flip_dataframe(remove_blink, const_roorda)
-        c, _ = Augmentation.resample(remove_blink, const_roorda, f_target=1000)
-        folderpath = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\Augmented\Roorda_Augmented"
-        a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
+        removed_blink = remove_blink_gb(data, const_gb, 15)
+        #remove_blink, const_gb = Interpolation.remove_blink_annot(data, const_roorda)
+        new_cols = {const_gb['x_col']:'x', const_gb['y_col']:'y', const_gb['Annotations']:'flags'}
+        b = Augmentation.flip_dataframe(removed_blink, const_gb).rename(columns=new_cols)
+        c = Augmentation.reverse_data(removed_blink,const_gb).rename(columns=new_cols)
+        folderpath = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase"
+        removed_blink = removed_blink.rename(columns=new_cols)
+        removed_blink.to_csv(fr"{folderpath}\{Path(file).stem}.csv")
+        #a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
         b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
-        c.to_csv(fr"{folderpath}\{Path(file).stem}_f=1000.csv")
+        c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
+    print(removed_blink.columns, b.columns, c.columns)
+    print("done")
+
 def GB_to_arcmin(input_folder):
     const_gb = get_constants('GazeBase')
     gb_files = get_csv_files_in_folder(input_folder)
@@ -221,7 +247,7 @@ def GB_to_arcmin(input_folder):
         except Exception as e:
             print(e)
 
-def get_best_HD(folderpath_to_jsons,variable, compare_json_file, normalize_01):
+def get_best_HD(folderpath_to_jsons,variable, compare_json_file, normalize_01, output_folder=None):
     simulation_dict={}
     json_files = get_json_file(folderpath_to_jsons)
     with open(compare_json_file,'r') as compare:
@@ -246,7 +272,7 @@ def get_best_HD(folderpath_to_jsons,variable, compare_json_file, normalize_01):
     schwellenwert = hd_werte[schwellenwert_index]
     # Durchsuche das Dictionary nach Namen mit HD-Werten kleiner oder gleich dem Schwellenwert
     namen_mit_gueltigen_hd = [(name,hd) for name, hd in simulation_dict.items() if hd <= schwellenwert]
-    columns= ['simulation rate','cells per degree','relaxation rate','h_crit']
+    columns= ['simulation rate','cells per degree','relaxation rate','h_crit', f'Mittelwert_{variable}', f'Median_{variable}', f'sigma_{variable}', 'HD']
     my_list=[]
     for element in namen_mit_gueltigen_hd:
 
@@ -255,18 +281,23 @@ def get_best_HD(folderpath_to_jsons,variable, compare_json_file, normalize_01):
         cells =split_element[1].split('=')[1]
         relax =split_element[2].split('=')[1]
         hc = split_element[3].split('=')[1]
-        my_list.append([simrate,cells,relax,hc])
-        hd = round(element[1],3)
         file_name = rf'C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TIMEOUT_0.015s\AmpDurNum_simrate={simrate},Cells={cells},relaxationrate={relax},hc={hc}_n=50.json'
+        hd = round(element[1], 3)
+        with open(file_name, 'r') as open_file2:
+            data2 = json.load(open_file2)[variable]
+        mean = np.mean(data2)
+        median = np.median(data2)
+        std_dev = np.std(data2)
+        my_list.append([simrate,cells,relax,hc,mean,median,std_dev,hd])
         file_name_new = f'HD={hd}_simulation_rate={simrate}_CellsPerDegree={cells}_RelaxationRate={relax}_HCrit={hc}.json'
-        new_file_path = Path(folderpath_to_jsons) / 'BestHD_Intermicsac_woNormalice01' / file_name_new
+        new_file_path = f"{Path(folderpath_to_jsons)}/{output_folder}/{file_name_new}"
 
 
         shutil.copyfile(Path(file_name), new_file_path)
     df = pd.DataFrame(my_list, columns=columns)
-    excel_datei = r"C:\Users\uvuik\Desktop\Test1\ParameterInput_Intermicsac_woNormalize01.xlsx"
+    excel_datei = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\ParameterInput_IntermicDur_0.3-0.9.xlsx"
     df.to_excel(excel_datei, index=False)
-    csv_datei = r"C:\Users\uvuik\Desktop\Test1\ParameterInput_Intermicsac_woNormalize01.csv"
+    csv_datei = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\ParameterInput_IntermicDur_0.3-0.9.csv"
     df.to_csv(csv_datei, index=False)
 
 
@@ -301,6 +332,20 @@ def merge_excel(file1_path, file2_path, output_path):
     except Exception as e:
         print(f"Fehler beim Mergen der Excel-Dateien: {str(e)}")
 
+def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel):
+    with open(
+            compare_filepath,
+            'r') as comp:
+        compare_data = json.load(comp)[feature]
+    with open(file1, 'r') as comp2:
+        varlist2_1 = json.load(comp2)[feature]
+    with open(file2, 'r') as comp3:
+        varlist2_2 = json.load(comp3)[feature]
+    hist_bins = 50
+    savefigpath = file1
+    savefig = f"{Path(savefigpath).parent}/DualHistogramLog_intermicsac.jpeg"
+    Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, 'Roorda Lab', '(f_sim=200Hz, L=51, epsilon=0.08, h_crit=5.4)', savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
+    Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, 'Roorda Lab', '(f_sim=150Hz, L=21, epsilon=0.085, h_crit=8.9)', '(f_sim=100Hz, L=21, epsilon=0.1, h_crit=6.9)', savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
 def create_histogram_w_HD(compare_filepath, folderpath, feature, xlabel, dataset1name, dataset2name):
     with open(
             compare_filepath,
@@ -317,9 +362,9 @@ def create_histogram_w_HD(compare_filepath, folderpath, feature, xlabel, dataset
         savefigpath = file
         savefig = f"{savefigpath[:-5]}_histogram_intermicsac.jpeg"
         if not Path(savefig).is_file():
-            Evaluation.Evaluation.dual_hist_w_histdiff(compare_data, intermic_dur,'Roorda Lab', 'Math. Modell', savefigpath, xlabel,range_limits=(0, 2.5), normalize_01=False)
-
+            Evaluation.Evaluation.dual_hist_w_histdiff(compare_data, intermic_dur,dataset1name, dataset2name, savefigpath, xlabel,range_limits=(0, 2.5), normalize_01=False)
 if __name__ == '__main__':
+    augmentation()
     #roorda_file=    r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_004.csv"
     #data = pd.read_csv(roorda_file)
     #const_roorda = get_constants('Roorda')
@@ -331,7 +376,10 @@ if __name__ == '__main__':
     #gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
     #fft, fftfreq = Filtering.fft_transform(gb_file, const_gb, 'x_col')
     #Vis.plot_fft(fft, fftfreq)
-
+    #file = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur\HD=3.969_simulation_rate=150_CellsPerDegree=10_RelaxationRate=0.085_HCrit=8.9.json"
+    #with open(file, 'r') as fp:
+    #    data = json.load(fp)['MicsacAmplitudes']
+    #Vis.plot_prob_dist(data, "Histogramm der Amplituden von Mikrosakkaden bei Blickfeldgröße 2°", "Amplitude in Grad [dva]")
 
     #merge_excel(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test1.xlsx", r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test2.xlsx",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test3")
     #jsonfiles= get_json_file(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput")
@@ -342,18 +390,27 @@ if __name__ == '__main__':
     #    r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
     #    r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur",
     #    'IntermicDur', 'Intermikrosakkadischer Abstand in Sekunden [s]', 'Roorda Lab', 'Math. Modell')
+    #get_best_HD(
+    #    r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s",
+    #    'IntermicDur',
+    #    r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
+    #    normalize_01=False, output_folder="BestHD_IntermicDur")
+    create_histogram_dual_w_HD(
+        r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur\HD=4.989_simulation_rate=200_CellsPerDegree=25_RelaxationRate=0.08_HCrit=5.4.json",
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json",'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]')
+
+
+
     create_histogram_w_HD(
         r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
-        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_Intermicsac_woNormalice01",
-        'IntermicDur', 'Intermic Abstand in s', 'Roorda Lab', 'Math. Modell')
-
-    get_best_HD(
-        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s",
-        'IntermicDur',
-        r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json", normalize_01=False)
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur",
+        'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]', 'Roorda Lab', 'Math. Modell')
 
 
-    Evaluation.Evaluation.generate_histogram_with_logfit(folderpath, range=(0, 4), compare_to_roorda=True)
+
+
+    Evaluation.Evaluation.generate_histogram_with_logfit(folderpath, range=(0, 2.5), compare_to_roorda=True)
 
     GB_to_arcmin(
         r"E:\GazeBase Dataset\DVA")
