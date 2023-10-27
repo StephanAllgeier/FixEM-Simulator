@@ -74,7 +74,7 @@ class Interpolation():
             data_frame = data_frame[0:-remove_end_time * const_dict['f'] // 1000]
         if remove_start:
             data_frame = data_frame[remove_start_time * const_dict['f'] // 1000:]
-        data_frame = data_frame.reset_index()
+        data_frame = data_frame.reset_index(drop=True)
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f'] / const_dict['TimeScaling']
         const_dict['rm_blink'] = True
         return data_frame, const_dict
