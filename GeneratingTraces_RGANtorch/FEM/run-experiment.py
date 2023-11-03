@@ -16,9 +16,8 @@ from torch import optim
 from torchgan import losses
 from GeneratingTraces_RGANtorch.FEM import make_logger
 from GeneratingTraces_RGANtorch.FEM.dataimport import TimeSeriesFEM
-from sklearn.model_selection import train_test_split
 logger = make_logger(__file__)
-from torch.utils.data import DataLoader, random_split
+
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 def main():
@@ -143,7 +142,8 @@ def main():
                               noise_size=opt['noise_size'],
                               eval_frequency=1,
                               vali_set=X_vali,
-                              savepath=opt['savepath']
+                              savepath=opt['savepath'],
+                              GANtype=opt['type']
                               )
 
     if opt['type'] == 'RGAN':
