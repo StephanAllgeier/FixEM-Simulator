@@ -56,7 +56,7 @@ class RCGANGenerator(RGANGenerator):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
-        #TODO: Hier muss der Label-Tensor generiert werden oder?
+        #TODO: LABEL TENSOR GENERIEREN UND MIT ZURÜCK GEBEN? Wie lernt der Generator dann, wenn die labels "Müll" sind?
         #y_test_gen = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(y.device)
         y_tiled = y.squeeze().type(torch.LongTensor).to(y.device)
         # shape: (batch-size, sequence_length, label_embedding_size)
