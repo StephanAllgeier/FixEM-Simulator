@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn as nn
 from GeneratingTraces_RGANtorch.FEM.models import RGANGenerator, RGANDiscriminator
@@ -54,26 +56,25 @@ class RCGANGenerator(RGANGenerator):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
-        y_tiled = tile(y, self.sequence_length)
-        #TODO: EMBEDDING BEI GENERATORDATEN NOTWENDIG?
+        #TODO: Hier muss der Label-Tensor generiert werden oder?
+        #y_test_gen = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(y.device)
+        y_tiled = y.squeeze().type(torch.LongTensor).to(y.device)
         # shape: (batch-size, sequence_length, label_embedding_size)
-        y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
+
+        # y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
+        y_emb = self.label_embeddings(y_tiled)
 
         # shape: (batch-size, sequence_length, noise_size)
         z = z.view(-1, self.sequence_length, self.noise_size)
 
         # shape: (batch-size, encoding_dims)
         z_cond = torch.cat((z, y_emb), dim=2)
-        #z_cond = torch.cat((z, y), dim=2)
 
         # shape: (batch-size, sequence_length, output_size)
         return super(RCGANGenerator, self).forward(z_cond, reshape=False)
 
-    def sampler(self, sample_size, device='cpu'):
+    def sampler(self, sample_size, device='cuda'):
         return [
-            torch.randn(sample_size, self.encoding_dims, device=device),
-            torch.multinomial(self.prob_classes, sample_size,
-                              replacement=True).to(device)
         ]
 
 
@@ -86,9 +87,6 @@ class RCGANDiscriminator(RGANDiscriminator):
                  **kwargs):
         """Recursive Conditional GAN (Discriminator) implementation with RNN cells.
 
-        Notes:
-            This model adds upon ward2icu.models.rgan. See docs of parent class.
-            for more information.
 
         Args (check parent class for extra arguments):
             sequence_length (int): Number of points in the sequence.
@@ -116,14 +114,16 @@ class RCGANDiscriminator(RGANDiscriminator):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
-        y_tiled = tile(y, self.sequence_length)#TODO: HERAUSFINDEN OB DAS HIER RICHTIG IST!!!
-        #y_test = y.long()
+        #y_test = y.expand(-1,-1,2)
+        y_tiled = y.squeeze().type(torch.LongTensor).to(y.device)
         # shape: (batch-size, sequence_length, label_embedding_size)
-        y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
-        #y_emb2 = self.label_embeddings(y.type(torch.LongTensor).to(y.device))
-        #y_emb_2 = self.label_embeddings(y.type(torch.LongTensor).to(y.device))
+
+        #y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
+        y_emb = self.label_embeddings(y_tiled)
+
+        #TODO: y_emb kann hier berechnet werden, ruft aber einen Error hervor, wenn ich versuche ihn anzuschauen, WIESO?!!!!!!!
 
         # shape: (batch-size, sequence_length, label_embedding_size + hidden_size)
         x_cond = torch.cat((x, y_emb), dim=2)
-        #x_cond = torch.cat((x, y), dim=2)
+
         return super(RCGANDiscriminator, self).forward(x_cond)
