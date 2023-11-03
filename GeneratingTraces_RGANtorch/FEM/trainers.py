@@ -13,9 +13,11 @@ import GeneratingTraces_RGANtorch.FEM.mmd as mmd
 import mlflow
 import matplotlib.pyplot as plt
 logger = make_logger(__file__)
+from skopt import gp_minimize
+from skopt.space import Real
 
 class SequenceTrainer:
-    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, latent_dim, vali_set, eval_frequency=1):
+    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, eval_frequency=1):
         self.models = models
         self.recon = recon
         self.ncritic = ncritic
@@ -25,7 +27,7 @@ class SequenceTrainer:
         self.checkpoints = checkpoints
         self.mlflow_interval = mlflow_interval
         self.device = device
-        self.latent_dim = latent_dim
+        self.noise_size= noise_size
         self.g_loss_log = []
         self.d_loss_log = []
         self.mmd2 = []
@@ -33,6 +35,7 @@ class SequenceTrainer:
         self.vali_set = vali_set
         self.eval_frequency = eval_frequency
         self.best_epoch = 0
+        self.savepath = savepath
 
         # Erstelle Generator und Diskriminator hier
         self.generator = self.models['generator']['name'](**self.models['generator']['args']).to(self.device)
@@ -48,46 +51,81 @@ class SequenceTrainer:
 
     def on_epoch_end(self, epoch):
         sigma = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0]
-        self.perform_sigma_grid_search(epoch, sigma)
+        #self.perform_sigma_optimization(epoch)
+        #self.perform_sigma_grid_search(epoch, sigma)
         #self.evaluate_mmd2(epoch)
+        print(f"{epoch} done")
 
-    def train(self, dataloader):
+    def train_RGAN(self, dataloader):
         #plot 1 real example
         data, _ = next(dataloader)
         self.plot_imgs(data,'real_example')
         for epoch in range(self.epochs):
             for batch in dataloader:
-                real_data, _ = batch
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
 
-                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.latent_dim).to(self.device)
+                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)
                 input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
                 # Trainiere den Discriminator ncritic mal
                 for _ in range(self.ncritic):
                     self.train_discriminator(input_data)
                 # Trainiere den Generator
-                self.train_generator(input_data)
+                self.train_generator()
             self.on_epoch_end(epoch)
 
             # Speichere Checkpoints
             if epoch % self.mlflow_interval == 0:
                 self.plot_imgs(self.generator(self.z).detach(), f"epoch={epoch}")
                 self.save_checkpoint(epoch)
-            #if epoch % self.eval_frequency == 0:
-            #    self.evaluate(epoch)
-            #self.on_epoch_end(epoch)
+
+    def train_RCGAN(self, dataloader):
+        #plot 1 real example
+        data, _ = next(dataloader)
+        self.plot_imgs(data,'real_example')
+        for epoch in range(self.epochs):
+            for batch in dataloader:
+
+                input_data, labels = batch
+                input_data, labels = input_data.to(self.device), labels.to(self.device)
+
+                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)
+                #self.z_labels = torch.randn(input_data.shape[0], input_data.shape[1], labels.shape[-1]).to(self.device)
+                input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
+                # Trainiere den Discriminator ncritic mal
+                for _ in range(self.ncritic):
+                    self.train_RCdiscriminator(input_data, labels)
+                # Trainiere den Generator
+                self.train_RCgenerator(labels)
+            self.on_epoch_end(epoch)
+
+            # Speichere Checkpoints
+            if epoch % self.mlflow_interval == 0:
+                self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
+                self.save_checkpoint(epoch)
     def adversarial_loss(self, y_hat, y):
         criterion = nn.BCEWithLogitsLoss()
         return criterion(y_hat, y)
 
-    def train_generator(self, input_data):
+    def train_generator(self):
         self.optimizer_g.zero_grad()
-        #z = torch.randn(input_data.shape[0], self.latent_dim).to(self.device)
+        #z = torch.randn(input_data.shape[0], self.noise_size).to(self.device)
         fake_data = self.generator(self.z)
         #y_alt = torch.ones(input_data.shape[0], 2).to(self.device)
         y = torch.ones_like(self.discriminator(fake_data)).to(self.device)
         g_loss = self.adversarial_loss(self.discriminator(fake_data), y) #Aus Paper: -CE(RNNd(RNNg(Zn)),1) = -CE(RNNd(fake_data),1)
+        g_loss.backward()
+        self.optimizer_g.step()
+        self.g_loss_log.append(g_loss.item())
+
+    def train_RCgenerator(self, labels):
+        self.optimizer_g.zero_grad()
+        fake_data = self.generator(self.z, labels)
+
+        # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNg(Z),1)
+        d_output = self.discriminator(fake_data, labels)
+        y = torch.ones_like(d_output).to(self.device)
+        g_loss = self.adversarial_loss(d_output, y) #Aus Paper: -CE(RNNd(RNNg(Zn)),1) = -CE(RNNd(fake_data),1)
         g_loss.backward()
         self.optimizer_g.step()
         self.g_loss_log.append(g_loss.item())
@@ -106,146 +144,102 @@ class SequenceTrainer:
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
 
-        d_loss = (real_loss + fake_loss) / 2
+        d_loss = (real_loss + fake_loss) / 2 #TODO: WIESO WIRD HIER HALBIERT?
         #log_dict = {'d_loss': d_loss.item()}
         d_loss.backward()
         self.optimizer_d.step()
         self.d_loss_log.append(d_loss.item())
+    def train_RCdiscriminator(self, input_data, labels):
+        self.optimizer_d.zero_grad()
+        # How well can it label as real
+        y_hat_real = self.discriminator(input_data, labels)
+        y_real = torch.ones(y_hat_real.shape, dtype=y_hat_real.dtype).to(self.device)
+        real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
+
+        # How well can it label generated labels as fake
+        #Im Originalen Code werden hier keine labels generiert, sondern die lables des batches verwendet
+        gen_output = self.generator(self.z, labels).detach()
+        #gen_output = self.generator(self.z, self.z_labels).detach() #TODO: Was sind hier die Labels dazu, die Generiert werden? Wie bekomme ich diese?
+
+        y_hat_fake = self.discriminator(gen_output, labels) #Todo: Hier auch die generierten Labels???
+        y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
+        fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
+
+        d_loss = (real_loss + fake_loss) / 2
+        d_loss.backward()
+        self.optimizer_d.step()
+        self.d_loss_log.append(d_loss.item())
+
+    def objective(self, sigma):
+        current_mmd2_x, _ = mmd.mix_rbf_mmd2_and_ratio(self.real_sample_x, self.fake_sample_x, sigma[0])
+        current_mmd2_y, _ = mmd.mix_rbf_mmd2_and_ratio(self.real_sample_y, self.fake_sample_y, sigma[0])
+        current_mmd2 = (current_mmd2_x + current_mmd2_y) / 2
+        return current_mmd2
+
+    def perform_sigma_optimization(self, epoch):
+        self.real_sample = self.vali_set
+        self.fake_sample = self.generator(self.z).detach()
+        min_len = min(len(self.real_sample), len(self.fake_sample))
+        selected_indices = np.random.choice(len(self.real_sample), min_len, replace=False)
+        self.real_sample = self.real_sample[selected_indices]
+        self.real_sample_x = self.real_sample[:, :, 0].squeeze()
+        self.real_sample_y = self.real_sample[:, :, 1].squeeze()
+        self.fake_sample = self.fake_sample[:min_len]
+        self.fake_sample_x = self.fake_sample[:, :, 0].squeeze()
+        self.fake_sample_y = self.fake_sample[:, :, 1].squeeze()
+
+        # Definiere den Raum der Sigma-Werte für die Optimierung
+        space = Real(1e-3, 1e3, name='sigma', prior='log-uniform')
+
+        # Führe die Bayesian Optimization durch
+        result = gp_minimize(
+            self.objective,
+            dimensions=[space],
+            n_calls=20,  # Anzahl der Evaluierungen
+            random_state=42
+        )
+
+        best_sigma = result.x[0]
+        best_mmd2 = result.fun
+
+        if epoch > 10 and best_mmd2 < self.best_mmd2 and best_mmd2 > 0:
+            self.best_mmd2 = best_mmd2
+            self.best_epoch = epoch
+
+        self.mmd2.append(float(best_mmd2))
+        return best_sigma, best_mmd2
 
     def perform_sigma_grid_search(self, epoch, sigma_values):
         best_sigma = None
         best_mmd2 = 1000
+        real_sample = self.vali_set
+        fake_sample = self.generator(self.z).detach()
+        min_len = 3  # min(len(real_sample), len(fake_sample))
+        selected_indices = np.random.choice(len(real_sample), min_len, replace=False)
+        real_sample = real_sample[selected_indices]
+        real_sample_x = real_sample[:, :, 0].squeeze()
+        real_sample_y = real_sample[:, :, 1].squeeze()
+        fake_sample = fake_sample[:min_len]
+        fake_sample_x = fake_sample[:, :, 0].squeeze()
+        fake_sample_y = fake_sample[:, :, 1].squeeze()
 
         for sigma in sigma_values:
-            current_mmd2 = self.evaluate_mmd2_FA(epoch, sigma)
+            current_mmd2_x, _ = mmd.mix_rbf_mmd2_and_ratio(real_sample_x, fake_sample_x, sigma)
+            current_mmd2_y, _ = mmd.mix_rbf_mmd2_and_ratio(real_sample_y, fake_sample_y, sigma)
+            current_mmd2 = (current_mmd2_x + current_mmd2_y) / 2
 
-
-            if current_mmd2 < best_mmd2:
+            if current_mmd2 < best_mmd2 and current_mmd2>0:
                 best_mmd2 = current_mmd2
                 best_sigma = sigma
                 if epoch > 10:
                     self.best_mmd2 = best_mmd2
                     self.best_epoch = epoch
 
-        self.mmd2.append(best_mmd2)
+        self.mmd2.append(float(best_mmd2))
         return best_sigma, best_mmd2
 
-    def evaluate_mmd2(self, epoch, sigma=1.0):
-        real_sample = self.vali_set.cpu()  # Falls die Daten noch nicht auf der CPU sind
-        fake_sample = self.generator(self.z).detach().cpu()
+    def save_model(self):
 
-        real_kernel_matrix = self.rbf_kernel_matrix(real_sample, real_sample, sigma)
-        fake_kernel_matrix = self.rbf_kernel_matrix(fake_sample, fake_sample, sigma)
-        mixed_kernel_matrix = self.rbf_kernel_matrix(real_sample, fake_sample, sigma)
-
-        m = len(real_sample)
-        n = len(fake_sample)
-
-        sum_xx = torch.sum(real_kernel_matrix) - torch.trace(real_kernel_matrix)
-        sum_yy = torch.sum(fake_kernel_matrix) - torch.trace(fake_kernel_matrix)
-        sum_xy = torch.sum(mixed_kernel_matrix)
-
-        mmd2 = 1 / (m * (m - 1)) * sum_xx - 2 / (m * n) * sum_xy + 1 / (n * (n - 1)) * sum_yy
-
-        return mmd2
-
-    def evaluate_mmd2_FA(self, epoch, sigma=1.0):
-        real_sample = self.vali_set.cpu()
-        fake_sample = self.generator(self.z).detach().cpu()
-
-        #if fake_sample.shape[0] != real_sample.shape[0]:
-        #    short_size = min(fake_sample.shape[0], real_sample.shape[0])
-        #    fake_sample[:short_size, :, :]
-        #    real_sample[:short_size, :, :]
-        #eval_eval_size = int(.6 * fake_sample.shape[0])
-        #eval_eval_real = real_sample[:eval_eval_size]
-        #eval_test_real = real_sample[eval_eval_size:]
-        #eval_eval_sample = fake_sample[:eval_eval_size]
-        #eval_test_sample = fake_sample[eval_eval_size:]
-
-        #MMD^2
-        m = len(real_sample) # real
-        n = len(fake_sample) # fake
-        sum_xx = 0.0
-        sum_yy = 0.0
-        sum_xy = 0.0
-        for i in range(m):
-            for j in range(m):
-                if j != i:
-                    sum_xx += self.rbf_kernel(real_sample[i], real_sample[j], sigma)
-        for i in range(n):
-            for j in range(n):
-                if j != i:
-                    sum_yy += self.rbf_kernel(fake_sample[i], fake_sample[j], sigma)
-        for i in range(m):
-            for j in range(n):
-                sum_xy += self.rbf_kernel(real_sample[i], fake_sample[j])
-        mmd2 = 1/(m*(m-1)) * sum_xx - 2/(m * n) * sum_xy + 1/(n*(n-1)) * sum_yy
-        return mmd2
-
-    '''
-
-    def evaluate_mmd2(self, epoch, sigma=1.0):
-        real_sample = self.vali_set.to(self.device)  # Annahme: self.device ist "cuda" für die GPU
-        fake_sample = self.generator(self.z).detach().to(self.device)
-
-        m = len(real_sample)
-        n = len(fake_sample)
-
-        # Berechne die RBF-Kernel-Matrizen auf der GPU
-        K_xx = self.rbf_kernel_matrix(real_sample, real_sample, sigma)
-        K_yy = self.rbf_kernel_matrix(fake_sample, fake_sample, sigma)
-        K_xy = self.rbf_kernel_matrix(real_sample, fake_sample, sigma)
-
-        sum_xx = torch.sum(K_xx) - torch.trace(K_xx)
-        sum_yy = torch.sum(K_yy) - torch.trace(K_yy)
-        sum_xy = torch.sum(K_xy)
-
-        mmd2 = 1 / (m * (m - 1)) * sum_xx - 2 / (m * n) * sum_xy + 1 / (n * (n - 1)) * sum_yy
-
-        return mmd2
-
-
-        sigma = torch.nn.Parameter(torch.tensor(1.0).cuda())  # Tensor auf die GPU verschieben
-        optimizer = torch.optim.RMSprop([sigma], lr=0.02)
-        sigma_opt_iter = 1000
-
-        for _ in range(sigma_opt_iter):
-            optimizer.zero_grad()
-            eval_eval_real_tensor = torch.tensor(eval_eval_real,
-                                                 requires_grad=True).to(self.device)  # Tensor auf die GPU verschieben
-            eval_eval_sample_tensor = torch.tensor(eval_eval_sample,
-                                                   requires_grad=True).to(self.device)  # Tensor auf die GPU verschieben
-
-            _, that_np = mmd.mix_rbf_mmd2_and_ratio(eval_eval_real_tensor, eval_eval_sample_tensor, sigmas=sigma.item())
-            loss = -that_np
-            loss.backward()
-            optimizer.step()
-
-        opt_sigma = sigma.item()
-        mmd2, _ = mmd.mix_rbf_mmd2_and_ratio(torch.tensor(eval_test_real), torch.tensor(eval_test_sample),
-                                               sigmas=opt_sigma)
-    '''
-
-    def rbf_kernel(self, x, y, sigma=1.0):
-        return np.exp(-np.linalg.norm(x - y) ** 2 / (2 * sigma ** 2))
-
-    def rbf_kernel_matrix(self, x, y, sigma):
-        x_tensor = torch.tensor(x, dtype=torch.float32).cuda()  # Annahme: GPU ist verfügbar
-        y_tensor = torch.tensor(y, dtype=torch.float32).cuda()
-
-        m = x_tensor.shape[0]
-        n = y_tensor.shape[0]
-
-        # Erzeuge Matrizen mit den quadratischen Abständen
-        xx = torch.sum(x_tensor ** 2, dim=-1, keepdim=True)
-        yy = torch.sum(y_tensor ** 2, dim=-1, keepdim=True)
-        xy = torch.matmul(x_tensor, y_tensor.permute(0, 2, 1))
-
-        # Berechne RBF-Kernel-Matrix
-        kernel_matrix = torch.exp(-(xx - 2 * xy + yy) / (2 * sigma ** 2))
-
-        return kernel_matrix.cpu().numpy()
 
     def save_checkpoint(self, epoch):
         checkpoint = {
@@ -261,13 +255,13 @@ class SequenceTrainer:
         }
 
         # Speichere das Dictionary in einer Datei
-        filename = fr'C:\Users\uvuik\Desktop\Torch\Evaluation_{epoch}.pth'
+        filename = fr'{self.savepath}\Evaluation_{epoch}.pth'
         torch.save(checkpoint, filename)
-        filename_txt = fr'C:\Users\uvuik\Desktop\Torch\Evaluation_{epoch}.txt'
+        filename_txt = fr'{self.savepath}\Evaluation_{epoch}.txt'
         with open(filename_txt, 'w') as txt_file:
             for key, value in checkpoint.items():
                 txt_file.write(f"{key}: {value}\n")
-        self.plot_losses_and_formula(epoch)
+        self.plot_losses_and_mmd2(epoch)
 
     def plot_imgs(self, data, filename):
         frequency = 250 # 1000  TODO: ÄNDERN WENN f=1000
@@ -293,11 +287,11 @@ class SequenceTrainer:
         ax2.set_xticks(np.arange(0, data.shape[1] / frequency + 1, 1))
         fig.tight_layout()
         # Speichere die Figur
-        fig.savefig(fr'C:\Users\uvuik\Desktop\Torch\{filename}.png')
+        fig.savefig(fr'{self.savepath}\{filename}.png')
         plt.close()
         return True
 
-    def plot_losses_and_formula(self, epoch):
+    def plot_losses_and_mmd2(self, epoch):
         fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(15, 5), sharex=True)
 
         # Subplot für Discriminator und Generator Loss
@@ -327,7 +321,7 @@ class SequenceTrainer:
         # Layout verbessern
         plt.suptitle('Discriminator and Generator Loss, MMD2 Over Time')
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout for suptitle
-        plt.savefig(fr'C:\Users\uvuik\Desktop\Torch\Evaluation.png')
+        plt.savefig(fr'{self.savepath}\Evaluation.png')
         plt.close()
 
 
