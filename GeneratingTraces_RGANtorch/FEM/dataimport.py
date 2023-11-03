@@ -71,7 +71,7 @@ class TimeSeriesFEM(Dataset):
 
         if callable(transformation_func) and transformation_func is not None:
             data = transformation_func(data)
-        labels = np.concatenate((labels, labels), axis=2)
+        #labels = np.concatenate((labels, labels), axis=2)
 
         return data, labels
 
