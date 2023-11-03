@@ -32,7 +32,7 @@ class Microsaccades():
         return df
 
     @staticmethod
-    def find_micsac(df, constant_dict, mindur=6, vfac=21, highcut=40, threshold=50):  # threshold in ms
+    def find_micsac(df, constant_dict, mindur=6, vfac=21, highcut=40, threshold=15):  # threshold in ms
         '''
         parameters:
         df=dataframe to work with, units of the traces is in degrees of visual angle
