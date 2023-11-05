@@ -469,8 +469,9 @@ class RandomWalk():
             args.walk_along_axes=walk_along_axes
         if folderpath is not None:
             save=True
-            args.fpath_sampled=fr"{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}_SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}_relaxationr={args.relaxation_rate}\Trace{number_id}"
-            args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\Signal{number_id}'
+            args.fpath_sampled=fr"{Path(folderpath)}\Trace{number_id}"
+            #args.fpath_sampled=fr"{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}_SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}_relaxationr={args.relaxation_rate}\Trace{number_id}"
+            #args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\Signal{number_id}'
 
 
         N = int(args.potential_resolution * 2 + 1)
