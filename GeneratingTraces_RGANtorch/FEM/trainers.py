@@ -36,6 +36,7 @@ class SequenceTrainer:
         self.eval_frequency = eval_frequency
         self.best_epoch = 0
         self.savepath = savepath
+        self.GANtype = GANtype
 
         # Erstelle Generator und Diskriminator hier
         self.generator = self.models['generator']['name'](**self.models['generator']['args']).to(self.device)
@@ -88,7 +89,6 @@ class SequenceTrainer:
 
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
-
                 self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)
                 #self.z_labels = torch.randn(input_data.shape[0], input_data.shape[1], labels.shape[-1]).to(self.device)
                 input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
@@ -101,7 +101,7 @@ class SequenceTrainer:
 
             # Speichere Checkpoints
             if epoch % self.mlflow_interval == 0:
-                self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
+                self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z)[0].detach(), f"epoch={epoch}")
                 self.save_checkpoint(epoch)
     def adversarial_loss(self, y_hat, y):
         criterion = nn.BCEWithLogitsLoss()
@@ -122,6 +122,9 @@ class SequenceTrainer:
         self.optimizer_g.zero_grad()
         fake_data = self.generator(self.z, labels)
 
+        #----------------TESTING-----------------------
+        #fake_data, labels = self.generator(self.z)
+        #----------------------------------------------
         # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNg(Z),1)
         d_output = self.discriminator(fake_data, labels)
         y = torch.ones_like(d_output).to(self.device)
@@ -140,7 +143,7 @@ class SequenceTrainer:
         real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
 
         # How well can it label generated labels as fake
-        y_hat_fake = self.discriminator(self.generator(self.z).detach()) #Todo: Use the same ones as processed in generator step, does this work?
+        y_hat_fake = self.discriminator(self.generator(self.z).detach())
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
 
@@ -149,6 +152,7 @@ class SequenceTrainer:
         d_loss.backward()
         self.optimizer_d.step()
         self.d_loss_log.append(d_loss.item())
+
     def train_RCdiscriminator(self, input_data, labels):
         self.optimizer_d.zero_grad()
         # How well can it label as real
@@ -157,13 +161,20 @@ class SequenceTrainer:
         real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
 
         # How well can it label generated labels as fake
-        #Im Originalen Code werden hier keine labels generiert, sondern die lables des batches verwendet
+        # Im Originalen Code werden hier keine labels generiert, sondern die lables des batches verwendet
         gen_output = self.generator(self.z, labels).detach()
-        #gen_output = self.generator(self.z, self.z_labels).detach() #TODO: Was sind hier die Labels dazu, die Generiert werden? Wie bekomme ich diese?
-
-        y_hat_fake = self.discriminator(gen_output, labels) #Todo: Hier auch die generierten Labels???
+        y_hat_fake = self.discriminator(gen_output, labels)
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
+
+        #----------------Testing generating labels----------------------------------------------------------------------
+        #gen_output, labels = self.generator(self.z)
+        #gen_output, labels = gen_output.detach(), labels.detach() #TODO Wieder entfernen
+        #y_hat_fake = self.discriminator(gen_output, labels) #Todo: Hier auch die generierten Labels???
+        #y_hat_fake = self.discriminator(gen_output, labels)
+        #y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
+        #fake_loss = self.adversarial_loss
+        #---------------------------------------------------------------------------------------------------------------
 
         d_loss = (real_loss + fake_loss) / 2
         d_loss.backward()
@@ -224,10 +235,12 @@ class SequenceTrainer:
         fake_sample_y = fake_sample[:, :, 1].squeeze()
 
         for sigma in sigma_values:
+            current_mmd2 = mmd.mmd_squared(real_sample, fake_sample)
+            '''
             current_mmd2_x, _ = mmd.mix_rbf_mmd2_and_ratio(real_sample_x, fake_sample_x, sigma)
             current_mmd2_y, _ = mmd.mix_rbf_mmd2_and_ratio(real_sample_y, fake_sample_y, sigma)
             current_mmd2 = (current_mmd2_x + current_mmd2_y) / 2
-
+            '''
             if current_mmd2 < best_mmd2 and current_mmd2>0:
                 best_mmd2 = current_mmd2
                 best_sigma = sigma
@@ -239,10 +252,12 @@ class SequenceTrainer:
         return best_sigma, best_mmd2
 
     def save_model(self):
-
+        print('')
 
     def save_checkpoint(self, epoch):
         checkpoint = {
+            'GANtype': self.GANtype,
+            'GANargs': self.models['generator']['args'],
             'epoch': epoch,
             'generator_state_dict': self.generator.state_dict(),
             'discriminator_state_dict': self.discriminator.state_dict(),
