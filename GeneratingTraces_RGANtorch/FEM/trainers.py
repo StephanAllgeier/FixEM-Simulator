@@ -17,7 +17,7 @@ from skopt import gp_minimize
 from skopt.space import Real
 
 class SequenceTrainer:
-    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, eval_frequency=1):
+    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, eval_frequency=1):
         self.models = models
         self.recon = recon
         self.ncritic = ncritic
