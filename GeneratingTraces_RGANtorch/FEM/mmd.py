@@ -1,5 +1,33 @@
 import torch
 
+import numpy as np
+
+
+def rbf_kernel2(x, y, sigma=1.0):
+    return np.exp(-np.linalg.norm(x - y) ** 2 / (2 * sigma ** 2))
+
+
+def mmd_squared(X, Y, kernel=rbf_kernel2):
+    n = X.shape[0]
+    m = Y.shape[0]
+
+    mmd = 0.0
+
+    for i in range(n):
+        for j in range(n):
+            mmd += kernel(X[i], X[j])
+
+    mmd /= n * (n - 1)
+
+    for i in range(n):
+        for j in range(m):
+            mmd -= 2 * kernel(X[i], Y[j]) / (n * m)
+
+    for i in range(m):
+        for j in range(m):
+            mmd += kernel(Y[i], Y[j]) / (m * (m - 1))
+
+    return mmd
 
 def mix_rbf_mmd2_and_ratio(x, y, sigmas, wts=None):
     """
