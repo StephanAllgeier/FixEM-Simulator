@@ -52,13 +52,13 @@ class RCGANGenerator(RGANGenerator):
         # Initialize all weights.
         # Already initialized in parent class
     #TODO: DIE FUNKTION UNTEN HAT FUNKTIONIERT. Jetzt wird getestet...
-    '''
+
     def forward(self, z, y):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
         #TODO: LABEL TENSOR GENERIEREN UND MIT ZURÜCK GEBEN? Wie lernt der Generator dann, wenn die labels "Müll" sind?
-        #y_test_gen = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(y.device)
+        #y_tiled = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(y.device)
         y_tiled = y.squeeze().type(torch.LongTensor).to(y.device)
         # shape: (batch-size, sequence_length, label_embedding_size)
 
@@ -76,18 +76,19 @@ class RCGANGenerator(RGANGenerator):
 
     def forward(self, z):
         # shape: (batch-size, sequence_length, noise_size)
-        z = z.view(-1, self.sequence_length, self.noise_size)
-
-        # shape: (batch-size, encoding_dims)
-        output_generator = super(RCGANGenerator, self).forward(z, reshape=False)
         labels_generator = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(z.device)
+        y_emb = self.label_embeddings(labels_generator)
+        z = z.view(-1, self.sequence_length, self.noise_size)
+        z_cond = torch.cat((z, y_emb), dim=2)
+        output_generator = super(RCGANGenerator, self).forward(z_cond, reshape=False)
+
         # shape: (batch-size, sequence_length, output_size)
-        return output_generator, labels_generator
+        return output_generator, labels_generator#.unsqueeze(-1)
 
     def sampler(self, sample_size, device='cuda'):
         return [
         ]
-
+    '''
 
 class RCGANDiscriminator(RGANDiscriminator):
     def __init__(self,
