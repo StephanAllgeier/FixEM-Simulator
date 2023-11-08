@@ -40,8 +40,8 @@ def main():
         'split': [0.8, 0.1, 0.1],
         'label_embedding_size': 5,
         'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
-        'eval_interval': 20
-
+        'eval_interval': 20,
+        'resample_freq': 250
     }
     if not os.path.exists(opt['savepath']):
         os.makedirs(opt['savepath'])
@@ -56,10 +56,11 @@ def main():
 
     dataset = TimeSeriesFEM(folderpath=opt['input_folder'],
                             transform=opt['dataset_transform'], vital_signs=opt['signals'], no_mean=opt['no_mean'],
-                            slice_length=opt['slice_length'], input_freq=1920, resample_freq=250)
+                            slice_length=opt['slice_length'], input_freq=1920, resample_freq=opt['resample_freq'])
+    label_dist = dataset.label_dist
     X = torch.from_numpy(dataset.data).cuda()
     y = torch.from_numpy(
-        dataset.labels).long().cuda()#TODO Das ganze soll nur ein 714,500 tensor sein, nicht noch ,1 als tensorfunktion, .squeeze() entfernen
+        dataset.labels).long().cuda()
     num_train, num_test, num_vali = int(opt['split'][0] * X.shape[0]), int(opt['split'][1] * X.shape[0]), int(opt['split'][2] * X.shape[0])
     rand_indices = np.arange(len(X))
     np.random.shuffle(rand_indices)
@@ -68,9 +69,9 @@ def main():
     X_train, y_train = X[train_indices], y[train_indices]
     X_test, y_test = X[test_indices], y[test_indices]
     X_vali, y_vali = X[vali_indices], y[vali_indices]
-    train_sampler = SimpleSampler(X_train, y_train, batch_size=batch_size)
-    test_sampler = SimpleSampler(X_test, y_test, batch_size=batch_size)
-    vali_sampler = SimpleSampler(X_vali, y_vali, batch_size=batch_size)
+    train_sampler = SimpleSampler(X_train, y_train, label_dist=label_dist, batch_size=batch_size)
+    test_sampler = SimpleSampler(X_test, y_test, label_dist=label_dist, batch_size=batch_size)
+    vali_sampler = SimpleSampler(X_vali, y_vali, label_dist=label_dist, batch_size=batch_size)
 
 
     num_classes = len(torch.unique(y.view(-1, y.size(-1))))
