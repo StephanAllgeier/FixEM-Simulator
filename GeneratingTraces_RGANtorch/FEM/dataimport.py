@@ -1,3 +1,4 @@
+import itertools
 import os
 import pandas as pd
 from scipy import signal
@@ -19,6 +20,8 @@ class TimeSeriesFEM(Dataset):
         self.resample_freq = resample_freq
         self.seq_length = int(self.slice_length * (self.resample_freq or self.input_freq))
         self.data, self.labels = self.load_data()
+        self.label_dist = self.get_label_dist()
+
     def resample(self, data):
         resampling_ratio = self.resample_freq/self.input_freq
         num_output_samples = int(len(data) * resampling_ratio)
@@ -114,3 +117,10 @@ class TimeSeriesFEM(Dataset):
         normalized_sample = scaler.transform(sample_r).reshape(-1, signal_length, num_signals)
 
         return normalized_sample
+    def get_label_dist(self):
+        _, labels = self.load_data()
+        labels = labels.squeeze().reshape(-1).tolist()
+        zero_lengths = [sum(1 for _ in group) for key, group in itertools.groupby(labels) if key == 0]
+        one_lengths = [sum(1 for _ in group) for key, group in itertools.groupby(labels) if key == 1]
+        return [zero_lengths, one_lengths]
+

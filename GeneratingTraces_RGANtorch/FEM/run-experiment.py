@@ -18,12 +18,10 @@ from GeneratingTraces_RGANtorch.FEM import make_logger
 from GeneratingTraces_RGANtorch.FEM.dataimport import TimeSeriesFEM
 logger = make_logger(__file__)
 
-
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 def main():
     opt = {
-        "lr": 0.00005,
-        "epochs": 5000,
+        "lr": 0.001,
+        "epochs": 3000,
         "ncritic": 3,
         "batch_size": 32,
         "dataset_transform": 'normalize',
@@ -36,7 +34,7 @@ def main():
         "slice_length": 2,
         "no_mean": True,
         'type': 'RCGAN',
-        'savepath': r"C:\Users\uvuik\Desktop\Torch\RCGAN_Test4",
+        'savepath': r"C:\Users\uvuik\Desktop\Torch\RCGAN_RandomLabels_DlossDoubleTest",
         'split': [0.8, 0.1, 0.1],
         'label_embedding_size': 5,
         'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
