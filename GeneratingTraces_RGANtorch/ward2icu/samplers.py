@@ -76,7 +76,7 @@ class BinaryBalancedSampler:
         return idx_maj, idx_min
 
 class SimpleSampler:
-    def __init__(self, X, y, tile=False, batch_size=None, shuffle = True):
+    def __init__(self, X, y,label_dist = None, tile=False, batch_size=None, shuffle = True):
         self.X = X
         self.y = y
         self.tile = tile
@@ -84,6 +84,8 @@ class SimpleSampler:
         self.index = 0
         self.shuffle = shuffle
         self.reset_indices()
+        self.sequence_length = X.shape[1]
+        self.label_dist = label_dist
 
     def reset_indices(self):
         self.indices = np.arange(len(self.X))
@@ -124,3 +126,19 @@ class SimpleSampler:
                 self.reset_indices()  # Mische die Indizes am Ende jeder Epoche
             raise StopIteration
 
+    def sample_rand_labels(self):
+        assert self.label_dist is not None, print('Error')
+        sequence = []
+        for _ in range(self.sequence_length):
+            if len(sequence) < self.sequence_length:
+                zero_length = np.random.choice(self.label_dist[0])
+                one_length = np.random.choice(self.label_dist[1])
+                sequence.extend([0] * zero_length)
+                sequence.extend([1] * one_length)
+            else:
+                break
+        return sequence[:self.sequence_length]
+
+    def rand_batch_labels(self, num_seq):
+        rand_labels_batch = [self.sample_rand_labels() for _ in range(num_seq)]
+        return torch.tensor(rand_labels_batch, dtype=torch.float32)
