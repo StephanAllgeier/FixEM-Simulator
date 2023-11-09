@@ -3,13 +3,9 @@ from argparse import ArgumentParser, Namespace
 from decimal import *
 from math import floor, fsum, inf, isinf, isnan, nan, sqrt
 from pathlib import Path
-import pandas as pd
 
 import matplotlib
 import pandas as pd
-
-from GeneratingTraces_MathematicalModel.colorline import colorline
-from ProcessingData.Visualize import Visualize
 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -18,6 +14,7 @@ from os import chdir
 import scipy.interpolate as si
 from skimage.draw import line_aa
 import warnings
+
 """
 TODO: visited-activation would need line width/blurring, otherwise small steps, which remain inside the cell,
 become unlikely due to the high activation from the previous step, or worse, if no other cell is reached, a random
@@ -47,11 +44,12 @@ note: non-anti aliased lines could cross each other without notice if they are r
 try using an (inverse) normal distribution as fixation potential?
 """
 
+
 class RandomWalk():
 
     @staticmethod
-    def add_jitter(df, freq_range:tuple, amp_max):
-        #freq_range and amp_range as tuple
+    def add_jitter(df, freq_range: tuple, amp_max):
+        # freq_range and amp_range as tuple
         # Generate random frequencies and amplitudes for jitter
         freq = np.random.uniform(*freq_range, size=len(df))
         amp = np.random.uniform(0, amp_max, size=len(df))
@@ -60,6 +58,7 @@ class RandomWalk():
         df['x'] = df['x'] + amp * np.sin(2 * np.pi * freq * df.index)
         df['y'] = df['y'] + amp * np.sin(2 * np.pi * freq * df.index)
         return df
+
     @staticmethod
     def plot_heatmap(array):
         plt.figure(figsize=(10, 10))
@@ -70,7 +69,6 @@ class RandomWalk():
         plt.ylabel('Y-Achse')
         plt.show()
 
-
     @staticmethod
     def parse_args() -> (Namespace, int):
         parser = ArgumentParser('Simulation of drift eye motion to simulate the distortion in raster scans.')
@@ -79,7 +77,7 @@ class RandomWalk():
         parser.add_argument('--duration', default=3.5, type=float,
                             help='Duration of simulated scan in seconds.')
         parser.add_argument('--simulation_frequency', default=200.0, type=float,
-                            help='Step frequency of simulated drift in 1/sec.') #default was 20, set to 200
+                            help='Step frequency of simulated drift in 1/sec.')  # default was 20, set to 200
         parser.add_argument('--dist_mean', default=0.05, type=float,
                             help='Mean drift distance in degree per step (further influenced by the potentials).')
         parser.add_argument('--dist_sigma', default=0.01, type=float,
@@ -95,13 +93,14 @@ class RandomWalk():
         parser.add_argument('--potential_weight', default=5.0, type=float,
                             help='Exponential weight applied to the sampled potentials (0 -> uniform selection, inf -> minimum).')
         parser.add_argument('--potential_resolution', default=0, type=float,
-                            help='Number of visited / fixation potential cells per degree. This influences how densly the field of view will be scanned and is thus indirectly proportional to the scanned area.') #Default ursprünglich 0
+                            help='Number of visited / fixation potential cells per degree. This influences how densly the field of view will be scanned and is thus indirectly proportional to the scanned area.')  # Default ursprünglich 0
         parser.add_argument('--fixation_potential_factor', default=5.0, type=float,
                             help='Scaling factor of the fixation potential.')
-        parser.add_argument('--relaxation_rate', default=0.001, type=float,#Value from Engerb, here was standing 0.2 which was too fast
+        parser.add_argument('--relaxation_rate', default=0.001, type=float,
+                            # Value from Engerb, here was standing 0.2 which was too fast
                             help='Relaxation rate of the visited-activation over a duration of 1 second.')
         parser.add_argument('--sampling_frequency', default=1000.0, type=float,
-                            help='Sampling frequency of the simulated scanner in 1/sec.') #Default was 100, set to 1000 bc of Simulation Frequency
+                            help='Sampling frequency of the simulated scanner in 1/sec.')  # Default was 100, set to 1000 bc of Simulation Frequency
         parser.add_argument('--start_position_sigma', default=nan, type=float,
                             help='Start position is normally distributed around the center with specified standard deviation in degree. The default value nan uses field_size/8. 0 always selects the center, inf corresponds to uniform selection.')
         parser.add_argument('--potential_norm_exponent', default=1.0, type=float,
@@ -208,7 +207,9 @@ class RandomWalk():
                     getcontext().prec = decimal_digits
                     args.use_decimal = True
                 except ValueError as e2:
-                    RandomWalk.die(str(e) + ' or an integer number >= 2 specifying the precision in decimal digits (' + str(e2) + ')')
+                    RandomWalk.die(
+                        str(e) + ' or an integer number >= 2 specifying the precision in decimal digits (' + str(
+                            e2) + ')')
 
         return args, N
 
@@ -234,7 +235,7 @@ class RandomWalk():
 
     @staticmethod
     def get_random_directions(args, position_x: float, position_y: float, min_bound_xy: float, max_bound_xy: float) -> (
-    np.ndarray, np.ndarray, np.ndarray, np.ndarray):
+            np.ndarray, np.ndarray, np.ndarray, np.ndarray):
         """
         :return: Four arrays of step_candidates randomly choosen angles and distances.
                  random_x: New x values according to distance and angle.
@@ -251,7 +252,8 @@ class RandomWalk():
             else:
                 angles = np.random.choice(np.asarray([0.0, 0.5 * np.pi, np.pi, 1.5 * np.pi]), args.step_candidates)
         else:
-            angles = np.random.uniform(0.0, 2.0 * np.pi, args.step_candidates) #np.random.uniform Draw {args.step_candidates} samples from uniform distribution,
+            angles = np.random.uniform(0.0, 2.0 * np.pi,
+                                       args.step_candidates)  # np.random.uniform Draw {args.step_candidates} samples from uniform distribution,
 
         #   Pick R random distances
         if args.abs_dist_min == args.abs_dist_max:  # special case fixed distance
@@ -261,7 +263,8 @@ class RandomWalk():
         elif args.dist_sigma == 0.0 or args.dist_weight == inf:  # special case fixed distance
             dists = np.full(angles.shape, args.dist_mean)
         else:
-            dists = np.random.normal(args.dist_mean, args.dist_sigma / sqrt(args.dist_weight), angles.shape) #Zieht angles.shape Distanzen
+            dists = np.random.normal(args.dist_mean, args.dist_sigma / sqrt(args.dist_weight),
+                                     angles.shape)  # Zieht angles.shape Distanzen
 
         #   Mirror boundary for abs_dist_max as long as necessary
         if not isinf(args.abs_dist_max):
@@ -272,16 +275,19 @@ class RandomWalk():
         #   "boundary condition" to ensure that spline construction works properly
         if args.abs_dist_min > 0.0:
             # clamp to nearest valid value (assuming that abs_dist_min is small and thus that the oversampling bias is negligable)
-            dists[(0 <= dists) & (dists < args.abs_dist_min)] = args.abs_dist_min # Alle Werte in [0, args.abs_dist_min] werden auf args.abs_dist_min gesetzt
-            dists[(0 > dists) & (dists > -args.abs_dist_min)] = -args.abs_dist_min # Alle Werte in [-args.abs_dist_min, 0] werden auf -args.abs_dist_min gesetzt
+            dists[(0 <= dists) & (
+                        dists < args.abs_dist_min)] = args.abs_dist_min  # Alle Werte in [0, args.abs_dist_min] werden auf args.abs_dist_min gesetzt
+            dists[(0 > dists) & (
+                        dists > -args.abs_dist_min)] = -args.abs_dist_min  # Alle Werte in [-args.abs_dist_min, 0] werden auf -args.abs_dist_min gesetzt
 
         #   Compute candidate positions
-        random_x = position_x + dists * np.cos(angles) #Creates all possible positions from distributoins
+        random_x = position_x + dists * np.cos(angles)  # Creates all possible positions from distributoins
         random_y = position_y + dists * np.sin(angles)
 
         #   field size boundary mirroring as long as necessary
         cond = np.any(
-            (random_x < min_bound_xy) | (max_bound_xy <= random_x) | (random_y < min_bound_xy) | (max_bound_xy <= random_y))
+            (random_x < min_bound_xy) | (max_bound_xy <= random_x) | (random_y < min_bound_xy) | (
+                        max_bound_xy <= random_y))
         global warned_mirror
         if not warned_mirror and cond:
             warned_mirror = True
@@ -293,10 +299,9 @@ class RandomWalk():
             random_y[random_y < min_bound_xy] = min_bound_xy - (random_y[random_y < min_bound_xy] - min_bound_xy)
             random_y[random_y >= max_bound_xy] = max_bound_xy - (random_y[random_y >= max_bound_xy] - max_bound_xy)
             cond = np.any((random_x < min_bound_xy) | (max_bound_xy <= random_x) | (random_y < min_bound_xy) | (
-                        max_bound_xy <= random_y))
+                    max_bound_xy <= random_y))
 
         return random_x, random_y, angles, dists
-
 
     def convert_range(range_min: float, range_max: float, float_value: np.ndarray, N: int) -> np.ndarray:
         """
@@ -352,7 +357,7 @@ class RandomWalk():
                 else:
                     mod_weights = mod_weights ** potential_weight
 
-        cum_weights = np.cumsum(mod_weights) #Return the cumulative sum of the elements along a given axis
+        cum_weights = np.cumsum(mod_weights)  # Return the cumulative sum of the elements along a given axis
 
         # Pick a number between 0 and the sum of all weights
         random_w = np.random.uniform(0.0, cum_weights[-1])
@@ -397,9 +402,9 @@ class RandomWalk():
     def oculomotor_potential(args, curr_posx, curr_posy, center_row, center_col):
         chi = 2
         L = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
-        oculo_pot = lambda offset_x, offset_y:(args.fixation_potential_factor * 2 *(((offset_x-curr_posx) ** 2) * ((offset_y-curr_posy) ** 2)))
+        oculo_pot = lambda offset_x, offset_y: (args.fixation_potential_factor * 2 * (
+                    ((offset_x - curr_posx) ** 2) * ((offset_y - curr_posy) ** 2)))
         return oculo_pot(center_col, center_row)
-
 
     @staticmethod
     def randomWalk(abs_dist_max=None, abs_dist_min=None, base_dir=None, debug_colors=None, dist_mean=None,
@@ -407,7 +412,8 @@ class RandomWalk():
                    potential_norm_exponent=None, random_seed=None, potential_resolution=None, potential_weight=None,
                    relaxation_rate=None, sampling_duration=None, sampling_frequency=None, sampling_start=None,
                    show_plots=False, start_position_sigma=None, num_step_candidates=None, step_through=None,
-                   use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False, unit=None):
+                   use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0,
+                   save=False, report=False, unit=None):
         # Init
         global warned_mirror
         warned_mirror = False
@@ -426,56 +432,55 @@ class RandomWalk():
         if dist_mean is not None:
             args.dist_mean = dist_mean
         if dist_sigma is not None:
-            args.dist_sigma=dist_sigma
+            args.dist_sigma = dist_sigma
         if dist_weight is not None:
-            args.dist_weight= dist_weight
+            args.dist_weight = dist_weight
         if duration is not None:
-            args.duration = duration + 10 #Die ersten 10 Sekunden werden wieder entfernt
+            args.duration = duration + 10  # Die ersten 10 Sekunden werden wieder entfernt
         if duration is None:
-            args.duration=40
+            args.duration = 40
         if field_size is not None:
-            args.field_size= field_size
+            args.field_size = field_size
         if fixation_potential_factor is not None:
-            args.fixation_potential_factor=fixation_potential_factor
+            args.fixation_potential_factor = fixation_potential_factor
         if potential_norm_exponent is not None:
-            args.potential_norm_exponent=potential_norm_exponent #default value = 0
+            args.potential_norm_exponent = potential_norm_exponent  # default value = 0
         if potential_resolution is not None:
-            args.potential_resolution=potential_resolution
+            args.potential_resolution = potential_resolution
         if potential_weight is not None:
-            args.potential_weight=potential_weight
+            args.potential_weight = potential_weight
         if random_seed is not None:
-            args.random_seed=random_seed
+            args.random_seed = random_seed
         if relaxation_rate is not None:
-            args.relaxation_rate=relaxation_rate
+            args.relaxation_rate = relaxation_rate
         if sampling_duration is not None:
-            args.sampling_duration=sampling_duration
+            args.sampling_duration = sampling_duration
         if sampling_frequency is not None:
-            args.sampling_frequency=sampling_frequency
+            args.sampling_frequency = sampling_frequency
         if simulation_freq is not None:
-            args.simulation_frequency=simulation_freq
+            args.simulation_frequency = simulation_freq
         if sampling_start is not None:
-            args.sampling_start=sampling_start
+            args.sampling_start = sampling_start
         if show_plots is not None:
-            args.show_plots=show_plots
+            args.show_plots = show_plots
         if start_position_sigma is not None:
-            args.start_position_sigma=start_position_sigma
+            args.start_position_sigma = start_position_sigma
         if num_step_candidates is not None:
-            args.step_candidates= int(round(num_step_candidates))
+            args.step_candidates = int(round(num_step_candidates))
         if step_through is not None:
-            args.step_through=step_through
+            args.step_through = step_through
         if use_decimal is not None:
-            args.use_decimal=use_decimal
+            args.use_decimal = use_decimal
         if walk_along_axes is not None:
-            args.walk_along_axes=walk_along_axes
+            args.walk_along_axes = walk_along_axes
         if folderpath is not None:
-            save=True
-            args.fpath_sampled=fr"{Path(folderpath)}\Trace{number_id}"
-            #args.fpath_sampled=fr"{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}_SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}_relaxationr={args.relaxation_rate}\Trace{number_id}"
-            #args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\Signal{number_id}'
-
+            save = True
+            args.fpath_sampled = fr"{Path(folderpath)}\Trace{number_id}"
+            # args.fpath_sampled=fr"{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}_SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}_relaxationr={args.relaxation_rate}\Trace{number_id}"
+            # args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\Signal{number_id}'
 
         N = int(args.potential_resolution * 2 + 1)
-        #N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
+        # N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
 
         if args.base_dir is not None:
             chdir(args.base_dir)
@@ -484,7 +489,8 @@ class RandomWalk():
             np.random.seed(args.random_seed)
 
         #   Create a quadratic grid representing the eye with size NxN
-        visited_activation = np.zeros((N, N))  # i,j indexing ##Initializing Eye as "Grid" of NxN for visited activations
+        visited_activation = np.zeros(
+            (N, N))  # i,j indexing ##Initializing Eye as "Grid" of NxN for visited activations
 
         field_min = -args.field_size / 2.0  # degree
         field_max = args.field_size / 2.0  # degree
@@ -492,11 +498,14 @@ class RandomWalk():
         cell_width = args.field_size / N  # degree
         cell_center_1d = np.linspace(field_min + 0.5 * cell_width, field_max - 0.5 * cell_width,
                                      N)  # degree, note: from first to last cell _center_
-        cell_center_x, cell_center_y = np.meshgrid(cell_center_1d, cell_center_1d) #Create a grid with point in the center of each cell within the given range of field_min and field_max
-        #plt.plot(cell_center_x, cell_center_y, marker='.', color='k', linestyle='none')
+        cell_center_x, cell_center_y = np.meshgrid(cell_center_1d,
+                                                   cell_center_1d)  # Create a grid with point in the center of each cell within the given range of field_min and field_max
+        # plt.plot(cell_center_x, cell_center_y, marker='.', color='k', linestyle='none')
         fixation_potential = lambda offset_x, offset_y: (
-                    args.fixation_potential_factor * (offset_x ** 2 + offset_y ** 2) ** args.potential_norm_exponent) #default of potential_norm_exponent = 1
-        fixation_potential_display = fixation_potential(cell_center_x, cell_center_y) #Is higher in corner areas and lower in center of eyeball
+                args.fixation_potential_factor * (
+                    offset_x ** 2 + offset_y ** 2) ** args.potential_norm_exponent)  # default of potential_norm_exponent = 1
+        fixation_potential_display = fixation_potential(cell_center_x,
+                                                        cell_center_y)  # Is higher in corner areas and lower in center of eyeball
 
         T = args.duration
         f_sampling = args.sampling_frequency
@@ -504,7 +513,8 @@ class RandomWalk():
 
         #   Ceil number of required simulation steps such that the Bspline is valid until _at least_ T
         steps_sim = int(np.ceil(T * f_sim))
-        visited_points = np.zeros((1 + steps_sim, 2))  # degree (+1 for the starting point) Anzahl der simulierten Punkte
+        visited_points = np.zeros(
+            (1 + steps_sim, 2))  # degree (+1 for the starting point) Anzahl der simulierten Punkte
         intermicsac_dur = []
 
         #   Init random walk
@@ -513,44 +523,47 @@ class RandomWalk():
         elif isinf(args.start_position_sigma):
             visited_points[0, :] = np.random.uniform(field_min, field_max, 2)
         else:
-            visited_points[0, :] = np.random.normal(0, args.start_position_sigma, 2) #Draw random samples from a normal (Gaussian) distribution. Mean=0, std=args.start_position_sigma, size=2 (x,y)
-            visited_points[0, :] = np.clip(visited_points[0, :], field_min, field_max) #Clip (limit) the values in visited_point[0,:] to field_min and field_max.
+            visited_points[0, :] = np.random.normal(0, args.start_position_sigma,
+                                                    2)  # Draw random samples from a normal (Gaussian) distribution. Mean=0, std=args.start_position_sigma, size=2 (x,y)
+            visited_points[0, :] = np.clip(visited_points[0, :], field_min,
+                                           field_max)  # Clip (limit) the values in visited_point[0,:] to field_min and field_max.
         walker_x = visited_points[0, 0]  # degree
         walker_y = visited_points[0, 1]  # degree
-        #Return index to the closest element center(s) given the float range
+        # Return index to the closest element center(s) given the float range
         walker_i = RandomWalk.convert_range(field_min, field_max, walker_y, N)  # degree
         walker_j = RandomWalk.convert_range(field_min, field_max, walker_x, N)  # degree
         visited_activation[walker_i, walker_j] = 1.0
         steps_dist = 0.0  # degree
         micsac_flag = False
-        micsac_array= np.empty(steps_sim+1)
-        t_array = np.linspace(0, args.duration, int(args.simulation_frequency*args.duration)+1)
-        micsac_array[0]=False
-        skip=0
+        micsac_array = np.empty(steps_sim + 1)
+        t_array = np.linspace(0, args.duration, int(args.simulation_frequency * args.duration) + 1)
+        micsac_array[0] = False
+        skip = 0
         """
         Random Walk
         """
 
         for i in range(steps_sim):
-            #------------------------------------------------
-            #Fabian Anzlinger
-            #------------------------------------------------
-            if skip>0:
+            # ------------------------------------------------
+            # Fabian Anzlinger
+            # ------------------------------------------------
+            if skip > 0:
                 micsac_array[i + 1] = True
-                skip-=1
+                skip -= 1
                 continue
             #   Get possible next locations
             if micsac_flag == True:
-                #Trigger Microsaccade: get global minimum of sum of activation field and potential
-                cardinal_potential = RandomWalk.oculomotor_potential(args, visited_points[i, 1], visited_points[i, 0],cell_center_x, cell_center_y)
+                # Trigger Microsaccade: get global minimum of sum of activation field and potential
+                cardinal_potential = RandomWalk.oculomotor_potential(args, visited_points[i, 1], visited_points[i, 0],
+                                                                     cell_center_x, cell_center_y)
                 sum_act_pot = visited_activation + fixation_potential_display + cardinal_potential
-                glob_min_idx = np.unravel_index(np.argmin(sum_act_pot), sum_act_pot.shape)#Index mit minimalem Wert
-                micsac_dur = np.random.uniform(0.01, 0.02) #Take random value for Micsac_duration
-                num_of_steps = 1 if int(np.round(micsac_dur * f_sim))<1 else int(np.round(micsac_dur * f_sim))
-                start_micsac = [visited_points[i, 0], visited_points[i, 1]] #x,y
-                end_micsac_cell = [cell_center_1d[glob_min_idx[1]], cell_center_1d[glob_min_idx[0]]]#x,y
+                glob_min_idx = np.unravel_index(np.argmin(sum_act_pot), sum_act_pot.shape)  # Index mit minimalem Wert
+                micsac_dur = np.random.uniform(0.01, 0.02)  # Take random value for Micsac_duration
+                num_of_steps = 1 if int(np.round(micsac_dur * f_sim)) < 1 else int(np.round(micsac_dur * f_sim))
+                start_micsac = [visited_points[i, 0], visited_points[i, 1]]  # x,y
+                end_micsac_cell = [cell_center_1d[glob_min_idx[1]], cell_center_1d[glob_min_idx[0]]]  # x,y
 
-                #sample random point within given cell_width
+                # sample random point within given cell_width
                 new_x = np.random.uniform(end_micsac_cell[0] - cell_width, end_micsac_cell[0] + cell_width)
                 new_y = np.random.uniform(end_micsac_cell[1] - cell_width, end_micsac_cell[1] + cell_width)
                 x_cells = np.linspace(start_micsac[0], new_x, num_of_steps + 1)
@@ -558,29 +571,30 @@ class RandomWalk():
 
                 #   Get indices that lie on the line from start to most probable end point
                 y_idx, x_idx, w_idx = line_aa(line_i[-1], line_j[-1], glob_min_idx[1], glob_min_idx[0])
-                y_idx, x_idx, w_idx = y_idx[1:], x_idx[1:], w_idx[1:] # Exclude starting point
+                y_idx, x_idx, w_idx = y_idx[1:], x_idx[1:], w_idx[1:]  # Exclude starting point
                 # prefer thin lines, otherwise the walker is quite restricted
                 # long term, by using a smooth activation increase function instead of a line and a better rule than max, this can be properly improved. for now we're stuck with the grid.
                 y_idx = y_idx[w_idx >= min_line_weight]
                 x_idx = x_idx[w_idx >= min_line_weight]
 
-                #Update activation
+                # Update activation
                 walked_mask = np.zeros(visited_activation.shape, dtype=bool)
                 walked_mask[y_idx, x_idx] = True
                 visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (
-                            1 / f_sim)
+                        1 / f_sim)
                 visited_activation[walked_mask] = visited_activation[walked_mask] + 1.0
                 if len(visited_points[i + 1: i + 1 + num_of_steps, 0]) == len(x_cells[1:]):
                     visited_points[i + 1: i + 1 + num_of_steps, 0] = x_cells[1:]
                     visited_points[i + 1: i + 1 + num_of_steps, 1] = y_cells[1:]
-                #Adjusting position, skip for as long as needed
-                walker_x = new_x # cell_center_1d[glob_min_idx[1]]
-                walker_y = new_y # cell_center_1d[glob_min_idx[0]]
-                micsac_array[i+1] =True
-                skip = num_of_steps-1
+                # Adjusting position, skip for as long as needed
+                walker_x = new_x  # cell_center_1d[glob_min_idx[1]]
+                walker_y = new_y  # cell_center_1d[glob_min_idx[0]]
+                micsac_array[i + 1] = True
+                skip = num_of_steps - 1
                 micsac_flag = False
                 continue
-            rand_x, rand_y, angle, dist = RandomWalk.get_random_directions(args, walker_x, walker_y, field_min, field_max) #all variables are arrays of size args.step_candidates
+            rand_x, rand_y, angle, dist = RandomWalk.get_random_directions(args, walker_x, walker_y, field_min,
+                                                                           field_max)  # all variables are arrays of size args.step_candidates
 
             #   Convert float locations to potential grid indices
             rand_i = RandomWalk.convert_range(field_min, field_max, rand_y, N)
@@ -589,7 +603,8 @@ class RandomWalk():
             walker_j = RandomWalk.convert_range(field_min, field_max, walker_x, N)
 
             #   Maximum potential within the linear path approximation with starting point excluded
-            potential_sum = np.empty(4 if args.step_candidates == 0 else args.step_candidates) #Random values for potential sum without initialization
+            potential_sum = np.empty(
+                4 if args.step_candidates == 0 else args.step_candidates)  # Random values for potential sum without initialization
             for idx in range(potential_sum.size):
                 line_i, line_j, line_w = line_aa(walker_i, walker_j, rand_i[idx], rand_j[idx])
 
@@ -605,7 +620,9 @@ class RandomWalk():
                 line_i = line_i[line_w >= min_line_weight]
                 line_j = line_j[line_w >= min_line_weight]
 
-                potential_sum[idx] = np.max(visited_activation[line_i, line_j]) + fixation_potential(rand_x[idx], rand_y[idx]) #Sum of the fixation potential and visited activation
+                potential_sum[idx] = np.max(visited_activation[line_i, line_j]) + fixation_potential(rand_x[idx],
+                                                                                                     rand_y[
+                                                                                                         idx])  # Sum of the fixation potential and visited activation
 
             #   Decision weights are inverse to the sum of potentials as those describe where the walker shouldn't go
             prev_err = np.geterr()
@@ -623,7 +640,6 @@ class RandomWalk():
             visited_points[i + 1, 0] = walker_x
             visited_points[i + 1, 1] = walker_y
 
-
             #   Step visualization (do this before updating the activation so it reflects the values during decision)
             if args.step_through > 0 and args.sampling_start <= i / f_sim and i / f_sim < args.sampling_start + args.sampling_duration:
                 if args.step_through > 1:
@@ -639,9 +655,11 @@ class RandomWalk():
                 lower_bound = 0  # 0.25
                 color[color < lower_bound] = lower_bound
                 # color = 1.0-color
-                ax.scatter(rand_x, rand_y, s=3, c=color, cmap=plt.get_cmap('gray'), norm=matplotlib.colors.NoNorm(), marker='o')
+                ax.scatter(rand_x, rand_y, s=3, c=color, cmap=plt.get_cmap('gray'), norm=matplotlib.colors.NoNorm(),
+                           marker='o')
                 plt.arrow(visited_points[i, 0], visited_points[i, 1], walker_x - visited_points[i, 0],
-                          walker_y - visited_points[i, 1], length_includes_head=True, zorder=2, width=0.0003, color='#D95319')
+                          walker_y - visited_points[i, 1], length_includes_head=True, zorder=2, width=0.0003,
+                          color='#D95319')
                 ax.set_title('PDF approximation at t = ' + str(round(i / f_sim, 5)))
                 ax.set_xlabel('Lateral fixation offset (°)')
                 ax.set_ylabel('Longitudinal fixation offset (°)')
@@ -672,20 +690,21 @@ class RandomWalk():
             walked_mask = np.zeros(visited_activation.shape, dtype=bool)
             walked_mask[line_i, line_j] = True
 
-            #Micsac Criterion
-            h_crit = hc # 7.9 Value from "An integrated model of fixational eye movements and microsaccades
-            #micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger PUnkt auf LInie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
+            # Micsac Criterion
+            h_crit = hc  # 7.9 Value from "An integrated model of fixational eye movements and microsaccades
+            # micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger PUnkt auf LInie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
-            if any(micsac_array[max(0, i-round(f_sim*0.015)):i]):
-                micsac_array[i+1] = False
+            if any(micsac_array[max(0, i - round(f_sim * 0.015)):i]):
+                micsac_array[i + 1] = False
             else:
                 micsac_array[i + 1] = micsac_flag
 
             #   Update visited-activation
-            visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (1 / f_sim)
+            visited_activation[~walked_mask] = visited_activation[~walked_mask] * (1.0 - args.relaxation_rate) ** (
+                        1 / f_sim)
             visited_activation[walked_mask] = visited_activation[walked_mask] + 1.0
 
-        #Evaluation
+        # Evaluation
         micsac_onset = []  # Entspricht Offset Drift
         micsac_offset = []  # Entspricht Onset Drift
         for i in range(1, len(micsac_array)):
@@ -768,7 +787,7 @@ class RandomWalk():
 
                 #   Approximate distance of B-Spline with doubled sampling rate to estimate error bound
                 t_sampled_e = np.arange(0.0, T + 1.0 / (f_sampling * 2 ** f_sampling_power), 1.0 / (
-                            f_sampling * 2 ** f_sampling_power))  # extend the range a little bit to avoid rounding issues
+                        f_sampling * 2 ** f_sampling_power))  # extend the range a little bit to avoid rounding issues
                 t_sampled_e = t_sampled_e[(args.sampling_start <= t_sampled_e) & (t_sampled_e <= sampling_end)]
 
                 x_e = si.splev(t_sampled_e, spline_x)
@@ -782,8 +801,8 @@ class RandomWalk():
         """
                 Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
         """
-        max_val=(5/np.sqrt(2))/3600
-        std_dev = max_val/3
+        max_val = (5 / np.sqrt(2)) / 3600
+        std_dev = max_val / 3
         tremor_x = np.clip(np.random.normal(0, std_dev, len(x_sampled)), -max_val, max_val)
         tremor_y = np.clip(np.random.normal(0, std_dev, len(y_sampled)), -max_val, max_val)
 
@@ -794,8 +813,10 @@ class RandomWalk():
             array = np.asarray(array)
             idx = (np.abs(array - value)).argmin()
             return idx
+
         try:
-            micsac_ranges = [[int(find_nearest(t_sampled, onsets[k])), int(find_nearest(t_sampled, offsets[k]))] for k in range(0,len(onsets))]
+            micsac_ranges = [[int(find_nearest(t_sampled, onsets[k])), int(find_nearest(t_sampled, offsets[k]))] for k
+                             in range(0, len(onsets))]
         except:
             print('Error')
         no_addition_mask = np.ones_like(x_sampled)
@@ -811,25 +832,25 @@ class RandomWalk():
         x_sampled += tremor_x_filtered
         y_sampled += tremor_y_filtered
 
-        #Collecting information about micsac_array
+        # Collecting information about micsac_array
         num_micsac = 0
         micsac_df = pd.DataFrame({'Time': t_array, 'Micsac_bool': micsac_array})
 
         micsac_array_sampled = np.zeros(len(t_sampled))
         prev_bool = 0
-        prev_index=None
+        prev_index = None
         for index, row in micsac_df.iterrows():
             if row['Micsac_bool'] == 1:
                 if prev_bool != 1:
-                    num_micsac+=1
+                    num_micsac += 1
                 target_time = row['Time']
 
                 closest_index = np.argmin(np.abs(target_time - t_sampled))
                 micsac_array_sampled[closest_index] = 1
-                if prev_bool==1 and prev_index is not None:
-                    micsac_array_sampled[prev_index:closest_index]=1
+                if prev_bool == 1 and prev_index is not None:
+                    micsac_array_sampled[prev_index:closest_index] = 1
                 prev_index = closest_index
-                prev_bool=1
+                prev_bool = 1
             else:
                 prev_bool = 0
 
@@ -853,18 +874,20 @@ class RandomWalk():
             print("Mean velocity:", np.float64(bspline_dist) / np.float64(T_sampling), "deg/sec")
             print("Stddev velocity:", bspline_velocity_std, "deg/sec")
             np.seterr(divide=prev_err['divide'])
-            print("Length change compared to approximation with half frequency (f_sampling*2**" + str(f_sampling_power) + "):",
+            print("Length change compared to approximation with half frequency (f_sampling*2**" + str(
+                f_sampling_power) + "):",
                   bspline_dist_half - bspline_dist, "deg")
-            print("Number of Microsaccades ",  0 if len(drift_segments)-1 < 0 else len(drift_segments)-1)
+            print("Number of Microsaccades ", 0 if len(drift_segments) - 1 < 0 else len(drift_segments) - 1)
 
         """
         Write step positions & curve to disk.
         """
-        t_sampled= t_sampled[:int(-10*args.sampling_frequency)]
-        x_sampled = x_sampled[int(10*args.sampling_frequency):]
-        y_sampled = y_sampled[int(10*args.sampling_frequency):]
+        t_sampled = t_sampled[:int(-10 * args.sampling_frequency)]
+        x_sampled = x_sampled[int(10 * args.sampling_frequency):]
+        y_sampled = y_sampled[int(10 * args.sampling_frequency):]
         headers = ['Time', 'x', 'y', 'MicsacBool']
-        data = {headers[0]:t_sampled, headers[1]: x_sampled, headers[2]:y_sampled, headers[3]:micsac_array_sampled[int(10*args.sampling_frequency):]}
+        data = {headers[0]: t_sampled, headers[1]: x_sampled, headers[2]: y_sampled,
+                headers[3]: micsac_array_sampled[int(10 * args.sampling_frequency):]}
         df = pd.DataFrame(data)
 
         if save:
@@ -896,14 +919,14 @@ class RandomWalk():
                 unit_symb = "°"
                 print('Unit chosen is DVA.')
             elif unit == "Arcmin":
-                x_sampled*= 60
+                x_sampled *= 60
                 y_sampled *= 60
                 unit_symb = "Bogenminuten [arcmin]"
             elif unit == "µm":
                 r = 24500
                 print('Unit chosen is µm.')
                 x_sampled = r * np.sin(x_sampled)
-                y_sampled= r * np.sin(y_sampled)
+                y_sampled = r * np.sin(y_sampled)
                 unit_symb = "µm"
             ax1 = axs[0]
             ax1.plot(t, x_sampled, label='x', color='blue')
@@ -928,7 +951,7 @@ class RandomWalk():
             # Hinzufügen der Mikrosakkaden-Linien zu beiden Subplots
             onset_adj = [onset - 10 for onset in onsets if onset > 10]
             offset_adj = [offset - 10 for offset in offsets if
-                                 offset > 10]
+                          offset > 10]
 
             for ax in axs:
                 ax.vlines(x=onset_adj, ymin=ax.get_ylim()[0], ymax=ax.get_ylim()[1], colors='red', linewidth=1)
@@ -941,6 +964,7 @@ class RandomWalk():
             # Anzeigen oder Speichern der Figur
             plt.show()
             plt.savefig(folderpath)
+
 
 if __name__ == '__main__':
     print('Start')
