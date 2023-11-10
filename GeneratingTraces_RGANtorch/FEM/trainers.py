@@ -19,7 +19,7 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 
 class SequenceTrainer:
-    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, eval_frequency=1):
+    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, eval_frequency=1, conv_window = 10):
         self.models = models
         self.recon = recon
         self.ncritic = ncritic
@@ -39,6 +39,7 @@ class SequenceTrainer:
         self.best_epoch = 0
         self.savepath = savepath
         self.GANtype = GANtype
+        self.conv_window = conv_window
 
         # Erstelle Generator und Diskriminator hier
         self.generator = self.models['generator']['name'](**self.models['generator']['args']).to(self.device)
@@ -56,6 +57,20 @@ class SequenceTrainer:
         #self.perform_sigma_optimization(epoch, fake_labels=fake_labels)
         #self.evaluate_mmd2(epoch)
         print(f"Epoche {epoch} done.")
+
+    def conv_signal(self, signal_tensor, kernel_size=3):
+        batch_size, signal_values, _ = signal_tensor.size()
+        if kernel_size % 2 == 0:
+            kernel_size -= 1
+        kernel = (torch.ones(1, 1, kernel_size) // kernel_size).to(signal_tensor.device)
+
+        # Flattening des Signals für die Faltung
+        flattened_signals = signal_tensor.permute(0, 2, 1).contiguous().view(batch_size * 2, 1, signal_values)
+
+        # Anwendung der Faltung auf beide Koordinaten gleichzeitig
+        conv_signal = nn.functional.conv1d(flattened_signals, kernel, padding=kernel_size // 2).view(batch_size, 2,
+                                                                                              signal_values)
+        return conv_signal.permute(0, 2, 1).contiguous()
 
     def train_RGAN(self, dataloader):
         #plot 1 real example
@@ -82,14 +97,15 @@ class SequenceTrainer:
 
     def train_RCGAN(self, dataloader):
         #plot 1 real example
-        data, _ = next(dataloader)
-        self.plot_imgs(data,'real_example')
+        #data, _ = next(dataloader)
+        #self.plot_imgs(data,'real_example')
         for epoch in range(self.epochs):
             for batch in dataloader:
 
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
-                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)#torch.full(shape,wert)
+                scale = 0.2
+                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)*scale#torch.full(shape,wert)
                 self.z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
                 input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
                 # Trainiere den Discriminator ncritic mal
@@ -104,7 +120,7 @@ class SequenceTrainer:
                 sigma = [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10, 50, 100]
                 sigma, best_mmd2 = self.perform_sigma_grid_search(epoch, sigma, fake_labels=dataloader.rand_batch_labels(self.vali_set.shape[0]).to(self.device))
                 print(f"Epoche {epoch} done. \nSigma = {sigma}, mmd2={best_mmd2}.")
-                self.plot_imgs(self.generator(self.z, self.z_labels).detach(), f"epoch={epoch}", compare_data=input_data)#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
+                self.plot_imgs(self.generator(self.z, self.z_labels).detach(), f"epoch={epoch}", compare_data=input_data, compare_labels=labels)#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
                 #self.tsne_pca(epoch, fake_data=self.generator(self.z, self.z_labels).detach(), real_data=input_data)
                 self.save_checkpoint(epoch)
     def adversarial_loss(self, y_hat, y):
@@ -161,6 +177,12 @@ class SequenceTrainer:
 
     def train_RCdiscriminator(self, input_data, labels):
         self.optimizer_d.zero_grad()
+        # Smoothing the original signal -> convolution with window_size, and mean-kernel
+        conv_real = self.conv_signal(input_data, kernel_size=self.conv_window)
+        #Gradient-Tensor berechnen
+        gradients_real = torch.diff(conv_real, dim=1)
+        gradients_real = torch.cat([torch.zeros_like(gradients_real[:, :1, :]), gradients_real], dim=1)
+
         # How well can it label as real
         #Torch.diff als weiteren Input
         y_hat_real = self.discriminator(input_data, labels)
@@ -178,6 +200,10 @@ class SequenceTrainer:
 
         #----------------Testing generating labels----------------------------------------------------------------------
         gen_output = self.generator(self.z, self.z_labels).detach()
+        conv_fake = self.conv_signal(gen_output, kernel_size=self.conv_window)
+        gradients_fake = torch.diff(conv_fake, dim=1)
+        gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
+
         y_hat_fake = self.discriminator(gen_output, self.z_labels) #Todo: Hier auch die generierten Labels???
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
@@ -320,14 +346,16 @@ class SequenceTrainer:
         plt.savefig(f'{self.savepath}\PCA_TSNE_epoch{epoch}.jpg')
         plt.close()
 
-    def plot_imgs(self, data, filename, compare_data=None):
+    def plot_imgs(self, data, filename, compare_data=None, compare_labels = None):
         frequency = 250
         time_axis = np.arange(0, data.shape[1] / frequency, 1 / frequency)
         data = data.cpu().numpy()
 
-        if compare_data is not None:
+        if compare_data is not None and compare_labels is not None:
             compare_data = compare_data.cpu().numpy()
             fig, ((ax1, ax3), (ax2, ax4)) = plt.subplots(2, 2, sharex=True, sharey=True)
+            micsac3 = compare_labels[0,:].squeeze().cpu().numpy()
+            micsac4 = compare_labels[1,:].squeeze().cpu().numpy()
             x3 = compare_data[0, :, 0]
             y3 = compare_data[0, :, 1]
             x4 = compare_data[1, :, 0]
@@ -336,12 +364,16 @@ class SequenceTrainer:
             # Dritter Plot (oben rechts)
             ax3.plot(time_axis, x3, label='X')
             ax3.plot(time_axis, y3, label='Y')
+            ax3.scatter(time_axis[micsac3 == 1], x3[micsac3 == 1], marker='x', color='red', label='Mikrosakkade')
+            ax3.scatter(time_axis[micsac3 == 1], y3[micsac3 == 1], marker='x', color='red')
             ax3.set_ylabel('Vergleichsdaten 1')
             ax3.legend()
 
             # Vierter Plot (unten rechts)
             ax4.plot(time_axis, x4, label='X')
             ax4.plot(time_axis, y4, label='Y')
+            ax4.scatter(time_axis[micsac4 == 1], x4[micsac4 == 1], marker='x', color='red', label='Mikrosakkade')
+            ax4.scatter(time_axis[micsac4 == 1], y4[micsac4 == 1], marker='x', color='red')
             ax4.set_ylabel('Vergleichsdaten 2')
             ax4.set_xlabel('Zeit in Sekunden [s]')
             ax3.set_xticks(np.arange(0, compare_data.shape[1] / frequency + 1, 1))
@@ -355,16 +387,29 @@ class SequenceTrainer:
         x2 = data[1, :, 0]
         y1 = data[0, :, 1]
         y2 = data[1, :, 1]
+        if str(self.GANtype) == "RCGAN":
+            #Wenn RCGAN dann positionen der Mikrosakkaden plotten
+            micsac1 = self.z_labels[0,:].squeeze().cpu().numpy()
+            micsac2 = self.z_labels[1,:].squeeze().cpu().numpy()
+        else:
+            micsac1, micsac2 = None, None
+
 
         # Erster Plot (oben links oder einziger Plot oben)
         ax1.plot(time_axis, x1, label='X')
         ax1.plot(time_axis, y1, label='Y')
+        if micsac1 is not None:
+            ax1.scatter(time_axis[micsac1 == 1], x1[micsac1 == 1], marker='x', color='red', label='Mikrosakkade')
+            ax1.scatter(time_axis[micsac1 == 1], y1[micsac1 == 1], marker='x', color='red')
         ax1.set_ylabel('Beispiel 1')
         ax1.legend()
 
         # Zweiter Plot (unten links oder einziger Plot unten)
         ax2.plot(time_axis, x2, label='X')
         ax2.plot(time_axis, y2, label='Y')
+        if micsac2 is not None:
+            ax2.scatter(time_axis[micsac2 == 1], x2[micsac2 == 1], marker='x', color='red', label='Mikrosakkade')
+            ax2.scatter(time_axis[micsac2 == 1], y2[micsac2 == 1], marker='x', color='red')
         ax2.set_ylabel('Beispiel 2')
         ax2.set_xlabel('Zeit in Sekunden [s]')
         ax1.set_xticks(np.arange(0, data.shape[1] / frequency + 1, 1))
