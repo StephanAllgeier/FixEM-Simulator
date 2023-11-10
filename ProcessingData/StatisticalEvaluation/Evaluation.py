@@ -305,7 +305,7 @@ class Evaluation():
 
 
 
-        plt.savefig(f"{str(json_filepath)[:-5]}_{range}_histogram.jpeg", dpi=350)
+        plt.savefig(f"{str(json_filepath)[:-5]}_{range}_histogram.jpeg", dpi=600)
         plt.close()
 
     @staticmethod
@@ -724,7 +724,7 @@ def dual_hist_subplot_w_histdiff_log(varlist1, varlist2_1, varlist2_2, label1, l
     # Fette Schrift für HD-Zelle
     table1[(0, 0)].set_text_props(fontweight='bold')
 
-    table_data = [[f"HD={round(histdiff_1, 3)}",  "Mittelwert", "Median", "Standardabw."],
+    table_data = [[f"HD={round(histdiff_2, 3)}",  "Mittelwert", "Median", "Standardabw."],
                   [label1, round(mean1, 3), round(median1, 3), round(stdev1, 3)],
                   ['Math. Modell', round(mean2_2, 3), round(median2_2, 3), round(stdev2_2, 3)]
                   ]
