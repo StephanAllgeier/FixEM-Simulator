@@ -136,8 +136,6 @@ class RCGANDiscriminator(RGANDiscriminator):
         #y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
         y_emb = self.label_embeddings(y_tiled)
 
-        #TODO: y_emb kann hier berechnet werden, ruft aber einen Error hervor, wenn ich versuche ihn anzuschauen, WIESO?!!!!!!!
-
         # shape: (batch-size, sequence_length, label_embedding_size + hidden_size)
         x_cond = torch.cat((x, y_emb), dim=2)
 
