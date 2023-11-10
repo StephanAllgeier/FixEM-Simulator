@@ -89,7 +89,7 @@ class SequenceTrainer:
 
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
-                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)
+                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)#torch.full(shape,wert)
                 self.z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
                 input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
                 # Trainiere den Discriminator ncritic mal
@@ -105,7 +105,7 @@ class SequenceTrainer:
                 sigma, best_mmd2 = self.perform_sigma_grid_search(epoch, sigma, fake_labels=dataloader.rand_batch_labels(self.vali_set.shape[0]).to(self.device))
                 print(f"Epoche {epoch} done. \nSigma = {sigma}, mmd2={best_mmd2}.")
                 self.plot_imgs(self.generator(self.z, self.z_labels).detach(), f"epoch={epoch}", compare_data=input_data)#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
-                self.tsne_pca(epoch, fake_data=self.generator(self.z, self.z_labels).detach(), real_data=input_data)
+                #self.tsne_pca(epoch, fake_data=self.generator(self.z, self.z_labels).detach(), real_data=input_data)
                 self.save_checkpoint(epoch)
     def adversarial_loss(self, y_hat, y):
         criterion = nn.BCEWithLogitsLoss()
@@ -162,6 +162,7 @@ class SequenceTrainer:
     def train_RCdiscriminator(self, input_data, labels):
         self.optimizer_d.zero_grad()
         # How well can it label as real
+        #Torch.diff als weiteren Input
         y_hat_real = self.discriminator(input_data, labels)
         y_real = torch.ones(y_hat_real.shape, dtype=y_hat_real.dtype).to(self.device)
         real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
@@ -229,7 +230,7 @@ class SequenceTrainer:
             self.best_epoch = epoch
         return best_sigma, best_mmd2
 
-    def perform_sigma_grid_search(self, epoch, sigma_values):
+    def perform_sigma_grid_search(self, epoch, sigma_values, fake_labels=None):
         best_sigma = None
         best_mmd2 = 1000
         real_sample = self.vali_set
@@ -253,15 +254,12 @@ class SequenceTrainer:
             if current_mmd2 < best_mmd2 and current_mmd2 > 0:
                 best_mmd2 = current_mmd2
                 best_sigma = sigma
-                if epoch > 10:
+                if epoch > 10 and best_mmd2 < self.best_mmd2:
                     self.best_mmd2 = best_mmd2
                     self.best_epoch = epoch
 
         self.mmd2.append(float(best_mmd2))
         return best_sigma, best_mmd2
-
-    def save_model(self):
-        print('')
 
     def save_checkpoint(self, epoch):
         checkpoint = {
