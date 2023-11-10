@@ -1,6 +1,7 @@
 import itertools
 import json
 import statistics
+from pathlib import Path
 
 import pandas as pd
 import openpyxl
@@ -86,18 +87,21 @@ def save_combination_evaluation_to_json(combinations=None, folder_to_save_to=Non
     all_data = []
     j=0
     for comb in combinations_to_eval:
+
         j+=1
         comb_micsac_amp = []
         comb_intermic_dur = []
         comb_micsacs = []
+        simulation_rate = comb[0]
+        cells_per_deg = comb[1]
+        relaxation_rate = comb[2]
+        hc = comb[3]
+        if Path(fr'{folder_to_save_to}\AmpDurNum_simrate={str(simulation_rate)},Cells={str(cells_per_deg)},relaxationrate={str(relaxation_rate)},hc={str(hc)}_n={n}.json').is_file():
+            continue
         for i in range(n):
-            simulation_rate = comb[0]
-            cells_per_deg = comb[1]
-            relaxation_rate = comb[2]
-            hc = comb[3]
             micsac_amp, intermic_duration, num_of_micsac = RandomWalkBased.RandomWalk.randomWalk(
                 simulation_freq=simulation_rate, potential_resolution=cells_per_deg, relaxation_rate=relaxation_rate,
-                hc=hc, duration=30, sampling_frequency=500, number_id=i)
+                hc=hc, duration=40, sampling_frequency=500, number_id=i)
             comb_micsac_amp.extend(micsac_amp)
             comb_intermic_dur.extend(intermic_duration)
             comb_micsacs.extend([num_of_micsac])
@@ -171,7 +175,7 @@ def alt():
 
 
 if __name__ == '__main__':
-    excel_file=r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\Parameterinput gefiltert 0.8-0.9.xlsx"
+    excel_file=r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Parametertuning_Ergebnisse_0.3-0.9_gefiltert.xlsx"
     combinations = get_combination_from_excel(excel_file)
-    folder_to_save_to = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s"
+    folder_to_save_to = r"C:\Users\uvuik\Desktop\TestOrdner40s"
     save_combination_evaluation_to_json(combinations=combinations, folder_to_save_to=folder_to_save_to)
