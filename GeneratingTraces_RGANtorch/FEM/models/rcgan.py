@@ -34,7 +34,7 @@ class RCGANGenerator(RGANGenerator):
         # Defaults
         label_embedding_size = label_embedding_size or num_classes
         if prob_classes is None:
-            prob_classes  = torch.ones(num_classes)
+            prob_classes = torch.ones(num_classes)
 
         #TODO(dsevero): this could cause problems
         kwargs['input_size'] = label_embedding_size + noise_size
@@ -52,6 +52,7 @@ class RCGANGenerator(RGANGenerator):
         # Initialize all weights.
         # Already initialized in parent class
 
+    '''
     def forward(self, z):
         # shape: (batch-size, sequence_length, noise_size)
         labels_generator = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(z.device)
@@ -64,7 +65,7 @@ class RCGANGenerator(RGANGenerator):
         return output_generator, labels_generator
     #TODO: DIE FUNKTION oben HAT FUNKTIONIERT. Jetzt wird getestet...
     '''
-    def forward(self, z, y):
+    def forward(self, z, y, reshape=True):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
@@ -77,13 +78,14 @@ class RCGANGenerator(RGANGenerator):
         y_emb = self.label_embeddings(y_tiled)
 
         # shape: (batch-size, sequence_length, noise_size)
-        z = z.view(-1, self.sequence_length, self.noise_size)
+        if reshape:
+            z = z.view(-1, self.sequence_length, self.noise_size)
 
         # shape: (batch-size, encoding_dims)
         z_cond = torch.cat((z, y_emb), dim=2)
         # shape: (batch-size, sequence_length, output_size)
         return super(RCGANGenerator, self).forward(z_cond, reshape=False)
-    '''
+
 
 
     def sampler(self, sample_size, device='cuda'):
