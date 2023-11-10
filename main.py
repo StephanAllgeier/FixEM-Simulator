@@ -19,54 +19,18 @@ from ProcessingData.StatisticalEvaluation.FixationalEyeMovementDetection import 
 
 
 class DatasetConstants:
-    def __init__(self, dataset_name):
-        if dataset_name == "Roorda":
-            self.Name = "Roorda"
-            self.f = 1920
-            self.x_col = 'xx'
-            self.y_col = 'yy'
-            self.time_col = 'TimeAxis'
-            self.ValScaling = 1 / 60
-            self.TimeScaling = 1
-            self.BlinkID = 3
-            self.Annotations = 'Flags'
-            self.file_pattern = "\d{5}[A-Za-z]_\d{3}\.csv"
-            self.rm_blink = False
-        elif dataset_name == "GazeBase":
-            self.Name = "GazeBase"
-            self.f = 1000
-            self.x_col = 'x'
-            self.y_col = 'y'
-            self.time_col = 'n'
-            self.ValScaling = 1
-            self.TimeScaling = 1 / 1000
-            self.BlinkID = -1
-            self.Annotations = 'lab'
-            self.rm_blink = False
-            self.SakkID = 2  # Einheiten für y-Koordinate sind in dva (degrees of vision angle)
-        elif dataset_name == "GazeBase_arcmin":
-            self.Name = "GazeBase"
-            self.f = 1000
-            self.x_col = 'x'
-            self.y_col = 'y'
-            self.time_col = 'n'
-            self.ValScaling = 1/60
-            self.TimeScaling = 1 / 1000
-            self.BlinkID = -1
-            self.Annotations = 'lab'
-            self.rm_blink = False
-            self.SakkID = 2  
-        elif dataset_name == "OwnData":
-            self.Name = "OwnData"
-            self.f = 500
-            self.x_col = 'x'
-            self.y_col = 'y'
-            self.time_col = 'Time'
-            self.ValScaling = 1
-            self.TimeScaling = 1
-            self.BlinkID = None
-            self.Annotations = 'lab'
-            self.rm_blink = False
+    def __init__(self, name, f, x_col, y_col, time_col, val_scaling, time_scaling, blink_id, annotations, rm_blink=False, sakk_id=None):
+        self.Name = name
+        self.f = f
+        self.x_col = x_col
+        self.y_col = y_col
+        self.time_col = time_col
+        self.ValScaling = val_scaling
+        self.TimeScaling = time_scaling
+        self.BlinkID = blink_id
+        self.Annotations = annotations
+        self.rm_blink = rm_blink
+        self.SakkID = sakk_id
 
 def get_constants(dataset_name):
     if dataset_name == "Roorda":
@@ -80,8 +44,6 @@ def get_constants(dataset_name):
     elif dataset_name == "OwnData":
         return {"Name": "OwnData", "f": 500, "x_col": 'x', "y_col": 'y', "time_col": 'Time', "ValScaling": 1,
                 "TimeScaling": 1, 'BlinkID': None, 'Annotations': 'lab', 'rm_blink': False}
-
-
 def read_allgeier_data(folder_path, filenr=0):
     files = list(glob.glob(folder_path + "/*.txt"))
     # Create Dataframe
@@ -90,7 +52,6 @@ def read_allgeier_data(folder_path, filenr=0):
                   "y_µm": 'y_µm', "time_col": 't', "ValScaling": 1, "TimeScaling": 1,
                   'BlinkID': None, 'Annotations': None, 'file_pattern': "/.+\.txt", 'rm_blink': False}
     return df, const_dict
-
 
 def plot_ds_comparison(df1, const1, df2, const2):
     name1 = const1['Name']
@@ -103,7 +64,6 @@ def plot_ds_comparison(df1, const1, df2, const2):
     Vis.plot_xy_µm(df2, const2, color=['orange', 'red'], labels=[f'x_{name2}', f'y_{name2}'])
     print('Done')
 
-
 def get_files_with_pattern(folder_path, pattern):
     file_list = []
     regex_pattern = re.compile(pattern)
@@ -112,7 +72,6 @@ def get_files_with_pattern(folder_path, pattern):
         if os.path.isfile(file_path) and regex_pattern.match(filename):
             file_list.append(file_path)
     return file_list
-
 
 def get_csv_files_in_folder(folder_path):
     csv_files = []
@@ -136,6 +95,25 @@ def save_dict_to_excel(data_dict, file_path):
     df.index.name = 'Key'
     df.to_excel(file_path)
 
+def label_micsac(folderpath,const_dict, mindur, vfac):
+    files_pattern = rf"{folderpath}\*.csv"
+    files = glob.glob(files_pattern)
+    for file in files:
+        df = pd.read_csv(Path(file))
+        df['flags'] = 0
+        micsac = Microsaccades.find_micsac(df, const_dict, mindur=mindur, vfac=vfac)
+        micsac_list = micsac[0]
+        micsac_onsets = [microsac[0] for microsac in micsac_list]
+        micsac_offsets = [microsac[1] for microsac in micsac_list]
+        assert len(micsac_onsets) == len(micsac_offsets), 'UNGLEICH LANG'
+        for onset, offset in zip(micsac_onsets, micsac_offsets):
+            df.loc[onset:offset, 'flags'] = 1
+        #speichern
+        df_filtered = df.iloc[:, 1:]
+        df_filtered.to_csv(file)
+
+
+        print(f"Es wurden {len(micsac[0])} Mikrosakkaden gefunden in einem Zeitraum von {len(df)/const_dict['f']}s")
 
 def detect_all_micsac(folderpath, const_dict, mindur, vfac, resample=False, rs_freq=1000, save=False):
     files = get_files_with_pattern(Path(folderpath), pattern=const_dict['file_pattern'])
@@ -154,13 +132,12 @@ def detect_all_micsac(folderpath, const_dict, mindur, vfac, resample=False, rs_f
         blink_rm, const_dict = Interpolation.remove_blink_annot(df, const_dict)
         micsac_annot = Microsaccades.get_roorda_micsac(blink_rm)
         print(f'Es wurden {len(micsac_detec[0])} detektiert.\nEigentlich sind {len(micsac_annot)} vorhanden.')
-        detected_micsac[Path(file).stem] = len(micsac_annot)  # (micsac_detec[0])
+        detected_micsac[Path(file).stem] = len(micsac_detec[0])  # (micsac_detec[0])
     if save:
         print('Evaluation done')
-        data_name = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\MicSacDetected.xlsx"
+        data_name = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\MicSacDetected_new.xlsx"
         save_dict_to_excel(detected_micsac, data_name)
     return data, micsac_detec[0]
-
 
 def get_json_file(folderpath):
     json_files = []
@@ -186,8 +163,8 @@ def evaluate_all_hist():
         r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50")
     # for file in all_json:
     #    Evaluation.Evaluation.evaluate_json_hist(file)
-def Evaluate_intermic_hist(json_path):
-    Evaluation.Evaluation.generate_histogram_with_logfit(json_path, range = (0,4))
+def evaluate_intermic_hist(json_path, rangelim = 2.5):
+    Evaluation.Evaluation.generate_histogram_with_logfit(json_path, range = (0,rangelim))
 
 def remove_blink_gb(data_inp, const_gb, timecutoff):
     data = data_inp.iloc[1000:]
@@ -220,14 +197,15 @@ def augmentation():
         removed_blink = remove_blink_gb(data, const_gb, 15)
         #remove_blink, const_gb = Interpolation.remove_blink_annot(data, const_roorda)
         new_cols = {const_gb['x_col']:'x', const_gb['y_col']:'y', const_gb['Annotations']:'flags'}
+        removed_blink[const_gb['Annotations']] = 2
         b = Augmentation.flip_dataframe(removed_blink, const_gb).rename(columns=new_cols)
         c = Augmentation.reverse_data(removed_blink,const_gb).rename(columns=new_cols)
         folderpath = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase"
         removed_blink = removed_blink.rename(columns=new_cols)
         removed_blink.to_csv(fr"{folderpath}\{Path(file).stem}.csv")
         #a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
-        b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
-        c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
+        #b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
+        #c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
     print(removed_blink.columns, b.columns, c.columns)
     print("done")
 
@@ -281,7 +259,7 @@ def get_best_HD(folderpath_to_jsons,variable, compare_json_file, normalize_01, o
         cells =split_element[1].split('=')[1]
         relax =split_element[2].split('=')[1]
         hc = split_element[3].split('=')[1]
-        file_name = rf'C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TIMEOUT_0.015s\AmpDurNum_simrate={simrate},Cells={cells},relaxationrate={relax},hc={hc}_n=50.json'
+        file_name = rf'{folderpath_to_jsons}\AmpDurNum_simrate={simrate},Cells={cells},relaxationrate={relax},hc={hc}_n=50.json'
         hd = round(element[1], 3)
         with open(file_name, 'r') as open_file2:
             data2 = json.load(open_file2)[variable]
@@ -295,9 +273,9 @@ def get_best_HD(folderpath_to_jsons,variable, compare_json_file, normalize_01, o
 
         shutil.copyfile(Path(file_name), new_file_path)
     df = pd.DataFrame(my_list, columns=columns)
-    excel_datei = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\ParameterInput_IntermicDur_0.3-0.9.xlsx"
+    excel_datei = rf"{folderpath_to_jsons}\ParameterInput_IntermicDur_SimDur=30s.xlsx"
     df.to_excel(excel_datei, index=False)
-    csv_datei = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\ParameterInput_IntermicDur_0.3-0.9.csv"
+    csv_datei = rf"{folderpath_to_jsons}\ParameterInput_IntermicDur_SimDur=30s.csv"
     df.to_csv(csv_datei, index=False)
 
 
@@ -332,7 +310,7 @@ def merge_excel(file1_path, file2_path, output_path):
     except Exception as e:
         print(f"Fehler beim Mergen der Excel-Dateien: {str(e)}")
 
-def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel):
+def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, label1, label2):
     with open(
             compare_filepath,
             'r') as comp:
@@ -344,8 +322,8 @@ def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel):
     hist_bins = 50
     savefigpath = file1
     savefig = f"{Path(savefigpath).parent}/DualHistogramLog_intermicsac.jpeg"
-    Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, 'Roorda Lab', '(f_sim=200Hz, L=51, epsilon=0.08, h_crit=5.4)', savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
-    Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, 'Roorda Lab', '(f_sim=150Hz, L=21, epsilon=0.085, h_crit=8.9)', '(f_sim=100Hz, L=21, epsilon=0.1, h_crit=6.9)', savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
+    Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, 'Roorda Lab', label1, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
+    Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, 'Roorda Lab', label1, label2, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
 def create_histogram_w_HD(compare_filepath, folderpath, feature, xlabel, dataset1name, dataset2name):
     with open(
             compare_filepath,
@@ -363,147 +341,115 @@ def create_histogram_w_HD(compare_filepath, folderpath, feature, xlabel, dataset
         savefig = f"{savefigpath[:-5]}_histogram_intermicsac.jpeg"
         if not Path(savefig).is_file():
             Evaluation.Evaluation.dual_hist_w_histdiff(compare_data, intermic_dur,dataset1name, dataset2name, savefigpath, xlabel,range_limits=(0, 2.5), normalize_01=False)
+def get_micsac_ang(folderpath, const_dict, ms_flag, drift_flag):
+    files = []
+    for filename in os.listdir(folderpath):
+        if filename.endswith(".csv"):
+            file_path = os.path.join(folderpath, filename)
+            files.append(file_path)
+    angles = []
+    for file_path in files:
+        df = pd.read_csv(file_path)
+        onset_indices = []
+        offset_indices = []
+        amplitudes_x = []
+        amplitudes_y = []
+        try:
+            for index,row in df.iterrows():
+                if row['Flags'] == ms_flag and df.loc[index - 1, 'Flags'] == 2:
+                    onset_indices.append(index)
+                elif row['Flags'] == drift_flag and onset_indices:
+                    onset_index = onset_indices.pop()
+                    # Finde den Offset-Index als die letzte 1 in der Serie von 1en nach dem Onset
+                    offset_index = df[df.index > onset_index]['Flags'].eq(2).idxmax() -1
+                    microsaccade_df = df.loc[onset_index:offset_index]
+
+                    max_x_index = microsaccade_df['xx'].idxmax()
+                    min_x_index = microsaccade_df['xx'].idxmin()
+                    max_y_index = microsaccade_df['yy'].idxmax()
+                    min_y_index = microsaccade_df['yy'].idxmin()
+
+                    # Überprüfe die Indizes von Maxima und Minima und passe das Vorzeichen an
+                    amplitude_x = microsaccade_df.loc[max_x_index, 'xx'] - microsaccade_df.loc[min_x_index, 'xx']
+                    amplitude_y = microsaccade_df.loc[max_y_index, 'yy'] - microsaccade_df.loc[min_y_index, 'yy']
+
+                    # Überprüfe die Indizes von Maxima und Minima und passe das Vorzeichen an
+                    if max_x_index < min_x_index:
+                        amplitude_x *= -1
+                    if max_y_index < min_y_index:
+                        amplitude_y *= -1
+                    amplitudes_x.append(amplitude_x)
+                    amplitudes_y.append(amplitude_y)
+                    angle = np.arctan2(amplitude_y, amplitude_x) * 180 / np.pi
+                    angles.append(angle)
+        except Exception as e:
+            print(f"Fehler beim Verarbeiten der Datei {file_path}: {e}")
+            continue
+    return angles
+def plot_amplitude_hist(jsonpath):
+    with open(jsonpath, 'r') as fp:
+        data = json.load(fp)['MicsacAmplitudes']
+    Vis.plot_prob_dist(data, "Histogramm der Amplituden von Mikrosakkaden bei Blickfeldgröße 2°", "Amplitude in Grad [dva]")
+
 if __name__ == '__main__':
-    augmentation()
-    #roorda_file=    r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\10003L_004.csv"
-    #data = pd.read_csv(roorda_file)
-    #const_roorda = get_constants('Roorda')
-    #data, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
+    const_roorda = get_constants('Roorda')
+    const_gb = get_constants('GazeBase')
+    label_micsac(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase",const_dict=const_gb, mindur=6, vfac=10)
+    roorda_folder = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
+    i=0
+    '''
+    for file in roorda_files:
+        test_folder = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
+        data = pd.read_csv(file)
+        Vis.plot_xy(data, const_roorda, savepath=test_folder,filename = f"Original{i}")
+        print(len(data))
+        #remove blink
+        data, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
+        print(len(data))
+        #Vis.plot_xy(data, const_roorda, savepath=test_folder, filename = f"BlinkRemoved{i}")
+        #Ändern der Flags auf 0 für Drift
+        data[const_roorda['Annotations']] = np.where(data[const_roorda['Annotations']] == 2, 0, data[const_roorda['Annotations']])
+        new_cols = {const_roorda['x_col']: 'x', const_roorda['y_col']: 'y', const_roorda['Annotations']: 'flags'}
+        b = Augmentation.flip_dataframe(data, const_roorda).rename(columns=new_cols)
+        c = Augmentation.reverse_data(data, const_roorda).rename(columns=new_cols)
+        folderpath = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
+        data = data.rename(columns=new_cols)
+        data.to_csv(fr"{folderpath}\{Path(file).stem}.csv")
+        # a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
+        b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
+        c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
+    '''
+    folderpath = r""
 
-    #const_gb = get_constants('GazeBase')
-    #gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\GazeBase_v2_0\Fixation_Only\DVA\S_1004_S1_FXS.csv")
-    #gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
-    #gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
-    #fft, fftfreq = Filtering.fft_transform(gb_file, const_gb, 'x_col')
-    #Vis.plot_fft(fft, fftfreq)
-    #file = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur\HD=3.969_simulation_rate=150_CellsPerDegree=10_RelaxationRate=0.085_HCrit=8.9.json"
-    #with open(file, 'r') as fp:
-    #    data = json.load(fp)['MicsacAmplitudes']
-    #Vis.plot_prob_dist(data, "Histogramm der Amplituden von Mikrosakkaden bei Blickfeldgröße 2°", "Amplitude in Grad [dva]")
-
-    #merge_excel(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test1.xlsx", r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test2.xlsx",r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\Alt\test3")
-    #jsonfiles= get_json_file(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\TestOrdner GuiInput")
-    #roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    #const_roorda = get_constants('Roorda')
-    #speicherpfad_roorda = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json"
-    #create_histogram_w_HD(
-    #    r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
-    #    r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur",
-    #    'IntermicDur', 'Intermikrosakkadischer Abstand in Sekunden [s]', 'Roorda Lab', 'Math. Modell')
-    #get_best_HD(
-    #    r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s",
-    #    'IntermicDur',
-    #    r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
-    #    normalize_01=False, output_folder="BestHD_IntermicDur")
     create_histogram_dual_w_HD(
         r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
-        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur\HD=4.989_simulation_rate=200_CellsPerDegree=25_RelaxationRate=0.08_HCrit=5.4.json",
-        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json",'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]')
-
-
-
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=3.969_simulation_rate=150_CellsPerDegree=10_RelaxationRate=0.085_HCrit=8.9.json",
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json",
+        'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]', label1='(f_sim=150Hz, L=21, epsilon=0.085, h_crit=8.9)', label2='(f_sim=100Hz, L=21, epsilon=0.1, h_crit=6.9)')
+    #Functions for plotting Histograms
     create_histogram_w_HD(
         r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
-        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Timeout_0.015s\BestHD_IntermicDur",
-        'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]', 'Roorda Lab', 'Math. Modell')
+        r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation30s\BestHD_IntermicDur",
+        'IntermicDur', 'Intermikrosakkadischer Abstand in Sekunden [s]', 'Roorda Lab', 'Math. Modell')
+    get_best_HD(
+        r"C:\Users\uvuik\Desktop\TestOrdner40s",
+        'IntermicDur',
+        r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",
+        normalize_01=False, output_folder="BestHD_IntermicDur")
 
-
-
-
+    json_path = ""
+    evaluate_intermic_hist(json_path, 2.5)
     Evaluation.Evaluation.generate_histogram_with_logfit(folderpath, range=(0, 2.5), compare_to_roorda=True)
 
-    GB_to_arcmin(
-        r"E:\GazeBase Dataset\DVA")
-
-    gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1002_S1_FXS.csv")
-    gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
-    #gb_file, const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
-   #gb_file, const_gb = Interpolation.dva_to_arcmin(gb_file, const_gb)
-
-    roorda_test_file = pd.read_csv(
-        r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv")
-    const_roorda = get_constants("Roorda")
-    own_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=150.0_relaxationr=0.1\Bestes\7_Signal_NumMS=21.csv"
-    own_data = pd.read_csv(own_file)
-    own_dict = get_constants('OwnData')
-    save_path = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=150.0_relaxationr=0.1\Bestes\Vergleich Simulation Roorda"
-    Vis.plot_xy_dual(own_data, roorda_test_file, own_dict, const_roorda, 'Simulation', 'Roorda Lab', savepath=save_path, t_on=10, t_off=13, title='Augenbewegungen in x- und y-Koordinaten')
-    json_path = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\NeueKombinationen\AmpDurNum_simrate=150,Cells=25,relaxationrate=0.1,hc=3.9_n=50.json"
-    Evaluate_intermic_hist(json_path)
-    roorda_folder =r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    speicherpfad_roorda = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    const_roorda = get_constants('Roorda')
-    Evaluation.Evaluation.get_intermic_hist_dataset_rooda(folderpath=roorda_folder, speicherpfad=speicherpfad_roorda, const_dict=const_roorda)
-
-    # OWN DATA
-    #folder_path= r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50\Traces AmpDurNum_simrate=100,Cells=25,relaxationrate=0.09,hc=3.4\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=100.0_relaxationr=0.09"
-    # micsac_dur = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*intermic_dur.csv', 'Intermicsac Duration [s]')
-    # micsac_amp = read_all_values_from_csv(r"C:\Users\fanzl\PycharmProjects\MasterarbeitIAI\Test1\Test\dur=10.0_cells=25.0\SamplingF=1000.0_SimulationF=200.0", '*micsac_amp.csv', 'Micsac Amplitude [deg]')
-    #all_own_files = get_csv_files_in_folder(folder_path)
-    own_file =pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\hc_3,4,10-30s, n=50\dur=30.0_cells=25.0_SamplingF=500.0_SimulationF=100.0_relaxationr=0.09\2_Signal_NumMS=17.csv")
-    const_own = get_constants('OwnData')
-    roorda_test_file =  pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\20109R_003.csv")
-    const_roorda = get_constants("Roorda")
-    const_gb = get_constants('GazeBase')
-    gb_test_file = pd.read_csv(r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1006_S1_FXS.csv")
-    gb_file, const_gb = Interpolation.remove_blink_annot(gb_test_file, const_gb)
-    gb_file , const_gb = Interpolation.remove_sacc_annot(gb_file, const_gb)
-    Vis.plot_xy_dual(own_file, gb_file, const_own, const_gb, 'Eigene Daten', 'GazeBase', color1=None, color2=None, t_on=10, t_off=14)
-    '''
-    for file in all_own_files:
-
-        own_data = pd.read_csv(file)
-        x = own_data['x']
-        y = own_data['y']
-        f = 500
-        t = own_data['Time']
-        own_dict =get_constants('OwnData')
-        plt.plot(t, x, label='x', color='g')
-        plt.plot(t, y, label='y', color='b')
-        plt.xlabel('Zeit in s')
-        plt.ylabel('Auslenkung in Grad [°]')
-        plt.title('Test1')
-        plt.legend()
-        plt.show()
-        Vis.plot_xy_trace(own_dict)
-    own_micsacs = Microsaccades.find_micsac(own_data, own_dict)
-    roorda_data = pd.read_csv(roorda_test_file)
-    const_roorda = get_constants("Roorda")
-    roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
-    '''
-    #allgeier_folder = r"\\os.lsdf.kit.edu\iai-projects\iai-aida\Daten_Allgeier\fixational_eye_movement_trajectories"
-    
-    # gb_file = r"C:\Users\fanzl\bwSyncShare\Documents\GazeBase_v2_0\Fixation_Only\S_1006_S1_FXS.csv"
-    '''
-    gb_folder = ''
-    const_gb = get_constants('GazeBase')
-    gb_data = pd.read_csv(gb_file)
-    gb_data, const_gb = Interpolation.dva_to_arcmin(gb_data, const_gb)
-    #a, const_a = read_allgeier_data(allgeier_folder, 29)
-    #plot_ds_comparison(roorda_data, const_roorda, a, const_a)
-    blink_rm, const_dict = Interpolation.remove_blink_annot(roorda_data, const_roorda)
-    #micsac_detec = Microsaccades.find_micsac(a, const_roorda)
-    #intermicsac, dur, amplitudes, velocity = Evaluation.get_micsac_statistics(a, const_roorda, micsac_detec)
-    #Evaluation.plot_prob_dist(intermicsac, 'Intermikrosakkadischer Abstand')
-    #Evaluation.plot_prob_dist(dur, 'Dauer der jeweiligen Mikrosakkaden')
-    #Evaluation.plot_prob_dist(amplitudes, 'Amplituden der Mikrosakkaden in arcmin')
-    #Evaluation.plot_prob_dist(velocity, 'Geschwindigkeiten in arcmin/s')
-    #b = Evaluation.intermicrosacc_len(a, const_roorda, micsac_detec)
-    #micsac_annot = Microsaccades.get_roorda_micsac(a)
-    #b2 = Evaluation.intermicrosacc_len(const_roorda, micsac_annot)
-    #Plot both
-    #Vis.plot_microsacc(a, const_roorda, title='Eye Trace in x- and y-Position', micsac=micsac_detec,
-    #                   micsac2=micsac_annot,
-    #                   color=['orange', 'blue', 'green', 'red', 'grey', 'black'], thickness=2,
-    #                   legend=['x', 'y', 'Onset detect', 'Offset detect', 'Onset annot', 'Offset annot'])
-
-    #Vis.plot_xy(blink_rm[0:round(6000/1000*const_roorda['f'])],const_roorda,color=['b','orange'], labels=['x-Achse', 'y-Achse'], title='Menschliche Augenbewegung während der Fixation')
-    drift_only_wo_micsac = EventDetection.drift_only_wo_micsac(blink_rm, const_dict)
-    drift_only = EventDetection.drift_only(blink_rm, const_dict)
-    drift_interpolated = EventDetection.drift_interpolated(blink_rm, const_dict)
-    tremor_only = EventDetection.tremor_only(blink_rm, const_dict)
-    filtered_drift = EventDetection.drift_only(blink_rm, const_dict)
-    micsac_only = EventDetection.micsac_only(blink_rm, const_dict)
+    const_dict = ""
+    data = ""
+    drift_only_wo_micsac = EventDetection.drift_only_wo_micsac(data, const_dict)
+    drift_only = EventDetection.drift_only(data, const_dict)
+    drift_interpolated = EventDetection.drift_interpolated(data, const_dict)
+    tremor_only = EventDetection.tremor_only(data, const_dict)
+    filtered_drift = EventDetection.drift_only(data, const_dict)
+    micsac_only = EventDetection.micsac_only(data, const_dict)
     #Evaluate all
     all_micsac_amp = []
     all_intermicsac = []
@@ -513,6 +459,7 @@ if __name__ == '__main__':
     all_drift_vel = []
     all_tremor_amp = []
     all_tremor_vel = []
+    roorda_files = ""
     for file in roorda_files:
         data = pd.read_csv(file)
         #Get Resolution
@@ -542,10 +489,9 @@ if __name__ == '__main__':
     print('Done')
     all_statistics = (all_micsac_amp, all_intermicsac, all_micsac_dur, all_micsac_vel, all_drift_amp, all_drift_vel, all_tremor_amp, all_tremor_vel)
     max_length = max(len(lst) for lst in all_statistics)
-'''
-    # with open(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Statistics(mindur=10,vfac=21).csv", 'w',
-    #     newline='') as csvfile:
-    '''
+
+    with open(r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\Statistics(mindur=10,vfac=21).csv", 'w',
+         newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(
             ['all_micsac_amp', 'all_intermicsac', 'all_micsac_dur', 'all_micsac_vel', 'all_drift_amp', 'all_drift_vel',
@@ -580,28 +526,19 @@ if __name__ == '__main__':
     Vis.plot_fft(fft, fftfreq)
     Vis.plot_xy(filtered_drift, const_roorda)
 
-
-
-
-
-
-
-    gb_data = pd.read_csv(gb_file)
-
-    Vis.plot_xy_trace(roorda_data[0:8000], const_roorda, label='Eye trace', color='orange')
-    #data = gb_data
-    #const_dict = const_gb
-    '''
     # Working with Roorda_data
     # roorda_folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
-    # df, micsac = detect_all_micsac(roorda_folder, mindur=10, vfac=21, const_dict=const_roorda,resample=False, save=True)
+    folder = r"C:\Users\fanzl\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    df, micsac = detect_all_micsac(folder, mindur=10, vfac=21, const_dict=const_roorda,resample=False, save=True)
     # Visualize both:
     # Vis.plot_xy(data, const_dict)
     # Vis.plot_xy(data, const_dict, colors=['red', 'orange'], labels=['x Roorda', 'y Roorda'])
     # Vis.plot_xy(gab_data, const_gb, colors=['blue', 'violet'], labels=['x GazeBase', 'y GazeBase'])
 
-    # Microsaccades according to Roorda:    roorda_micsac = Microsaccades.get_roorda_micsac(roorda_data)
-    # Vis.print_microsacc(roorda_data, const_roorda, roorda_micsac)
+    #Microsaccades according to Roorda:
+    roorda_micsac = Microsaccades.get_roorda_micsac(data)
+    Vis.print_microsacc(data, const_roorda, roorda_micsac)
+
     '''
     # Filtering Bandpass
     Drift_c = EventDetection.filter_drift(cubic, const_dict)
@@ -610,11 +547,4 @@ if __name__ == '__main__':
     Tremor_p = EventDetection.filter_tremor(piece_poly, const_dict)
     Drift = EventDetection.filter_drift(spliced, const_dict)
     Tremor = EventDetection.filter_tremor(spliced, const_dict)
-
-    #Plotting Tremor/Drift and belonging Frequencie Spectrum
-
-    fft2, fftfreq2 = Filt.fft_transform(Drift, const_dict, 'x_col')
-    Vis.plot_fft(fft2, fftfreq2)
-    micsacc = EventDetection.find_micsacc(spliced, const_dict, mindur=12)
     '''
-#    Vis.print_microsacc(spliced, const_dict, micsacc)
