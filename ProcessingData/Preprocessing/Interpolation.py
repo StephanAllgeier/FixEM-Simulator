@@ -5,6 +5,8 @@ import pandas as pd
 import scipy
 from scipy import signal
 
+from ProcessingData.Preprocessing.Filtering import Filtering
+
 
 class Interpolation():
     @staticmethod
@@ -80,27 +82,40 @@ class Interpolation():
         return data_frame, const_dict
 
     @staticmethod
-    def remove_blink_annot(df, const_dict):
+    def remove_blink_annot(df, const_dict, cutoff=0.015):
         data_frame = copy.deepcopy(df)
         blink_idx = df[df[const_dict['Annotations']] == const_dict['BlinkID']].index
         current_sublist = []
         indexes = []
+
         for i in range(len(blink_idx)):
             if i == 0 or blink_idx[i] != blink_idx[i - 1] + 1:
                 if current_sublist:
-                    indexes.append(current_sublist)
+                    # Entferne x ms vor und nach dem Blinken
+                    start = max(0, current_sublist[0] - int(const_dict['f'] * cutoff))
+                    end = min(len(data_frame), current_sublist[-1] + int(const_dict['f'] * cutoff))
+                    indexes.extend(range(start, end))
                 current_sublist = [blink_idx[i]]
             else:
                 current_sublist.append(blink_idx[i])
 
         # Füge die letzte Teil-Liste hinzu, falls vorhanden
         if current_sublist:
-            indexes.append(current_sublist)
-        for liste in indexes:
-            data_frame = data_frame.drop(liste)
+            start = max(0, current_sublist[0] - int(const_dict['f'] * cutoff))
+            end = min(len(data_frame), current_sublist[-1] + int(const_dict['f'] * cutoff))
+            indexes.extend(range(start, end))
+
+
+        data_frame = data_frame.drop(indexes)
+
+        # Setze den Index neu
         data_frame = data_frame.reset_index(drop=True)
+
+        # Aktualisiere die Zeitspaltenwerte im DataFrame
         data_frame[const_dict['time_col']] = data_frame.index / const_dict['f']
+        # Setze das Flag für entfernte Blinzelungen
         const_dict['rm_blink'] = True
+
         return data_frame, const_dict
 
     @staticmethod
