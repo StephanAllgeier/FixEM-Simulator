@@ -18,29 +18,7 @@ from GeneratingTraces_RGANtorch.FEM import make_logger
 from GeneratingTraces_RGANtorch.FEM.dataimport import TimeSeriesFEM
 logger = make_logger(__file__)
 
-def main():
-    opt = {
-        "lr": 0.001,
-        "epochs": 3000,
-        "ncritic": 3,
-        "batch_size": 32,
-        "dataset_transform": 'normalize',
-        "signals": 2,
-        "gen_dropout": 0.2,
-        "noise_size": 20,
-        "hidden_size": 100,
-        'num_layers': 2,
-        "flag": 'train',
-        "slice_length": 2,
-        "no_mean": True,
-        'type': 'RCGAN',
-        'savepath': r"C:\Users\uvuik\Desktop\Torch\RCGAN_RandomLabels_DlossDoubleTest",
-        'split': [0.8, 0.1, 0.1],
-        'label_embedding_size': 5,
-        'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
-        'eval_interval': 20,
-        'resample_freq': 250
-    }
+def main(opt):
     if not os.path.exists(opt['savepath']):
         os.makedirs(opt['savepath'])
         print(f"Der Ordner {opt['savepath']} wurde erstellt.")
@@ -152,7 +130,7 @@ def main():
     logger.info(trainer.generator)
     logger.info(trainer.discriminator)
     #Generator = trainer.generator, Diskriminator = trainer.diskriminator
-
+    '''
     df_synth, X_synth, y_synth = synthesis_df(trainer.generator, dataset)
 
     logger.info(df_synth.sample(10))
@@ -170,7 +148,7 @@ def main():
     trainer_tstr = tstr(X_synth, y_synth, X, y, epochs=3_000, batch_size=batch_size)
     log_model(trainer_class.model, 'models/classifier')
     log_model(trainer_tstr.model, 'models/tstr')
-
+    '''
 
 if __name__ == '__main__':
     with mlflow.start_run():
@@ -181,4 +159,54 @@ if __name__ == '__main__':
             else:
                 DEVICE = torch.device("cpu")
             logger.info(f'Running on device {DEVICE}')
-            main()
+            parameters_to_try = [
+                {"lr": 0.005, "batch_size": 48, "hidden_size": 150},
+                {"lr": 0.01, "batch_size": 48, "hidden_size": 150},
+                {"lr": 0.0005, "batch_size": 32, "hidden_size": 100},
+                {"lr": 0.001, "batch_size": 32, "hidden_size": 100},
+                {"lr": 0.002, "batch_size": 32, "hidden_size": 100},
+                {"lr": 0.005, "batch_size": 32, "hidden_size": 100},
+                {"lr": 0.01, "batch_size": 32, "hidden_size": 100},
+                {"lr": 0.0005, "batch_size": 48, "hidden_size": 100},
+                {"lr": 0.001, "batch_size": 48, "hidden_size": 100},
+                {"lr": 0.002, "batch_size": 48, "hidden_size": 100},
+                {"lr": 0.005, "batch_size": 48, "hidden_size": 100},
+                {"lr": 0.01, "batch_size": 48, "hidden_size": 100},
+                {"lr": 0.0005, "batch_size": 32, "hidden_size": 50},
+                {"lr": 0.001, "batch_size": 32, "hidden_size": 50},
+                {"lr": 0.002, "batch_size": 32, "hidden_size": 50},
+                {"lr": 0.005, "batch_size": 32, "hidden_size": 50},
+                {"lr": 0.01, "batch_size": 32, "hidden_size": 50},
+                {"lr": 0.0005, "batch_size": 48, "hidden_size": 50},
+                {"lr": 0.001, "batch_size": 48, "hidden_size": 50},
+                {"lr": 0.002, "batch_size": 48, "hidden_size": 50},
+                {"lr": 0.005, "batch_size": 48, "hidden_size": 50},
+                {"lr": 0.01, "batch_size": 48, "hidden_size": 50}
+            ]
+            i = 0
+            for params in parameters_to_try:
+                opt = {
+                    "lr": params["lr"],
+                    "epochs": 1500,
+                    "ncritic": 3,
+                    "batch_size": params["batch_size"],
+                    "dataset_transform": 'normalize',
+                    "signals": 2,
+                    "gen_dropout": 0.1,
+                    "noise_size": 20,
+                    "hidden_size": params["hidden_size"],
+                    'num_layers': 2,
+                    "flag": 'train',
+                    "slice_length": 2,
+                    "no_mean": True,
+                    'type': 'RCGAN',
+                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\Roorda\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",
+                    'split': [0.8, 0.1, 0.1],
+                    'label_embedding_size': 5,
+                    'input_folder': r"C:\\Users\\uvuik\\bwSyncShare\\Documents\\Dataset\\TrainingData\\Roorda",
+                    'eval_interval': 10,
+                    'resample_freq': 250
+                }
+                i+=1
+                main(opt)
+                print(f"{i/len(parameters_to_try)}% done...")
