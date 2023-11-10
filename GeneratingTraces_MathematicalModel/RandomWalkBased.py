@@ -741,146 +741,10 @@ class RandomWalk():
         for segment in drift_segments_after10s:
             intermicsac_dur.append(round(float((segment[1] - segment[0]) / args.simulation_frequency), 4))
 
-        """
-        BSpline Interpolation for random Walk and Linear Interpolation for Microsaccades
-        """
-
-        x = visited_points[:, 0]
-        y = visited_points[:, 1]
-
-        # construct spline based on simulated steps
-        T_sim = steps_sim / f_sim  # in the range [T, T + 1/f_sim)
-        t_sim = np.linspace(0, T_sim, len(visited_points))
-
-        spline_x = si.splrep(t_sim, x, k=3)
-        spline_y = si.splrep(t_sim, y, k=3)
-
-        # sample with sampling frequency of the scanner
-        sampling_end = args.sampling_start + args.sampling_duration
-        t_sampled = np.arange(0.0, T + 1.0 / f_sampling,
-                              1.0 / f_sampling)  # extend the range a little bit to avoid rounding issues
-        t_sampled = t_sampled[(args.sampling_start <= t_sampled) & (t_sampled <= sampling_end)]
-        steps_sampling = len(
-            t_sampled) - 1  # the starting point is not a step / the number of intervals is 1 greater than the number of sampling points
-
-        if steps_sampling <= 0:
-            T_sampling = 0
-            x_sampled = np.ndarray(0)
-            y_sampled = np.ndarray(0)
-            samples_dist = nan
-        else:
-            T_sampling = t_sampled[-1] - t_sampled[0]
-            x_sampled = si.splev(t_sampled, spline_x)
-            y_sampled = si.splev(t_sampled, spline_y)
-
-            samples_dist = RandomWalk.line_length(x_sampled, y_sampled)
-
-        """
-        BSpline Length Approximation
-        """
-
-        if steps_sampling <= 0:
-            f_sampling_power = nan
-            bspline_dist = nan
-            bspline_dist_half = nan
-        else:
-            dist_approx_change_bound = 1e-5
-
-            # double approximation frequency until length change is below the bound
-            dist_prev_approx = 0.0
-            dist_finer_approx = samples_dist
-            f_sampling_power = 0
-            while dist_finer_approx - dist_prev_approx > dist_approx_change_bound:  # note: finer approx. must be longer
-                dist_prev_approx = dist_finer_approx
-                f_sampling_power = f_sampling_power + 1
-
-                #   Approximate distance of B-Spline with doubled sampling rate to estimate error bound
-                t_sampled_e = np.arange(0.0, T + 1.0 / (f_sampling * 2 ** f_sampling_power), 1.0 / (
-                            f_sampling * 2 ** f_sampling_power))  # extend the range a little bit to avoid rounding issues
-                t_sampled_e = t_sampled_e[(args.sampling_start <= t_sampled_e) & (t_sampled_e <= sampling_end)]
-
-                x_e = si.splev(t_sampled_e, spline_x)
-                y_e = si.splev(t_sampled_e, spline_y)
-                dist_finer_approx = RandomWalk.line_length(x_e, y_e)
-
-            bspline_dist = dist_finer_approx
-            bspline_dist_half = dist_prev_approx
-            bspline_velocity_std = RandomWalk.line_segment_length_std(x_e, y_e) * f_sampling * 2 ** f_sampling_power
-
-        """
-        Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
-        """
-        max_val = (5 / np.sqrt(2)) / 3600
-        std_dev = max_val / 3
-        tremor_x = np.clip(np.random.normal(0, std_dev, len(x_sampled)), -max_val, max_val)
-        tremor_y = np.clip(np.random.normal(0, std_dev, len(y_sampled)), -max_val, max_val)
-        onsets = t_sim[micsac_onset]
-        offsets = t_sim[micsac_offset]
-
-        def find_nearest(array, value):
-            array = np.asarray(array)
-            idx = (np.abs(array - value)).argmin()
-            return idx
-        try:
-            micsac_ranges = [[int(find_nearest(t_sampled, onsets[k])), int(find_nearest(t_sampled, offsets[k]))] for k in range(0,len(onsets))]
-        except:
-            print('Error')
-        no_addition_mask = np.ones_like(x_sampled)
-
-        # Setze die Werte an den Indizes aus not_adding auf 0 im Masken-Array
-        for range_list in micsac_ranges:
-            start_idx, end_idx = range_list
-            no_addition_mask[start_idx:end_idx + 1] = 0
-
-        # Multipliziere tremor_x mit der Masken-Array, um die Werte zu entfernen, die nicht addiert werden sollen
-        tremor_x_filtered = tremor_x * no_addition_mask
-        tremor_y_filtered = tremor_y * no_addition_mask
-        x_sampled += tremor_x_filtered
-        y_sampled += tremor_y_filtered
-
-        if report:
-            """
-            Summary Report
-            """
-
-            print("Requested simulation duration:", T, "sec")
-            print("Effective simulation duration:", T_sim, "sec")
-            print("Effective sampling duration:", T_sampling, "sec")
-            print("Number of sampled locations (including start):", len(t_sampled))
-            print("Distance linear pathway:", steps_dist, "deg")
-            print("Length of B-Spline:", bspline_dist, "deg")
-            print("Mean distance between steps (linear):", steps_dist / steps_sim, "deg")
-            print("Mean distance between steps along B-Spline:", bspline_dist / steps_sim, "deg")
-            print("Mean distance between samples (linear):", samples_dist / steps_sampling, "deg")
-            print("Mean distance between samples along B-Spline:", bspline_dist / steps_sampling, "deg")
-            prev_err = np.geterr()
-            np.seterr(divide='ignore')
-            print("Mean velocity:", np.float64(bspline_dist) / np.float64(T_sampling), "deg/sec")
-            print("Stddev velocity:", bspline_velocity_std, "deg/sec")
-            np.seterr(divide=prev_err['divide'])
-            print("Length change compared to approximation with half frequency (f_sampling*2**" + str(f_sampling_power) + "):",
-                  bspline_dist_half - bspline_dist, "deg")
-            print("Number of Microsaccades ",  0 if len(drift_segments)-1 < 0 else len(drift_segments)-1)
-
-        """
-        Write step positions & curve to disk.
-        """
-        headers = ['Time', 'x', 'y']
-        data = {headers[0]:t_sampled, headers[1]:x_sampled, headers[2]:y_sampled}
-        df = pd.DataFrame(data)
         headers_statistics =['Micsac Amplitude [deg]', 'Intermicsac Duration [s]']
         mic_amplitude= pd.DataFrame({headers_statistics[0]:np.array(micsac_amp)})
         intermic_duration = pd.DataFrame({headers_statistics[1]:np.array(intermicsac_dur)})
 
-
-        if args.fpath_sim is not None:
-            RandomWalk.create_folder_if_not_exists(args.fpath_sampled)
-            #np.save(args.fpath_sim, np.stack((x, y), axis=1))
-
-            #np.savetxt(f'{args.fpath_sim}_NumMS={0 if len(drift_segments)-1 < 0 else len(drift_segments)-1}.csv', np.stack((x, y), axis=1), delimiter=',')
-            df.to_csv(
-                f'{args.fpath_sampled}_Signal_NumMS={0 if len(drift_segments_after10s) - 1 < 0 else len(drift_segments_after10s) - 1}.csv',
-                index=False)
         if save:
             if args.fpath_sampled is not None:
                 RandomWalk.create_folder_if_not_exists(args.fpath_sampled)
@@ -888,7 +752,7 @@ class RandomWalk():
                 #np.savetxt(f'{args.fpath_sampled}.csv', np.stack((x_sampled, y_sampled), axis=1), delimiter=',')
                 if not os.path.exists(args.fpath_sampled):
                     os.makedirs(args.fpath_sampled)
-                df.to_csv(f'{args.fpath_sampled}\Signal_NumMS={0 if len(drift_segments_after10s)-1 < 0 else len(drift_segments_after10s)-1}.csv', index=False)
+                #df.to_csv(f'{args.fpath_sampled}\Signal_NumMS={0 if len(drift_segments_after10s)-1 < 0 else len(drift_segments_after10s)-1}.csv', index=False)
                 mic_amplitude.to_csv(f'{args.fpath_sampled}\micsac_amp.csv', index=False)
                 intermic_duration.to_csv(f'{args.fpath_sampled}\intermic_dur.csv', index=False)
 
