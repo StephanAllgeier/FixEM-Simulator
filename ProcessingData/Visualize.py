@@ -7,11 +7,12 @@ class Visualize():
     plt.rcParams['lines.linewidth'] = 1
 
     @staticmethod
-    def plot_xy(dataset, const_dict, color=None, labels=None, title='Augenbewegungen in x- und y-Koordinaten'):
+    def plot_xy(dataset, const_dict, color=None, labels=None, title='Augenbewegungen in x- und y-Koordinaten', y_label= "Position", breite=12, höhe=6,savepath = None, filename=None):
         if labels is None:
             labels = ['x', 'y']
         if color is None:
             color = ['blue', 'orange']
+        plt.figure(figsize=(breite, höhe))
         f = const_dict['f']
         t = dataset[const_dict['time_col']] * const_dict['TimeScaling']
         x = dataset[const_dict['x_col']] * const_dict['ValScaling']
@@ -19,10 +20,15 @@ class Visualize():
         plt.plot(t, x, label=labels[0], color=color[0])
         plt.plot(t, y, label=labels[1], color=color[1])
         plt.xlabel('Zeit in s')
-        plt.ylabel('Position in Bogenminuten [arcmin]')
+        plt.ylabel(y_label)
         plt.title(title)
         plt.legend()
-        plt.show()
+
+        if savepath and filename:
+            plt.savefig(f"{savepath}\{filename}.jpg")
+        else:
+            plt.show()
+        plt.close()
 
     '''
     @staticmethod
