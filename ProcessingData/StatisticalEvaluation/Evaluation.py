@@ -738,16 +738,16 @@ def dual_hist_subplot_w_histdiff_log(varlist1, varlist2_1, varlist2_2, label1, l
     plt.savefig(f"{savefigpath[:-5]}_histogram_intermicsac_subplot.jpeg", dpi=600)
     plt.close()
 
-def hist_subplot_w_histdiff_log(varlist1, varlist2_1,  label1, label2_1, savefigpath, xlabel, range_limits=(0, 2.5), normalize_01=False):
-    if not isinstance(varlist1, list) and isinstance(varlist2_1, list):
+def hist_subplot_w_histdiff_log(varlist1, varlist2,  label1, label2, savefigpath, xlabel, range_limits=(0, 2.5), normalize_01=False, title=None):
+    if not isinstance(varlist1, list) and isinstance(varlist2, list):
         return None
 
     intermic_dur1 = varlist1
-    intermic_dur2_1 = varlist2_1
+    intermic_dur2 = varlist2
 
     # Berechnung der Statistiken für beide Datensätze
     mean1, median1, stdev1 = np.mean(intermic_dur1), np.median(intermic_dur1), np.std(intermic_dur1)
-    mean2_1, median2_1, stdev2_1 = np.mean(intermic_dur2_1), np.median(intermic_dur2_1), np.std(intermic_dur2_1)
+    mean2_1, median2_1, stdev2_1 = np.mean(intermic_dur2), np.median(intermic_dur2), np.std(intermic_dur2)
 
     # Figure und Axes für das Haupt-Histogramm erstellen
     fig, axs  = plt.subplots(1, 2, figsize=(15, 8), gridspec_kw={'width_ratios': [2, 1]})
@@ -755,13 +755,15 @@ def hist_subplot_w_histdiff_log(varlist1, varlist2_1,  label1, label2_1, savefig
     # Subplot 1
     ax1 = axs[0]
     hist_bins = 50
-    histdiff_1 = Evaluation.normalized_histogram_difference(intermic_dur1, intermic_dur2_1, hist_bins, normalize_01)
+    histdiff_1 = Evaluation.normalized_histogram_difference(intermic_dur1, intermic_dur2, hist_bins, normalize_01)
     hist_vals_roorda, hist_edges_roorda , _ = ax1.hist(intermic_dur1, label=label1, bins=hist_bins, range=range_limits, edgecolor='black',
              alpha=0.5, density=True)
-    hist_vals1, hist_edges1, _ =ax1.hist(intermic_dur2_1, label=label2_1, bins=hist_bins, range=range_limits, edgecolor='black',
-             alpha=0.5, density=True)
+    hist_vals1, hist_edges1, _ =ax1.hist(intermic_dur2, label=label2, bins=hist_bins, range=range_limits, edgecolor='black',
+                                         alpha=0.5, density=True)
     ax1.set_ylabel("Wahrscheinlichkeitsdichte", fontsize=12)
-    ax1.set_title(f"Histogramm der intermikrosakkadischen Intervalle\n Vergleich {label1} / {label2_1}", fontweight='bold', fontsize=14)
+    if title== None:
+        title = f"Histogramm der intermikrosakkadischen Intervalle\n Vergleich {label1} / {label2}"
+    ax1.set_title(title, fontweight='bold', fontsize=14)
     ax1.set_ylim(0, max(hist_vals1)*1.1)
     ax1.set_xlabel(xlabel, fontsize=12)
     ax1.legend()
@@ -785,7 +787,7 @@ def hist_subplot_w_histdiff_log(varlist1, varlist2_1,  label1, label2_1, savefig
     # Scatterplot für Subplot 1
     bin_centers_1 = (hist_edges1[:-1] + hist_edges1[1:]) / 2
     initial_params = [0.1, 0.1]
-    total_samples_1 = len(intermic_dur2_1)
+    total_samples_1 = len(intermic_dur2)
     relative_freq_1 = hist_vals1 / total_samples_1
     hist_vals1[46] = 1
     relative_freq_log_1 = np.log10(hist_vals1 / (total_samples_1+1))
@@ -816,7 +818,7 @@ def hist_subplot_w_histdiff_log(varlist1, varlist2_1,  label1, label2_1, savefig
     # Tabelle erstellen
     table_data = [[f"HD={round(histdiff_1, 3)}", "Mittelwert", "Median", "Standardabw."],
                   [label1, round(mean1, 3), round(median1, 3), round(stdev1, 3)],
-                  ['Math. Modell', round(mean2_1, 3), round(median2_1, 3), round(stdev2_1, 3)]
+                  [label2, round(mean2_1, 3), round(median2_1, 3), round(stdev2_1, 3)]
                   ]
     table1 = ax1.table(cellText=table_data, colLabels=None, loc='center right', cellLoc='center')
     table1.auto_set_font_size(False)
