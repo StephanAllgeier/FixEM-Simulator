@@ -186,7 +186,7 @@ if __name__ == '__main__':
                     'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\Roorda\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",
                     'split': [0.8, 0.1, 0.1],
                     'label_embedding_size': 5,
-                    'input_folder': r"C:\\Users\\uvuik\\bwSyncShare\\Documents\\Dataset\\TrainingData\\Roorda",
+                    'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
                     'eval_interval': 10,
                     'resample_freq': 250
                 }
