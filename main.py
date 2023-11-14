@@ -395,6 +395,41 @@ def plot_amplitude_hist(jsonpath):
 if __name__ == '__main__':
     const_roorda = get_constants('Roorda')
     const_gb = get_constants('GazeBase')
+    roorda_folder = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
+    roorda_files = glob.glob(os.path.join(roorda_folder, "*.csv"))
+    roorda_files = roorda_files[:-1]# get_files_with_pattern(gb_folder, const_gb['file_pattern'])
+
+    for file in roorda_files:
+        data = pd.read_csv(file)
+        removed_blink, _ = Interpolation.remove_blink_annot(data,const_roorda, cutoff=0.015)
+
+        new_cols = {const_roorda['x_col']: 'x', const_roorda['y_col']: 'y', const_roorda['Annotations']: 'flags'}
+        removed_blink.loc[removed_blink[const_roorda['Annotations']] == 2, const_roorda['Annotations']] = 0
+        b = Augmentation.flip_dataframe(removed_blink, const_roorda).rename(columns=new_cols)
+        c = Augmentation.reverse_data(removed_blink, const_roorda).rename(columns=new_cols)
+        folderpath = r"C:\Users\uvuik\Desktop\NewRoordaTrainingset"
+        removed_blink = removed_blink.rename(columns=new_cols)
+        removed_blink.to_csv(fr"{folderpath}\{Path(file).stem}.csv", index=False)
+        #a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
+        b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv",index=False)
+        c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv",index=False)
+
+    print("done")
+    #Plotting FFTs of Datasets:
+
+    data_roorda = pd.read_csv(r"C:\Users\uvuik\Desktop\NewRoordaTrainingset\20109R_003.csv")
+    #data_roorda, const_roorda = Interpolation.remove_blink_annot(data_roorda,const_roorda)
+    const_roorda['ValScaling'] = 1
+    const_roorda['x_col'] = 'x'
+    const_roorda['y_col'] = 'y'
+
+    Vis.plot_xy(data_roorda, const_dict=const_roorda, xlim=(0,6), ylim = (-15, 15), ylabel='Position in Bogenminuten [arcmin]', savepath=r"C:\Users\uvuik\bwSyncShare\Bilder", filename="TestRoorda22")
+
+    data_gb = pd.read_csv(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda\20075L_003.csv")
+    fft, fftfreq = Filt.fft_transform(data_gb, const_gb, 'x_col', 'y_col')
+    Vis.plot_fft(fft, fftfreq, r"C:\Users\uvuik\Desktop\FrequencyAnalysis\GazeBaseBlinkStitchedFFT.jpeg", title = "Fourier-Analyse einer FEM-Trajektorie\n des GazeBase-Datensatz")
+
+
     #label_micsac(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase",const_dict=const_gb, mindur=6, vfac=10)
     file20s= r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
     file30s = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation30s\BestHD_IntermicDur\HD=4.74_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
@@ -404,28 +439,7 @@ if __name__ == '__main__':
     i=0
     test_folder = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
     folderpath = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
-    '''
-    for file in roorda_files:
-        
-        data = pd.read_csv(file)
-        Vis.plot_xy(data, const_roorda, savepath=test_folder,filename = f"Original{i}")
-        print(len(data))
-        #remove blink
-        data, const_roorda = Interpolation.remove_blink_annot(data, const_roorda)
-        print(len(data))
-        #Vis.plot_xy(data, const_roorda, savepath=test_folder, filename = f"BlinkRemoved{i}")
-        #Ändern der Flags auf 0 für Drift
-        data[const_roorda['Annotations']] = np.where(data[const_roorda['Annotations']] == 2, 0, data[const_roorda['Annotations']])
-        new_cols = {const_roorda['x_col']: 'x', const_roorda['y_col']: 'y', const_roorda['Annotations']: 'flags'}
-        b = Augmentation.flip_dataframe(data, const_roorda).rename(columns=new_cols)
-        c = Augmentation.reverse_data(data, const_roorda).rename(columns=new_cols)
-        
-        data = data.rename(columns=new_cols)
-        data.to_csv(fr"{folderpath}\{Path(file).stem}.csv")
-        # a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
-        b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
-        c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
-    '''
+
     folderpath = r""
 
     create_histogram_dual_w_HD(
