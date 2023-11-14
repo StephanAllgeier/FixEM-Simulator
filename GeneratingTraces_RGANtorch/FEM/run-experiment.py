@@ -69,6 +69,7 @@ def main(opt):
                 'dropout': opt['gen_dropout'] if opt['num_layers'] != 1 else 0,
                 'sequence_length': X.shape[1],
                 'rnn_type': 'lstm',
+                'label_size':1,
                 'noise_size': opt["noise_size"],
                 'num_classes': num_classes if opt['type'] == 'RCGAN' else None,
                 'label_embedding_size': opt['label_embedding_size'] if opt['type'] == 'RCGAN' else None
@@ -88,7 +89,7 @@ def main(opt):
                 'rnn_type': 'lstm',
                 'sequence_length': X.shape[1],
                 'num_classes': num_classes if opt['type'] == 'RCGAN' else None,
-                'label_embedding_size': opt['label_embedding_size'] if opt['type'] == 'RCGAN' else None
+                'label_size': 1 #'label_embedding_size': opt['label_embedding_size'] if opt['type'] == 'RCGAN' else None
             },
             'optimizer': {
                 'name': optim.Adam,  # optim.RMSprop, originalPaper nimmt GradientDescend
@@ -159,40 +160,22 @@ if __name__ == '__main__':
             else:
                 DEVICE = torch.device("cpu")
             logger.info(f'Running on device {DEVICE}')
-            parameters_to_try = [
-                {"lr": 0.005, "batch_size": 48, "hidden_size": 150},
-                {"lr": 0.01, "batch_size": 48, "hidden_size": 150},
-                {"lr": 0.0005, "batch_size": 32, "hidden_size": 100},
-                {"lr": 0.001, "batch_size": 32, "hidden_size": 100},
-                {"lr": 0.002, "batch_size": 32, "hidden_size": 100},
-                {"lr": 0.005, "batch_size": 32, "hidden_size": 100},
-                {"lr": 0.01, "batch_size": 32, "hidden_size": 100},
-                {"lr": 0.0005, "batch_size": 48, "hidden_size": 100},
-                {"lr": 0.001, "batch_size": 48, "hidden_size": 100},
-                {"lr": 0.002, "batch_size": 48, "hidden_size": 100},
-                {"lr": 0.005, "batch_size": 48, "hidden_size": 100},
-                {"lr": 0.01, "batch_size": 48, "hidden_size": 100},
-                {"lr": 0.0005, "batch_size": 32, "hidden_size": 50},
-                {"lr": 0.001, "batch_size": 32, "hidden_size": 50},
-                {"lr": 0.002, "batch_size": 32, "hidden_size": 50},
-                {"lr": 0.005, "batch_size": 32, "hidden_size": 50},
-                {"lr": 0.01, "batch_size": 32, "hidden_size": 50},
-                {"lr": 0.0005, "batch_size": 48, "hidden_size": 50},
-                {"lr": 0.001, "batch_size": 48, "hidden_size": 50},
-                {"lr": 0.002, "batch_size": 48, "hidden_size": 50},
-                {"lr": 0.005, "batch_size": 48, "hidden_size": 50},
-                {"lr": 0.01, "batch_size": 48, "hidden_size": 50}
-            ]
+            params_list = []
+
+            for lr in [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]:
+                for hidden_size in [50, 100, 150]:
+                    params = {"lr": lr, "batch_size": 32, "hidden_size": hidden_size}
+                    params_list.append(params)
             i = 0
-            for params in parameters_to_try:
+            for params in params_list:
                 opt = {
                     "lr": params["lr"],
-                    "epochs": 1500,
+                    "epochs": 4000,
                     "ncritic": 3,
                     "batch_size": params["batch_size"],
                     "dataset_transform": 'normalize',
                     "signals": 2,
-                    "gen_dropout": 0.1,
+                    "gen_dropout": 0.2,
                     "noise_size": 20,
                     "hidden_size": params["hidden_size"],
                     'num_layers': 2,
@@ -209,4 +192,4 @@ if __name__ == '__main__':
                 }
                 i+=1
                 main(opt)
-                print(f"{i/len(parameters_to_try)}% done...")
+                print(f"{i/len(params_list)}% done...")
