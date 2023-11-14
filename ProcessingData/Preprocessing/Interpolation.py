@@ -82,7 +82,7 @@ class Interpolation():
         return data_frame, const_dict
 
     @staticmethod
-    def remove_blink_annot(df, const_dict, cutoff=0.015):
+    def remove_blink_annot(df, const_dict, cutoff=0):
         data_frame = copy.deepcopy(df)
         blink_idx = df[df[const_dict['Annotations']] == const_dict['BlinkID']].index
         current_sublist = []
@@ -91,9 +91,9 @@ class Interpolation():
         for i in range(len(blink_idx)):
             if i == 0 or blink_idx[i] != blink_idx[i - 1] + 1:
                 if current_sublist:
-                    # Entferne x ms vor und nach dem Blinken
+                    # Entferne x ms vor und nach dem Blinzeln
                     start = max(0, current_sublist[0] - int(const_dict['f'] * cutoff))
-                    end = min(len(data_frame), current_sublist[-1] + int(const_dict['f'] * cutoff))
+                    end = min(len(data_frame), current_sublist[-1] + int(const_dict['f'] * cutoff)+1)
                     indexes.extend(range(start, end))
                 current_sublist = [blink_idx[i]]
             else:
@@ -102,7 +102,7 @@ class Interpolation():
         # Füge die letzte Teil-Liste hinzu, falls vorhanden
         if current_sublist:
             start = max(0, current_sublist[0] - int(const_dict['f'] * cutoff))
-            end = min(len(data_frame), current_sublist[-1] + int(const_dict['f'] * cutoff))
+            end = min(len(data_frame), current_sublist[-1] + int(const_dict['f'] * cutoff)+1)
             indexes.extend(range(start, end))
 
 
