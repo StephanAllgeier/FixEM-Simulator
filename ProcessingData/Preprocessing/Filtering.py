@@ -8,10 +8,14 @@ import matplotlib.pyplot as plt
 
 class Filtering():
     @staticmethod
-    def fft_transform(df, const_dict, coordinate):
-        fft = scipy.fft.fft(df[const_dict[coordinate]].values)
-        fftfreq = scipy.fft.fftfreq(len(fft), 1 / const_dict['f'])
-        return fft, fftfreq
+    def fft_transform(df, const_dict, coordinate, coordinate2):
+        signal_x = df[const_dict[coordinate]].values
+        signal_y = df[const_dict[coordinate2]].values
+        signal = signal_x + 1j * signal_y
+        fft_result = scipy.fft.fft(signal)
+        fftfreq = scipy.fft.fftfreq(len(fft_result), 1 / const_dict['f'])
+
+        return fft_result, fftfreq
 
     @staticmethod
     def butter_bandpass(lowcut, highcut, fs, order=5, print_filter=False):
