@@ -310,7 +310,7 @@ def merge_excel(file1_path, file2_path, output_path):
     except Exception as e:
         print(f"Fehler beim Mergen der Excel-Dateien: {str(e)}")
 
-def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, label1, label2):
+def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, compare_label, label1, label2,title=None):
     with open(
             compare_filepath,
             'r') as comp:
@@ -322,8 +322,9 @@ def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, 
     hist_bins = 50
     savefigpath = file1
     savefig = f"{Path(savefigpath).parent}/DualHistogramLog_intermicsac.jpeg"
-    Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, 'Roorda Lab', label1, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
-    Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, 'Roorda Lab', label1, label2, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
+    Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, compare_label, label1, savefig, xlabel,
+                                           range_limits=(0, 2.5), normalize_01=False, title=title)
+    Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, compare_label, label1, label2, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
 def create_histogram_w_HD(compare_filepath, folderpath, feature, xlabel, dataset1name, dataset2name):
     with open(
             compare_filepath,
@@ -394,13 +395,18 @@ def plot_amplitude_hist(jsonpath):
 if __name__ == '__main__':
     const_roorda = get_constants('Roorda')
     const_gb = get_constants('GazeBase')
-    label_micsac(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase",const_dict=const_gb, mindur=6, vfac=10)
+    #label_micsac(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase",const_dict=const_gb, mindur=6, vfac=10)
+    file20s= r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
+    file30s = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation30s\BestHD_IntermicDur\HD=4.74_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
+    create_histogram_dual_w_HD(file20s, file30s, file20s, 'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]', compare_label='t_sim=20s',label1='t_sim=30s', label2='test',title= 'Histogramm der IMSI der Parameterkombination \n(f_sim=100Hz, L=21, epsilon=0.1, h_crit=6.9) bei 20s und 30s Simulationsdauer' )
     roorda_folder = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
     roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
     i=0
+    test_folder = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
+    folderpath = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
     '''
     for file in roorda_files:
-        test_folder = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
+        
         data = pd.read_csv(file)
         Vis.plot_xy(data, const_roorda, savepath=test_folder,filename = f"Original{i}")
         print(len(data))
@@ -413,7 +419,7 @@ if __name__ == '__main__':
         new_cols = {const_roorda['x_col']: 'x', const_roorda['y_col']: 'y', const_roorda['Annotations']: 'flags'}
         b = Augmentation.flip_dataframe(data, const_roorda).rename(columns=new_cols)
         c = Augmentation.reverse_data(data, const_roorda).rename(columns=new_cols)
-        folderpath = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
+        
         data = data.rename(columns=new_cols)
         data.to_csv(fr"{folderpath}\{Path(file).stem}.csv")
         # a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
