@@ -741,6 +741,138 @@ class RandomWalk():
         for segment in drift_segments_after10s:
             intermicsac_dur.append(round(float((segment[1] - segment[0]) / args.simulation_frequency), 4))
 
+        """
+        BSpline Interpolation for random Walk and Linear Interpolation for Microsaccades
+        """
+
+        x = visited_points[:, 0]
+        y = visited_points[:, 1]
+
+        # construct spline based on simulated steps
+        T_sim = steps_sim / f_sim  # in the range [T, T + 1/f_sim)
+        t_sim = np.linspace(0, T_sim, len(visited_points))
+
+        spline_x = si.splrep(t_sim, x, k=3)
+        spline_y = si.splrep(t_sim, y, k=3)
+
+        # sample with sampling frequency of the scanner
+        sampling_end = args.sampling_start + args.sampling_duration
+        t_sampled = np.arange(0.0, T + 1.0 / f_sampling,
+                              1.0 / f_sampling)  # extend the range a little bit to avoid rounding issues
+        t_sampled = t_sampled[(args.sampling_start <= t_sampled) & (t_sampled <= sampling_end)]
+        steps_sampling = len(
+            t_sampled) - 1  # the starting point is not a step / the number of intervals is 1 greater than the number of sampling points
+
+        if steps_sampling <= 0:
+            T_sampling = 0
+            x_sampled = np.ndarray(0)
+            y_sampled = np.ndarray(0)
+            samples_dist = nan
+        else:
+            T_sampling = t_sampled[-1] - t_sampled[0]
+            x_sampled = si.splev(t_sampled, spline_x)
+            y_sampled = si.splev(t_sampled, spline_y)
+
+            samples_dist = RandomWalk.line_length(x_sampled, y_sampled)
+
+        """
+        BSpline Length Approximation
+        """
+
+        if steps_sampling <= 0:
+            f_sampling_power = nan
+            bspline_dist = nan
+            bspline_dist_half = nan
+        else:
+            dist_approx_change_bound = 1e-5
+
+            # double approximation frequency until length change is below the bound
+            dist_prev_approx = 0.0
+            dist_finer_approx = samples_dist
+            f_sampling_power = 0
+            while dist_finer_approx - dist_prev_approx > dist_approx_change_bound:  # note: finer approx. must be longer
+                dist_prev_approx = dist_finer_approx
+                f_sampling_power = f_sampling_power + 1
+
+                #   Approximate distance of B-Spline with doubled sampling rate to estimate error bound
+                t_sampled_e = np.arange(0.0, T + 1.0 / (f_sampling * 2 ** f_sampling_power), 1.0 / (
+                            f_sampling * 2 ** f_sampling_power))  # extend the range a little bit to avoid rounding issues
+                t_sampled_e = t_sampled_e[(args.sampling_start <= t_sampled_e) & (t_sampled_e <= sampling_end)]
+
+                x_e = si.splev(t_sampled_e, spline_x)
+                y_e = si.splev(t_sampled_e, spline_y)
+                dist_finer_approx = RandomWalk.line_length(x_e, y_e)
+
+            bspline_dist = dist_finer_approx
+            bspline_dist_half = dist_prev_approx
+            bspline_velocity_std = RandomWalk.line_segment_length_std(x_e, y_e) * f_sampling * 2 ** f_sampling_power
+
+        """
+        Adding Tremor as random noise with given amplitude, exclude on Microsaccades, only on drift-segments
+        """
+        max_val = (5 / np.sqrt(2)) / 3600
+        std_dev = max_val / 3
+        tremor_x = np.clip(np.random.normal(0, std_dev, len(x_sampled)), -max_val, max_val)
+        tremor_y = np.clip(np.random.normal(0, std_dev, len(y_sampled)), -max_val, max_val)
+        onsets = t_sim[micsac_onset]
+        offsets = t_sim[micsac_offset]
+
+        def find_nearest(array, value):
+            array = np.asarray(array)
+            idx = (np.abs(array - value)).argmin()
+            return idx
+        try:
+            micsac_ranges = [[int(find_nearest(t_sampled, onsets[k])), int(find_nearest(t_sampled, offsets[k]))] for k in range(0,len(onsets))]
+        except:
+            print('Error')
+        no_addition_mask = np.ones_like(x_sampled)
+
+        # Setze die Werte an den Indizes aus not_adding auf 0 im Masken-Array
+        micsac_onset_plot = []
+        micsac_offset_plot = []
+        for range_list in micsac_ranges:
+            start_idx, end_idx = range_list
+            micsac_onset_plot.append(start_idx)
+            micsac_offset_plot.append(end_idx)
+            no_addition_mask[start_idx:end_idx + 1] = 0
+
+        # Multipliziere tremor_x mit der Masken-Array, um die Werte zu entfernen, die nicht addiert werden sollen
+        tremor_x_filtered = tremor_x * no_addition_mask
+        tremor_y_filtered = tremor_y * no_addition_mask
+        x_sampled += tremor_x_filtered
+        y_sampled += tremor_y_filtered
+
+        if report:
+            """
+            Summary Report
+            """
+
+            print("Requested simulation duration:", T, "sec")
+            print("Effective simulation duration:", T_sim, "sec")
+            print("Effective sampling duration:", T_sampling, "sec")
+            print("Number of sampled locations (including start):", len(t_sampled))
+            print("Distance linear pathway:", steps_dist, "deg")
+            print("Length of B-Spline:", bspline_dist, "deg")
+            print("Mean distance between steps (linear):", steps_dist / steps_sim, "deg")
+            print("Mean distance between steps along B-Spline:", bspline_dist / steps_sim, "deg")
+            print("Mean distance between samples (linear):", samples_dist / steps_sampling, "deg")
+            print("Mean distance between samples along B-Spline:", bspline_dist / steps_sampling, "deg")
+            prev_err = np.geterr()
+            np.seterr(divide='ignore')
+            print("Mean velocity:", np.float64(bspline_dist) / np.float64(T_sampling), "deg/sec")
+            print("Stddev velocity:", bspline_velocity_std, "deg/sec")
+            np.seterr(divide=prev_err['divide'])
+            print("Length change compared to approximation with half frequency (f_sampling*2**" + str(f_sampling_power) + "):",
+                  bspline_dist_half - bspline_dist, "deg")
+            print("Number of Microsaccades ",  0 if len(drift_segments)-1 < 0 else len(drift_segments)-1)
+
+        """
+        Write step positions & curve to disk.
+        """
+        headers = ['Time', 'x', 'y']
+        data = {headers[0]:t_sampled, headers[1]:x_sampled, headers[2]:y_sampled}
+        df = pd.DataFrame(data)
+
         headers_statistics =['Micsac Amplitude [deg]', 'Intermicsac Duration [s]']
         mic_amplitude= pd.DataFrame({headers_statistics[0]:np.array(micsac_amp)})
         intermic_duration = pd.DataFrame({headers_statistics[1]:np.array(intermicsac_dur)})
@@ -758,13 +890,72 @@ class RandomWalk():
 
         #TODO: RETURN ENTFERNEN
         num_of_micsac = 0 if len(drift_segments_after10s)-1 < 0 else len(drift_segments_after10s)-1
-        return np.array(micsac_amp), np.array(intermicsac_dur), num_of_micsac
+        #return np.array(micsac_amp), np.array(intermicsac_dur), num_of_micsac
         """
         PLOT: Plotting the movement of the eye as well as the two potentials of the random walk
         """
         #TODO: ENTFERNEN DASS AUTOMATISCH TRUE IST
         args.show_plots=True
+        t_sampled = t_sampled[:int(-10 * args.sampling_frequency)]
+        x_sampled = x_sampled[int(10 * args.sampling_frequency):]
+        y_sampled = y_sampled[int(10 * args.sampling_frequency):]
+        micsac_onset = [i- int(10 * args.sampling_frequency) for i in micsac_onset_plot if i>int(10 * args.sampling_frequency) ]
+        micsac_offset = [i- int(
+            10 * args.sampling_frequency) for i in micsac_offset_plot if i > int(10 * args.sampling_frequency)]
         if args.show_plots:
+            # Erster Plot
+            t = t_sampled
+            fig, axs = plt.subplots(1, 3, figsize=(18, 6), sharey=True)  # 1 Zeile, 3 Subplots
+            x_sampled *=60
+            y_sampled *=60
+            axs[0].plot(t, x_sampled, label='x', color='blue')
+            axs[0].plot(t, y_sampled, label='y', color='orange')
+            axs[0].set_xlim(10, 12)
+            axs[0].set_xlabel('Zeit in s')
+            axs[0].set_ylabel('Position in Bogenminuten [arcmin]')
+            axs[0].set_title('Normale Trajektorie')
+            axs[0].legend()
+
+            # Rote 'x' für Onsets und Schwarze 'x' für Offsets
+            onsets_x = t[micsac_onset]
+            offsets_x = t[micsac_offset]
+            axs[0].scatter(onsets_x, x_sampled[micsac_onset], c='red', marker='x', label='Onset', s=50)
+            axs[0].scatter(offsets_x, x_sampled[micsac_offset], c='black', marker='x', label='Offset', s=50)
+            axs[0].scatter(onsets_x, y_sampled[micsac_onset], c='red', marker='x', label='Onset', s=50)
+            axs[0].scatter(offsets_x, y_sampled[micsac_offset], c='black', marker='x', label='Offset', s=50)
+
+            # Zweiter Plot
+            axs[1].plot(t, x_sampled , label='x', color='blue')
+            axs[1].plot(t, y_sampled , label='y', color='orange')
+            axs[1].set_xlim(15, 17)
+            axs[1].set_xlabel('Zeit in s')
+            axs[1].set_title('Viele Mikrosakkaden')
+            axs[1].legend()
+
+            # Rote 'x' für Onsets und Schwarze 'x' für Offsets
+            axs[1].scatter(onsets_x, x_sampled[micsac_onset], c='red', marker='x', label='Onset', s=50)
+            axs[1].scatter(offsets_x, x_sampled[micsac_offset], c='black', marker='x', label='Offset', s=50)
+            axs[1].scatter(onsets_x, y_sampled[micsac_onset], c='red', marker='x', label='Onset', s=50)
+            axs[1].scatter(offsets_x, y_sampled[micsac_offset], c='black', marker='x', label='Offset', s=50)
+
+            # Dritter Plot
+            axs[2].plot(t, x_sampled, label='x', color='blue')
+            axs[2].plot(t, y_sampled, label='y', color='orange')
+            axs[2].set_xlim(0, 2)
+            axs[2].set_xlabel('Zeit in s')
+            axs[2].set_title('Wenige Mikrosakkaden')
+            axs[2].legend()
+
+            # Rote 'x' für Onsets und Schwarze 'x' für Offsets
+            axs[2].scatter(onsets_x, x_sampled[micsac_onset], c='red', marker='x', label='Onset', s=50)
+            axs[2].scatter(offsets_x, x_sampled[micsac_offset], c='black', marker='x', label='Offset', s=50)
+            axs[2].scatter(onsets_x, y_sampled[micsac_onset], c='red', marker='x', label='Onset', s=50)
+            axs[2].scatter(offsets_x, y_sampled[micsac_offset], c='black', marker='x', label='Offset', s=50)
+
+            # Speichern der Grafik
+            plt.savefig(fr'C:\Users\uvuik\Desktop\xy_trace_simrate={args.simulation_frequency}xy_trace_combined.jpeg')
+
+            '''
             x_range_sampled = x[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
             y_range_sampled = y[(args.sampling_start <= t_sim) & (t_sim <= sampling_end)]
             t = t_sampled
@@ -785,10 +976,9 @@ class RandomWalk():
             offsets = t_sim[micsac_offset]
             plt.vlines(x=onsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='red', linewidth=1)
             plt.vlines(x=offsets, ymin=min(min(x_sampled*60),min(y_sampled*60)), ymax=max(max(x_sampled*60),max(y_sampled*60)), colors='black', linewidth=1)
-            plt.savefig(fr'{args.fpath_sampled}_xy_trace_simrate={args.simulation_frequency},Cells={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}.jpeg',dpi=600)
+            plt.savefig(fr'={args.potential_resolution},relaxationrate={args.relaxation_rate},hc={hc}.jpeg',dpi=600)
             plt.close()
             #plt.show()
-            '''
             if args.debug_colors:
                 # samples with both lines and points gradient-colored, but with different frequency such that the course of the line is evident in most situations
                 colorline(x_sampled, y_sampled, np.mod(np.linspace(0.0, len(x_sampled) - 1, len(x_sampled)), 100) / 100,

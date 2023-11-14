@@ -77,9 +77,7 @@ class RGANGenerator(Generator):
 
         # Total size of z that will be sampled. Later, in the forward 
         # method, we resize to (batch_size, sequence_length, noise_size).
-        # TODO: Any resizing of z is valid as long as the total size 
-        #       remains sequence_length*noise_size. How does this affect
-        #       the performance of the RNN?
+
         self.encoding_dims = sequence_length*noise_size
 
         super(RGANGenerator, self).__init__(self.encoding_dims,
@@ -91,7 +89,7 @@ class RGANGenerator(Generator):
                              num_layers=num_layers,
                              dropout=dropout,
                              rnn_type=rnn_type,
-                             nonlinearity=rnn_nonlinearity)
+                             nonlinearity=rnn_nonlinearity) #Hier werden die Gewichte automatisch Initialisiert mit h0=zeros
         self.dropout = nn.Dropout(dropout)
         # self.batchnorm = nn.BatchNorm1d(hidden_size)
         self.linear = nn.Linear(hidden_size, output_size)

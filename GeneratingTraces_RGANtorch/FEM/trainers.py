@@ -17,6 +17,7 @@ from skopt import gp_minimize
 from skopt.space import Real
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
+from scipy.fft import fft
 
 class SequenceTrainer:
     def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, eval_frequency=1, conv_window = 10):
@@ -105,7 +106,7 @@ class SequenceTrainer:
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
                 scale = 0.2
-                self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)*scale#torch.full(shape,wert)
+                self.z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size],0).to(dtype=torch.float32).to(self.device)#torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)*scale#
                 self.z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
                 input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
                 # Trainiere den Discriminator ncritic mal
@@ -127,6 +128,62 @@ class SequenceTrainer:
         criterion = nn.BCEWithLogitsLoss()
         return criterion(y_hat, y)
 
+    def fft_analysis_plot(self, real, fake):
+        real = real.cpu().numpy()
+        fake = fake.cpu().numpy()
+
+        # Extrahiere die x- und y-Koordinaten für beide Signale
+        real_x = real[0, :, 0]
+        real_y = real[0, :, 1]
+        fake_x = fake[0, :, 0]
+        fake_y = fake[0, :, 1]
+
+        # Annahme: signal_1 und signal_2 sind zwei Signale, die verglichen werden sollen
+        signal_1 = real_x + 1j * real_y
+        signal_2 = fake_x + 1j * fake_y
+        # Anwenden eines Hamming-Fensters
+        hamming_window = np.hamming(len(signal_1))
+        signal_1 *= hamming_window
+        signal_2 *= hamming_window
+
+        # Fourier-Transformation
+        fft_signal_1 = fft(signal_1)
+        fft_signal_2 = fft(signal_2)
+
+        # Berechne die Ähnlichkeit im Frequenzraum, z.B. durch die Kreuzkorrelation
+        similarity = np.corrcoef(np.abs(fft_signal_1), np.abs(fft_signal_2))[0, 1]
+
+        # Plot der Zeitbereiche
+        plt.figure(figsize=(12, 4))
+
+        plt.subplot(2, 2, 1)
+        plt.plot(real_x, label='Signal 1 (x)')
+        plt.plot(real_y, label='Signal 1 (y)')
+        plt.title('Zeitbereich - Signal 1')
+        plt.legend()
+
+        plt.subplot(2, 2, 2)
+        plt.plot(fake_x, label='fake (x)')
+        plt.plot(fake_y, label='fake (y)')
+        plt.title('Zeitbereich - fake')
+        plt.legend()
+
+        # Plot der Frequenzbereiche
+        plt.subplot(2, 2, 3)
+        plt.plot(np.abs(fft_signal_1), label='real')
+        plt.title('Frequenzbereich - real')
+
+        plt.subplot(2, 2, 4)
+        plt.plot(np.abs(fft_signal_2), label='fake')
+        plt.title('Frequenzbereich - fake')
+
+        plt.tight_layout()
+        plt.savefig(r"C:\Users\uvuik\Desktop\FFT\Fig1.jpeg")
+        plt.show()
+
+        # Ausgabe der Ähnlichkeit
+        print(f"Ähnlichkeit im Frequenzraum: {similarity}")
+
     def train_generator(self):
         self.optimizer_g.zero_grad()
         #z = torch.randn(input_data.shape[0], self.noise_size).to(self.device)
@@ -142,12 +199,15 @@ class SequenceTrainer:
         self.optimizer_g.zero_grad()
         #fake_data = self.generator(self.z, labels)
         fake_data = self.generator(self.z, self.z_labels)
-
+        conv_fake = self.conv_signal(fake_data, kernel_size=self.conv_window)
+        gradients_fake = torch.diff(conv_fake, dim=1)
+        gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
+        cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
         #----------------TESTING-----------------------
         #fake_data, labels = self.generator(self.z)
         #----------------------------------------------
-        # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNg(Z),1)
-        d_output = self.discriminator(fake_data, labels)
+        # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNd(RNNg(Z)),1)
+        d_output = self.discriminator(fake_data, cond_input_fake)
         y = torch.ones_like(d_output).to(self.device)
         g_loss = self.adversarial_loss(d_output, y) #Aus Paper: -CE(RNNd(RNNg(Zn)),1) = -CE(RNNd(fake_data),1)
         g_loss.backward()
@@ -185,7 +245,8 @@ class SequenceTrainer:
 
         # How well can it label as real
         #Torch.diff als weiteren Input
-        y_hat_real = self.discriminator(input_data, labels)
+        cond_input_real = torch.concat([labels, gradients_real], dim=2)
+        y_hat_real = self.discriminator(input_data, cond_input_real)
         y_real = torch.ones(y_hat_real.shape, dtype=y_hat_real.dtype).to(self.device)
         real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
 
@@ -203,8 +264,8 @@ class SequenceTrainer:
         conv_fake = self.conv_signal(gen_output, kernel_size=self.conv_window)
         gradients_fake = torch.diff(conv_fake, dim=1)
         gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
-
-        y_hat_fake = self.discriminator(gen_output, self.z_labels) #Todo: Hier auch die generierten Labels???
+        cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
+        y_hat_fake = self.discriminator(gen_output, cond_input_fake) #Todo: Hier auch die generierten Labels???
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
         #---------------------------------------------------------------------------------------------------------------
@@ -354,8 +415,12 @@ class SequenceTrainer:
         if compare_data is not None and compare_labels is not None:
             compare_data = compare_data.cpu().numpy()
             fig, ((ax1, ax3), (ax2, ax4)) = plt.subplots(2, 2, sharex=True, sharey=True)
-            micsac3 = compare_labels[0,:].squeeze().cpu().numpy()
-            micsac4 = compare_labels[1,:].squeeze().cpu().numpy()
+            micsac3_ = compare_labels[0,:].squeeze().cpu().numpy()
+            micsac3 = np.array([1 if (micsac3_[max(0, i - 1)] + micsac3_[min(len(micsac3_) - 1, i + 1)]) % 2 == 1 and micsac3_[
+                i] == 1 else 0 for i in range(len(micsac3_))])
+            micsac4_ = compare_labels[1,:].squeeze().cpu().numpy()
+            micsac4 = np.array([1 if (micsac4_[max(0, i - 1)] + micsac4_[min(len(micsac4_) - 1, i + 1)]) % 2 == 1 and micsac4_[
+                i] == 1 else 0 for i in range(len(micsac4_))])
             x3 = compare_data[0, :, 0]
             y3 = compare_data[0, :, 1]
             x4 = compare_data[1, :, 0]
@@ -389,8 +454,11 @@ class SequenceTrainer:
         y2 = data[1, :, 1]
         if str(self.GANtype) == "RCGAN":
             #Wenn RCGAN dann positionen der Mikrosakkaden plotten
-            micsac1 = self.z_labels[0,:].squeeze().cpu().numpy()
-            micsac2 = self.z_labels[1,:].squeeze().cpu().numpy()
+            micsac1_ = self.z_labels[0, :].squeeze().cpu().numpy()
+            micsac1 = np.array([1 if (micsac1_[max(0, i - 1)] + micsac1_[min(len(micsac1_) - 1, i + 1)]) % 2 == 1 and micsac1_[i] == 1 else 0 for i in range(len(micsac1_))])
+            micsac2_ = self.z_labels[1,:].squeeze().cpu().numpy()
+            micsac2 = np.array([1 if (micsac2_[max(0, i - 1)] + micsac2_[min(len(micsac2_) - 1, i + 1)]) % 2 == 1 and micsac2_[
+                i] == 1 else 0 for i in range(len(micsac2_))])
         else:
             micsac1, micsac2 = None, None
 
