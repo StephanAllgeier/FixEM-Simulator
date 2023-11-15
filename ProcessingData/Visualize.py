@@ -7,7 +7,7 @@ class Visualize():
     plt.rcParams['lines.linewidth'] = 1
 
     @staticmethod
-    def plot_xy(dataset, const_dict, color=None, labels=None, title='Augenbewegungen in x- und y-Koordinaten', y_label= "Position", breite=12, höhe=6,savepath = None, filename=None):
+    def plot_xy(dataset, const_dict, color=None, labels=None, title='Augenbewegungen in x- und y-Koordinaten', ylabel= "Position", breite=12, höhe=6,savepath = None, filename=None, xlim=None, ylim=None):
         if labels is None:
             labels = ['x', 'y']
         if color is None:
@@ -19,13 +19,17 @@ class Visualize():
         y = dataset[const_dict['y_col']] * const_dict['ValScaling']
         plt.plot(t, x, label=labels[0], color=color[0])
         plt.plot(t, y, label=labels[1], color=color[1])
-        plt.xlabel('Zeit in s')
-        plt.ylabel(y_label)
-        plt.title(title)
+        plt.xlabel('Zeit in s', fontsize=14)
+        if xlim:
+            plt.xlim(xlim)
+        if ylim:
+            plt.ylim(ylim)
+        plt.ylabel(ylabel, fontsize=14)
+        plt.title(title, fontsize=16)
         plt.legend()
 
         if savepath and filename:
-            plt.savefig(f"{savepath}\{filename}.jpg")
+            plt.savefig(f"{savepath}\{filename}.jpg", dpi=600)
         else:
             plt.show()
         plt.close()
@@ -177,14 +181,16 @@ class Visualize():
         plt.show()
 
     @staticmethod
-    def plot_fft(fft, freq):
-        plt.plot(freq, np.abs(fft))
-        plt.xlabel('Frequency (Hz)')
-        plt.xlim([0, 200])  # max(freq)])
+    def plot_fft(fft, freq, filename, title = 'FFT - Magnitude Spectrum'):
+        plt.semilogy(freq[:len(freq)//2], np.abs(fft)[:len(freq)//2])
+        plt.xlabel('Frequenz in [Hz])')  # max(freq)])
         plt.ylabel('Magnitude')
-        plt.title('FFT - Magnitude Spectrum')
+        plt.title(title)
         plt.grid(True)
+        plt.savefig(filename, dpi=600)
         plt.show()
+        plt.close()
+
 
     @staticmethod
     def plot_microsacc(df, const_dict, title='Eye Trace in x- and y-Position', micsac=False, micsac2=False,
