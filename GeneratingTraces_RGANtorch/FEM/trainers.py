@@ -34,6 +34,7 @@ class SequenceTrainer:
         self.g_loss_log = []
         self.d_loss_log = []
         self.mmd2 = []
+        self.fft_similarity = []
         self.best_mmd2 = 1000
         self.vali_set = vali_set
         self.eval_frequency = eval_frequency
@@ -120,6 +121,7 @@ class SequenceTrainer:
             if epoch % self.mlflow_interval == 0:
                 sigma = [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10, 50, 100]
                 sigma, best_mmd2 = self.perform_sigma_grid_search(epoch, sigma, fake_labels=dataloader.rand_batch_labels(self.vali_set.shape[0]).to(self.device))
+                self.fft_analysis_plot(real=input_data, fake=self.generator(self.z, self.z_labels).detach(), plot=False)
                 print(f"Epoche {epoch} done. \nSigma = {sigma}, mmd2={best_mmd2}.")
                 self.plot_imgs(self.generator(self.z, self.z_labels).detach(), f"epoch={epoch}", compare_data=input_data, compare_labels=labels)#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
                 #self.tsne_pca(epoch, fake_data=self.generator(self.z, self.z_labels).detach(), real_data=input_data)
@@ -128,7 +130,7 @@ class SequenceTrainer:
         criterion = nn.BCEWithLogitsLoss()
         return criterion(y_hat, y)
 
-    def fft_analysis_plot(self, real, fake):
+    def fft_analysis_plot(self, real, fake, plot=False):
         real = real.cpu().numpy()
         fake = fake.cpu().numpy()
 
@@ -152,34 +154,35 @@ class SequenceTrainer:
 
         # Berechne die Ähnlichkeit im Frequenzraum, z.B. durch die Kreuzkorrelation
         similarity = np.corrcoef(np.abs(fft_signal_1), np.abs(fft_signal_2))[0, 1]
+        self.fft_similarity.append(similarity)
+        if plot:
+            # Plot der Zeitbereiche
+            plt.figure(figsize=(12, 4))
 
-        # Plot der Zeitbereiche
-        plt.figure(figsize=(12, 4))
+            plt.subplot(2, 2, 1)
+            plt.plot(real_x, label='Signal 1 (x)')
+            plt.plot(real_y, label='Signal 1 (y)')
+            plt.title('Zeitbereich - Signal 1')
+            plt.legend()
 
-        plt.subplot(2, 2, 1)
-        plt.plot(real_x, label='Signal 1 (x)')
-        plt.plot(real_y, label='Signal 1 (y)')
-        plt.title('Zeitbereich - Signal 1')
-        plt.legend()
+            plt.subplot(2, 2, 2)
+            plt.plot(fake_x, label='fake (x)')
+            plt.plot(fake_y, label='fake (y)')
+            plt.title('Zeitbereich - fake')
+            plt.legend()
 
-        plt.subplot(2, 2, 2)
-        plt.plot(fake_x, label='fake (x)')
-        plt.plot(fake_y, label='fake (y)')
-        plt.title('Zeitbereich - fake')
-        plt.legend()
+            # Plot der Frequenzbereiche
+            plt.subplot(2, 2, 3)
+            plt.plot(np.abs(fft_signal_1), label='real')
+            plt.title('Frequenzbereich - real')
 
-        # Plot der Frequenzbereiche
-        plt.subplot(2, 2, 3)
-        plt.plot(np.abs(fft_signal_1), label='real')
-        plt.title('Frequenzbereich - real')
+            plt.subplot(2, 2, 4)
+            plt.plot(np.abs(fft_signal_2), label='fake')
+            plt.title('Frequenzbereich - fake')
 
-        plt.subplot(2, 2, 4)
-        plt.plot(np.abs(fft_signal_2), label='fake')
-        plt.title('Frequenzbereich - fake')
-
-        plt.tight_layout()
-        plt.savefig(r"C:\Users\uvuik\Desktop\FFT\Fig1.jpeg")
-        plt.show()
+            plt.tight_layout()
+            plt.savefig(r"C:\Users\uvuik\Desktop\FFT\Fig1.jpeg")
+            plt.show()
 
         # Ausgabe der Ähnlichkeit
         print(f"Ähnlichkeit im Frequenzraum: {similarity}")
@@ -360,6 +363,7 @@ class SequenceTrainer:
             'g_loss_log': self.g_loss_log,
             'd_loss_log': self.d_loss_log,
             'mmd2': self.mmd2,
+            'fft_similarity': self.fft_similarity,
             'best_epoch': self.best_epoch
         }
 
