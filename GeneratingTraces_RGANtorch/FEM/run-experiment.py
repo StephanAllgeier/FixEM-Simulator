@@ -89,7 +89,8 @@ def main(opt):
                 'rnn_type': 'lstm',
                 'sequence_length': X.shape[1],
                 'num_classes': num_classes if opt['type'] == 'RCGAN' else None,
-                'label_size': 1 #'label_embedding_size': opt['label_embedding_size'] if opt['type'] == 'RCGAN' else None
+                'label_size': 1,
+                'label_embedding_size': opt['label_embedding_size'] if opt['type'] == 'RCGAN' else None
             },
             'optimizer': {
                 'name': optim.Adam,  # optim.RMSprop, originalPaper nimmt GradientDescend
@@ -121,7 +122,8 @@ def main(opt):
                               eval_frequency=1,
                               vali_set=X_vali,
                               savepath=opt['savepath'],
-                              GANtype=opt['type']
+                              GANtype=opt['type'],
+                              scale=opt['scale']
                               )
 
     if opt['type'] == 'RGAN':
@@ -162,15 +164,15 @@ if __name__ == '__main__':
             logger.info(f'Running on device {DEVICE}')
             params_list = []
 
-            for lr in [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]:
-                for hidden_size in [50, 100, 150]:
-                    params = {"lr": lr, "batch_size": 32, "hidden_size": hidden_size}
+            for lr in [0.01]:
+                for hidden_size in [150, 100]:
+                    params = {"lr": lr, "batch_size": 48, "hidden_size": hidden_size}
                     params_list.append(params)
             i = 0
             for params in params_list:
                 opt = {
                     "lr": params["lr"],
-                    "epochs": 4000,
+                    "epochs": 2000,
                     "ncritic": 3,
                     "batch_size": params["batch_size"],
                     "dataset_transform": 'normalize',
@@ -183,13 +185,14 @@ if __name__ == '__main__':
                     "slice_length": 2,
                     "no_mean": True,
                     'type': 'RCGAN',
-                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\Roorda\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",
+                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\TestRoorda_scale=0.2\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",
                     'split': [0.8, 0.1, 0.1],
                     'label_embedding_size': 5,
                     'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
                     'eval_interval': 10,
-                    'resample_freq': 250
+                    'resample_freq': 250,
+                    'scale': 0.2
                 }
                 i+=1
                 main(opt)
-                print(f"{i/len(params_list)}% done...")
+                print(f"{i/len(params_list)*100}% done...")
