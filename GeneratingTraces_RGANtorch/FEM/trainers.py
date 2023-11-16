@@ -114,10 +114,11 @@ class SequenceTrainer:
                 self.z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
                 input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
                 # Train discriminator
-                self.train_RCdiscriminator(input_data, labels)
-                # Trainiere den Generator n_critic mal
                 for _ in range(self.ncritic):
                     self.train_RCgenerator(labels)
+                self.train_RCDiscriminator(input_data, labels)
+                # Trainiere den Generator n_critic mal
+
             self.on_epoch_end(epoch)
 
             # Speichere Checkpoints
@@ -206,10 +207,10 @@ class SequenceTrainer:
         #fake_data = self.generator(self.z, labels)
         fake_data = self.generator(self.z, self.z_labels)
         # Calculating Gradient
-        #conv_fake = self.conv_signal(fake_data, kernel_size=self.conv_window)
-        #gradients_fake = torch.diff(conv_fake, dim=1)
-        #gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
-        #cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
+        # conv_fake = self.conv_signal(fake_data, kernel_size=self.conv_window)
+        # gradients_fake = torch.diff(conv_fake, dim=1)
+        # gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
+        # cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
 
         # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNd(RNNg(Z)),1)
         #TODO: Wieder ändern wenn kein label embedding
@@ -241,7 +242,7 @@ class SequenceTrainer:
         self.optimizer_d.step()
         self.d_loss_log.append(d_loss.item())
 
-    def train_RCdiscriminator(self, input_data, labels):
+    def train_RCDiscriminator(self, input_data, labels):
         self.optimizer_d.zero_grad()
 
         # Convolution and calcuating gradient---------------------------------------------------------------------------
@@ -269,7 +270,8 @@ class SequenceTrainer:
         # --------------------------------------------------------------------------------------------------------------
 
         #----------------Testing generating labels----------------------------------------------------------------------
-        gen_output = self.generator(self.z, self.z_labels).detach()
+        gen_output = self.generator(self.z, labels).detach()
+        #gen_output = self.generator(self.z, self.z_labels).detach()
         conv_fake = self.conv_signal(gen_output, kernel_size=self.conv_window)
         gradients_fake = torch.diff(conv_fake, dim=1)
         gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
