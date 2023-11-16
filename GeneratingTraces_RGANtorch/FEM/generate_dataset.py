@@ -64,7 +64,10 @@ class GenerateDataset():
             y_vals = synthetic_data[i, :, 1].numpy()
             t_vals = np.arange(synthetic_data.shape[1]) / fsamp
             # Erstelle einen DataFrame für die aktuelle Nummer
-            df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals})
+            if 'y' in list(inspect.signature(model.forward).parameters):
+                df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals, 'flags':y[i].cpu().numpy()})
+            else:
+                df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals})
             # resample mit B-Spline Interpolation
             if fsamp != fsamp_out:
                 spline = make_interp_spline(df['t'], df[['x', 'y']], k=3)
