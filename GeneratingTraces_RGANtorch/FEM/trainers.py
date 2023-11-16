@@ -505,7 +505,7 @@ class SequenceTrainer:
         return True
 
     def plot_losses_and_mmd2(self, epoch):
-        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 8), sharex=True, sharey=True)
+        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 8), sharex=True)
 
         # Subplot für Discriminator und Generator Loss
         ax1.plot(np.linspace(0, epoch + 1, len(self.d_loss_log)), self.d_loss_log, label='Discriminator Loss', color='blue')
@@ -523,6 +523,11 @@ class SequenceTrainer:
 
         ax1.grid(True)
         ax2.grid(True)
+        min_y = 0
+        max_y = max(ax1.get_ylim()[1], ax2.get_ylim()[1])
+        ax1.set_ylim(min_y, max_y)
+        ax2.set_ylim(min_y, max_y)
+
 
         # Subplot für MMD2 (zweite Zeile des Plots)
         ax3.plot(np.linspace(0, epoch + 1, len(self.mmd2)), self.mmd2, label='MMD2', color='green')
