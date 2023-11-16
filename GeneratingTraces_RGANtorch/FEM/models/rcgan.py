@@ -49,29 +49,16 @@ class RCGANGenerator(RGANGenerator):
         self.label_embedding_size = label_embedding_size 
         self.prob_classes = torch.Tensor(prob_classes)
 
-        # Initialize all weights.
-        # Already initialized in parent class
+        # weights already initialized in parent class
 
-    '''
-    def forward(self, z):
-        # shape: (batch-size, sequence_length, noise_size)
-        labels_generator = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(z.device)
-        y_emb = self.label_embeddings(labels_generator)
-        z = z.view(-1, self.sequence_length, self.noise_size)
-        z_cond = torch.cat((z, y_emb), dim=2)
-        output_generator = super(RCGANGenerator, self).forward(z_cond, reshape=False)
-
-        # shape: (batch-size, sequence_length, output_size)
-        return output_generator, labels_generator
-    #TODO: DIE FUNKTION oben HAT FUNKTIONIERT. Jetzt wird getestet...
-    '''
     def forward(self, z, y, reshape=True):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
-        #TODO: LABEL TENSOR GENERIEREN UND MIT ZURÜCK GEBEN? Wie lernt der Generator dann, wenn die labels "Müll" sind?
+
         #y_tiled = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(y.device)
         y_tiled = y.squeeze().type(torch.LongTensor).to(y.device)
+        #y_tiled = y.reshape(-1,self.sequence_length,1)
         # shape: (batch-size, sequence_length, label_embedding_size)
 
         # y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
@@ -98,6 +85,7 @@ class RCGANDiscriminator(RGANDiscriminator):
                  sequence_length,
                  num_classes,
                  input_size,
+                 label_size,
                  label_embedding_size=None,
                  **kwargs):
         """Recursive Conditional GAN (Discriminator) implementation with RNN cells.
@@ -112,15 +100,15 @@ class RCGANDiscriminator(RGANDiscriminator):
         """
 
         # Defaults
-        label_embedding_size = label_embedding_size or num_classes
-        kwargs['input_size'] = label_embedding_size + input_size
+        #label_embedding_size = label_embedding_size or num_classes
+        kwargs['input_size'] = input_size + label_embedding_size
         kwargs['label_type'] = "required"
         kwargs['sequence_length'] = sequence_length
 
         super(RCGANDiscriminator, self).__init__(**kwargs)
         self.num_classes = num_classes
         self.label_embeddings = nn.Embedding(num_classes, label_embedding_size)
-        self.label_embedding_size = label_embedding_size 
+        self.label_embedding_size = label_embedding_size
 
         # Initialize all weights.
         self._weight_initializer()
