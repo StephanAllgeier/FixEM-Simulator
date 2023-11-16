@@ -20,7 +20,7 @@ from sklearn.decomposition import PCA
 from scipy.fft import fft
 
 class SequenceTrainer:
-    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, eval_frequency=1, conv_window = 10):
+    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, eval_frequency=1, conv_window = 10, scale=None):
         self.models = models
         self.recon = recon
         self.ncritic = ncritic
@@ -42,6 +42,7 @@ class SequenceTrainer:
         self.savepath = savepath
         self.GANtype = GANtype
         self.conv_window = conv_window
+        self.scale=scale
 
         # Erstelle Generator und Diskriminator hier
         self.generator = self.models['generator']['name'](**self.models['generator']['args']).to(self.device)
@@ -106,15 +107,17 @@ class SequenceTrainer:
 
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
-                scale = 0.2
-                self.z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size],0).to(dtype=torch.float32).to(self.device)#torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)*scale#
+                if self.scale:
+                    self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)*self.scale
+                else:
+                    self.z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size],0).to(dtype=torch.float32).to(self.device)##
                 self.z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
                 input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
-                # Trainiere den Discriminator ncritic mal
+                # Train discriminator
+                self.train_RCdiscriminator(input_data, labels)
+                # Trainiere den Generator n_critic mal
                 for _ in range(self.ncritic):
-                    self.train_RCdiscriminator(input_data, labels)
-                # Trainiere den Generator
-                self.train_RCgenerator(labels)
+                    self.train_RCgenerator(labels)
             self.on_epoch_end(epoch)
 
             # Speichere Checkpoints
@@ -202,15 +205,15 @@ class SequenceTrainer:
         self.optimizer_g.zero_grad()
         #fake_data = self.generator(self.z, labels)
         fake_data = self.generator(self.z, self.z_labels)
-        conv_fake = self.conv_signal(fake_data, kernel_size=self.conv_window)
-        gradients_fake = torch.diff(conv_fake, dim=1)
-        gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
-        cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
-        #----------------TESTING-----------------------
-        #fake_data, labels = self.generator(self.z)
-        #----------------------------------------------
+        # Calculating Gradient
+        #conv_fake = self.conv_signal(fake_data, kernel_size=self.conv_window)
+        #gradients_fake = torch.diff(conv_fake, dim=1)
+        #gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
+        #cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
+
         # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNd(RNNg(Z)),1)
-        d_output = self.discriminator(fake_data, cond_input_fake)
+        #TODO: Wieder ändern wenn kein label embedding
+        d_output = self.discriminator(fake_data,self.z_labels)  # cond_input_fake)
         y = torch.ones_like(d_output).to(self.device)
         g_loss = self.adversarial_loss(d_output, y) #Aus Paper: -CE(RNNd(RNNg(Zn)),1) = -CE(RNNd(fake_data),1)
         g_loss.backward()
@@ -240,16 +243,19 @@ class SequenceTrainer:
 
     def train_RCdiscriminator(self, input_data, labels):
         self.optimizer_d.zero_grad()
+
+        # Convolution and calcuating gradient---------------------------------------------------------------------------
         # Smoothing the original signal -> convolution with window_size, and mean-kernel
-        conv_real = self.conv_signal(input_data, kernel_size=self.conv_window)
+        #conv_real = self.conv_signal(input_data, kernel_size=self.conv_window)
         #Gradient-Tensor berechnen
-        gradients_real = torch.diff(conv_real, dim=1)
-        gradients_real = torch.cat([torch.zeros_like(gradients_real[:, :1, :]), gradients_real], dim=1)
+        #gradients_real = torch.diff(conv_real, dim=1)
+        #gradients_real = torch.cat([torch.zeros_like(gradients_real[:, :1, :]), gradients_real], dim=1)
+        #cond_input_real = torch.concat([labels, gradients_real], dim=2)
+        #---------------------------------------------------------------------------------------------------------------
 
         # How well can it label as real
-        #Torch.diff als weiteren Input
-        cond_input_real = torch.concat([labels, gradients_real], dim=2)
-        y_hat_real = self.discriminator(input_data, cond_input_real)
+        #Gradient als weiteren input. TODO: Falls gewünscht wieder ändern!
+        y_hat_real = self.discriminator(input_data, labels)  # ,cond_input)
         y_real = torch.ones(y_hat_real.shape, dtype=y_hat_real.dtype).to(self.device)
         real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
 
@@ -267,14 +273,15 @@ class SequenceTrainer:
         conv_fake = self.conv_signal(gen_output, kernel_size=self.conv_window)
         gradients_fake = torch.diff(conv_fake, dim=1)
         gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
-        cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
-        y_hat_fake = self.discriminator(gen_output, cond_input_fake) #Todo: Hier auch die generierten Labels???
+        #TODO: Wenn Gradienten Gewünscht, dann wieder Ändern
+        #cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
+        y_hat_fake = self.discriminator(gen_output, self.z_labels)
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
         #---------------------------------------------------------------------------------------------------------------
 
         d_loss = (real_loss + fake_loss) / 2
-        #d_loss = (real_loss + fake_loss) # TODO: Nicht mehr halbiert
+        #d_loss = (real_loss + fake_loss)
         d_loss.backward()
         self.optimizer_d.step()
         self.d_loss_log.append(d_loss.item())
@@ -496,7 +503,7 @@ class SequenceTrainer:
         return True
 
     def plot_losses_and_mmd2(self, epoch):
-        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(15, 5), sharex=True)
+        fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 8), sharex=True, sharey=True)
 
         # Subplot für Discriminator und Generator Loss
         ax1.plot(np.linspace(0, epoch + 1, len(self.d_loss_log)), self.d_loss_log, label='Discriminator Loss', color='blue')
