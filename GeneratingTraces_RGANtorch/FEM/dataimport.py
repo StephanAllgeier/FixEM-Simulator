@@ -46,7 +46,7 @@ class TimeSeriesFEM(Dataset):
         samples_x = []
         samples_y = []
         labels = []
-        csv_files = [f for f in os.listdir(self.folderpath) if f.endswith('.csv') and 'flippend' not in f and 'reversed' not in f]
+        csv_files = [f for f in os.listdir(self.folderpath) if f.endswith('.csv') and 'reversed' not in f]
         #csv_files = [f for f in os.listdir(self.folderpath) if f.endswith('.csv')]
 
         for filename in csv_files:
