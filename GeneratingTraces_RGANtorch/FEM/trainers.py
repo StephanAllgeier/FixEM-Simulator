@@ -78,7 +78,7 @@ class SequenceTrainer:
         conv_signal = nn.functional.conv1d(flattened_signals, kernel, padding=kernel_size // 2).view(batch_size, 2,
                                                                                               signal_values)
         return conv_signal.permute(0, 2, 1).contiguous()
-
+    '''
     def train_RGAN(self, dataloader):
         #plot 1 real example
         data, _ = next(dataloader)
@@ -101,6 +101,7 @@ class SequenceTrainer:
             if epoch % self.mlflow_interval == 0:
                 self.plot_imgs(self.generator(self.z).detach(), f"epoch={epoch}", compare_data=input_data)
                 self.save_checkpoint(epoch)
+    '''
 
     def train_RCGAN(self, dataloader):
         for epoch in range(self.epochs):
@@ -108,18 +109,16 @@ class SequenceTrainer:
 
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
-                if self.scale:
-                    self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)*self.scale
-                else:
-                    self.z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size],0).to(dtype=torch.float32).to(self.device)##
-                self.z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
-                input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
+                input_data = input_data.to(dtype=torch.float32)# ,dtype=input_data.dtype).to(self.device)
                 # Train discriminator
                 for _ in range(self.ncritic):
-                    self.train_RCDiscriminator(input_data, labels)
-                self.train_RCgenerator(labels)
-                # Trainiere den Generator n_critic mal
-
+                    z = self.sample_z(input_data)
+                    z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
+                    self.train_RCDiscriminator(input_data, labels, z, z_labels)
+                # Train Generator
+                z = self.sample_z(input_data)
+                z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
+                self.train_RCgenerator(z, z_labels)
             self.on_epoch_end(epoch)
 
             # Speichere Checkpoints
@@ -128,11 +127,24 @@ class SequenceTrainer:
                          100]
                 sigma, best_mmd2 = self.perform_sigma_grid_search(epoch, sigma,
                                                                   fake_labels=dataloader.rand_batch_labels(self.vali_set.shape[0]).to(self.device))
-                self.fft_analysis_plot(real=input_data, fake=self.generator(self.z, self.z_labels).detach(), plot=False)
+                self.fft_analysis_plot(real=input_data, fake=self.generator(z, z_labels).detach(), plot=False)
                 print(f"Epoche {epoch} done. \nSigma = {sigma}, mmd2={best_mmd2}.")
-                self.plot_imgs(self.generator(self.z, self.z_labels).detach(), f"epoch={epoch}", compare_data=input_data, compare_labels=labels)#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
+                self.plot_imgs(self.generator(z, z_labels).detach(), f"epoch={epoch}", compare_data=input_data, compare_labels=labels, z_labels=z_labels)#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
                 #self.tsne_pca(epoch, fake_data=self.generator(self.z, self.z_labels).detach(), real_data=input_data)
                 self.save_checkpoint(epoch)
+    def sample_z(self, input_data):
+        if self.scale:
+            z = self.random_tensor((input_data.shape[0], input_data.shape[1], self.noise_size)).to(self.device) * self.scale
+            #z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device) * self.scale
+        else:
+            z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size], 0).to(
+                dtype=torch.float32).to(self.device)
+        return z
+
+    def random_tensor(self, shape):
+        random_samples = torch.rand(shape)
+        random_tensor = 2*random_samples -1
+        return random_tensor
     def adversarial_loss(self, y_hat, y):
         criterion = nn.BCEWithLogitsLoss()
         return criterion(y_hat, y)
@@ -205,10 +217,10 @@ class SequenceTrainer:
         self.optimizer_g.step()
         self.g_loss_log_epoch.append(g_loss.item())
 
-    def train_RCgenerator(self, labels):
+    def train_RCgenerator(self, z, z_labels):
         self.optimizer_g.zero_grad()
         #fake_data = self.generator(self.z, labels)
-        fake_data = self.generator(self.z, self.z_labels)
+        fake_data = self.generator(z, z_labels)
         # Calculating Gradient
         # conv_fake = self.conv_signal(fake_data, kernel_size=self.conv_window)
         # gradients_fake = torch.diff(conv_fake, dim=1)
@@ -217,7 +229,7 @@ class SequenceTrainer:
 
         # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNd(RNNg(Z)),1)
         #TODO: Wieder ändern wenn kein label embedding
-        d_output = self.discriminator(fake_data, self.z_labels)#self.z_labels)  # cond_input_fake) #TODO: WIRD HIER DER DISKRIMINATOR TRAINIERT?
+        d_output = self.discriminator(fake_data, z_labels)#self.z_labels)  # cond_input_fake) #TODO: WIRD HIER DER DISKRIMINATOR TRAINIERT?
         y = torch.ones_like(d_output).to(self.device)
         g_loss = self.adversarial_loss(d_output, y) #Aus Paper: -CE(RNNd(RNNg(Zn)),1) = -CE(RNNd(fake_data),1)
         g_loss.backward()
@@ -245,7 +257,7 @@ class SequenceTrainer:
         self.optimizer_d.step()
         self.d_loss_log_epoch.append(d_loss.item())
 
-    def train_RCDiscriminator(self, input_data, labels):
+    def train_RCDiscriminator(self, input_data, labels,z, z_labels):
         self.optimizer_d.zero_grad()
 
         # Convolution and calcuating gradient---------------------------------------------------------------------------
@@ -273,19 +285,19 @@ class SequenceTrainer:
         # --------------------------------------------------------------------------------------------------------------
 
         #----------------Testing generating labels----------------------------------------------------------------------
-        gen_output = self.generator(self.z, self.z_labels).detach()
+        #Sample z
+        gen_output = self.generator(z, z_labels).detach()
         #conv_fake = self.conv_signal(gen_output, kernel_size=self.conv_window)
         #gradients_fake = torch.diff(conv_fake, dim=1)
         #gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
 
         #cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
-        y_hat_fake = self.discriminator(gen_output, self.z_labels)
+        y_hat_fake = self.discriminator(gen_output, z_labels)
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
         #---------------------------------------------------------------------------------------------------------------
 
-        d_loss = (real_loss + fake_loss) / 2
-        #d_loss = (real_loss + fake_loss)
+        d_loss = real_loss + fake_loss
         d_loss.backward()
         self.optimizer_d.step()
         self.d_loss_log_epoch.append(d_loss.item())
@@ -381,7 +393,7 @@ class SequenceTrainer:
         plt.savefig(f'{self.savepath}\PCA_TSNE_epoch{epoch}.jpg')
         plt.close()
 
-    def plot_imgs(self, data, filename, compare_data=None, compare_labels = None):
+    def plot_imgs(self, data, filename, compare_data=None, compare_labels = None, z_labels = None):
         frequency = 250
         time_axis = np.arange(0, data.shape[1] / frequency, 1 / frequency)
         data = data.cpu().numpy()
@@ -428,9 +440,9 @@ class SequenceTrainer:
         y2 = data[1, :, 1]
         if str(self.GANtype) == "RCGAN":
             #Wenn RCGAN dann positionen der Mikrosakkaden plotten
-            micsac1_ = self.z_labels[0, :].squeeze().cpu().numpy()
+            micsac1_ = z_labels[0, :].squeeze().cpu().numpy()
             micsac1 = np.array([1 if (micsac1_[max(0, i - 1)] + micsac1_[min(len(micsac1_) - 1, i + 1)]) % 2 == 1 and micsac1_[i] == 1 else 0 for i in range(len(micsac1_))])
-            micsac2_ = self.z_labels[1,:].squeeze().cpu().numpy()
+            micsac2_ = z_labels[1,:].squeeze().cpu().numpy()
             micsac2 = np.array([1 if (micsac2_[max(0, i - 1)] + micsac2_[min(len(micsac2_) - 1, i + 1)]) % 2 == 1 and micsac2_[
                 i] == 1 else 0 for i in range(len(micsac2_))])
         else:
