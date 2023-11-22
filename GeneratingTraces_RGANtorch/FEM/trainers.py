@@ -19,7 +19,7 @@ from sklearn.decomposition import PCA
 from scipy.fft import fft
 
 class SequenceTrainer:
-    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, eval_frequency=1, conv_window = 10, scale=None):
+    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, resamp_frequency, eval_frequency=1, conv_window = 10, scale=None):
         self.models = models
         self.recon = recon
         self.ncritic = ncritic
@@ -44,6 +44,7 @@ class SequenceTrainer:
         self.GANtype = GANtype
         self.conv_window = conv_window
         self.scale=scale
+        self.frequency = resamp_frequency
 
         # Erstelle Generator und Diskriminator hier
         self.generator = self.models['generator']['name'](**self.models['generator']['args']).to(self.device)
@@ -394,7 +395,7 @@ class SequenceTrainer:
         plt.close()
 
     def plot_imgs(self, data, filename, compare_data=None, compare_labels = None, z_labels = None):
-        frequency = 250
+        frequency = self.frequency
         time_axis = np.arange(0, data.shape[1] / frequency, 1 / frequency)
         data = data.cpu().numpy()
 
