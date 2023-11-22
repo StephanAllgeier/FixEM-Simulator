@@ -14,7 +14,10 @@ class Visualize():
             color = ['blue', 'orange']
         plt.figure(figsize=(breite, höhe))
         f = const_dict['f']
-        t = dataset[const_dict['time_col']] * const_dict['TimeScaling']
+        if const_dict['time_col'] in dataset.columns:
+            t = dataset[const_dict['time_col']] * const_dict['TimeScaling']
+        else:
+            t = dataset.index * const_dict['TimeScaling']
         x = dataset[const_dict['x_col']] * const_dict['ValScaling']
         y = dataset[const_dict['y_col']] * const_dict['ValScaling']
         plt.plot(t, x, label=labels[0], color=color[0])
