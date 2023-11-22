@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import mlflow
 import tempfile
@@ -30,7 +31,7 @@ def main(opt):
 
     dataset = TimeSeriesFEM(folderpath=opt['input_folder'],
                             transform=opt['dataset_transform'], vital_signs=opt['signals'], no_mean=opt['no_mean'],
-                            slice_length=opt['slice_length'], input_freq=1920, resample_freq=opt['resample_freq'])
+                            slice_length=opt['slice_length'], input_freq=opt['input_freq'], resample_freq=opt['resample_freq'])
     label_dist = dataset.label_dist
     X = torch.from_numpy(dataset.data).cuda()
     y = torch.from_numpy(
@@ -121,7 +122,8 @@ def main(opt):
                               vali_set=X_vali,
                               savepath=opt['savepath'],
                               GANtype=opt['type'],
-                              scale=opt['scale']
+                              scale=opt['scale'],
+                              resamp_frequency=opt['resample_freq']
                               )
 
     if opt['type'] == 'RGAN':
@@ -162,9 +164,9 @@ if __name__ == '__main__':
             logger.info(f'Running on device {DEVICE}')
             params_list = []
 
-            for lr in [0.0002 + i * 0.0001 for i in range(5)]:
-                for hidden_size in [150, 100]:
-                    params = {"lr": lr, "batch_size": 48, "hidden_size": hidden_size}
+            for lr in [0.0002 + i * 0.0001 for i in range(9)]:
+                for hidden_size in [50, 100]:
+                    params = {"lr": lr, "batch_size": 64, "hidden_size": hidden_size}
                     params_list.append(params)
             i = 0
             for params in params_list:
@@ -178,19 +180,22 @@ if __name__ == '__main__':
                     "gen_dropout": 0.2,
                     "noise_size": 20,
                     "hidden_size": params["hidden_size"],
-                    'num_layers': 2,
+                    'num_layers': 1,
                     "flag": 'train',
                     "slice_length": 2,
                     "no_mean": True,
                     'type': 'RCGAN',
-                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\TestRoorda_scale=0.2\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",
+                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\Roorda_scale=0.1\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",#TODO:Anpassen für HPC
                     'split': [0.8, 0.1, 0.1],
                     'label_embedding_size': 2,
-                    'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
+                    'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda", #TODO: Anpassen für HPC
                     'eval_interval': 10,
+                    'input_freq': 1920,
                     'resample_freq': 250,
-                    'scale': 0.2
+                    'scale': 0.1
                 }
                 i+=1
+                if Path(opt['savepath']).is_dir():
+                    continue
                 main(opt)
                 print(f"{i/len(params_list)*100}% done...")
