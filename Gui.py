@@ -1,9 +1,13 @@
 import sys
+from pathlib import Path
+import pandas as pd
+
 import openpyxl
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QComboBox, QLabel, QLineEdit, QPushButton, \
     QFileDialog, QCheckBox, QHBoxLayout, QButtonGroup
 
 from GeneratingTraces_MathematicalModel import RandomWalk
+from GeneratingTraces_RGANtorch.FEM.generate_dataset import GenerateDataset
 
 def get_combination_from_excel(excel_file):
     wb = openpyxl.load_workbook(excel_file)
@@ -15,6 +19,21 @@ def get_combination_from_excel(excel_file):
         all_combinations.append(tupel1)
     wb.close()
     return all_combinations
+def transform_dict(input_dict):
+    key_values = list(input_dict.items())[0]
+    keys = key_values[0].split(';')
+    values = map(float, key_values[1].split(';'))
+    result_dict = dict(zip(keys, values))
+    return result_dict
+
+def get_combination_from_csv(csv_file):
+    df = pd.read_csv(csv_file)
+    all_combinations = df.to_dict(orient='records')
+    transformed_combinations = []
+    for combination in all_combinations:
+        transformed_combinations.append(transform_dict(combination))
+
+    return transformed_combinations
 
 class Functs:
     @staticmethod
@@ -27,7 +46,7 @@ class MyWindow(QMainWindow):
         super().__init__()
 
         # Hauptfenster-Einstellungen
-        self.setWindowTitle("Funktionsauswahl")
+        self.setWindowTitle("Create synthetic FEMs")
         self.setGeometry(200, 200, 400, 400)
 
         # Haupt-Widget und Layout erstellen
@@ -37,57 +56,24 @@ class MyWindow(QMainWindow):
 
         # Funktionsauswahl-ComboBox erstellen
         self.function_combo = QComboBox(self)
-        self.function_combo.addItem("RandomWalk based")
-        self.function_combo.addItem("GAN based")
+        self.label_for_func = QLabel("Method:")
+        self.layout.addWidget(self.label_for_func)
+        self.function_combo.addItem("RandomWalk")
+        self.function_combo.addItem("RCGAN")
         self.layout.addWidget(self.function_combo)
 
         # Dropdown-Menü mit 16 Optionen erstellen
         self.float_options = []
         #excel_file = r"C:\Users\fanzl\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\ParameterInput.xlsx"
         # Open Excelfile
-        #combinations = get_combination_from_excel(excel_file)
-        data1 = {
-            'simulation_rate': 150,
-            'cells_per_degree': 10,
-            'relaxation_rate': 0.085,
-            'h_crit': 8.9
-        }
-        data2 = {
-            'simulation_rate': 100,
-            'cells_per_degree': 10,
-            'relaxation_rate': 0.1,
-            'h_crit': 6.9
-        }
-        data3 = {
-            'simulation_rate': 200,
-            'cells_per_degree': 10,
-            'relaxation_rate': 0.1,
-            'h_crit': 9.9
-        }
-        data4 = {
-            'simulation_rate': 200,
-            'cells_per_degree': 25,
-            'relaxation_rate': 0.08,
-            'h_crit': 5.4
-        }
-        data5 = {
-            'simulation_rate': 250,
-            'cells_per_degree': 25,
-            'relaxation_rate': 0.01,
-            'h_crit': 8.4
-        }
-        data6 = {
-            'simulation_rate': 150,
-            'cells_per_degree': 25,
-            'relaxation_rate': 0.08,
-            'h_crit': 4.4
-        }
-        combinations = [data1,data2,data3,data4,data5,data6]
+        combinations = get_combination_from_csv(Path("ParameterInputGui.csv"))
         for comb in combinations:
-            self.float_options.append((comb['simulation_rate'], comb['cells_per_degree'], comb['relaxation_rate'], comb['h_crit']))
+            self.float_options.append((comb['simulation rate'], comb['cells per degree'], comb['relaxation rate'], comb['h_crit']))
 
-        self.drop_var = ['simulation_freq', "potential_resolution", "relaxation_rate", "hc"]
+        self.drop_var = ['simulation_freq', 'potential_resolution', 'relaxation_rate', 'hc']
         self.float_combo = QComboBox(self)
+        self.label_for_combo = QLabel("Parameter combination:")
+        self.layout.addWidget(self.label_for_combo)
         for index, option in enumerate(self.float_options):
             self.float_combo.addItem(
                 f"{self.drop_var[0]}={option[0]},{self.drop_var[1]}={option[1]},{self.drop_var[2]}={option[2]},{self.drop_var[3]}={option[3]}")
@@ -95,10 +81,27 @@ class MyWindow(QMainWindow):
 
         self.float_combo.currentIndexChanged.connect(self.toggle_input_fields_enabled)  # Event handler hinzufügen
         self.layout.addWidget(self.float_combo)
+
+        self.file_label = QLabel("GAN Model File:")
+        self.file_edit = QLineEdit()
+        self.file_browse_button = QPushButton("Browse file")
+        self.file_browse_button.clicked.connect(self.browse_file("GAN Model Files (*.pth)"))
+        self.label_file = QLabel("Label file:")
+        self.label_file_edit = QLineEdit()
+        self.label_file_browse_button = QPushButton("Browse file")
+        self.label_file_browse_button.clicked.connect(self.browse_file("Label files (*.csv)"))
+
+        self.layout.addWidget(self.file_label)
+        self.layout.addWidget(self.file_edit)
+        self.layout.addWidget(self.file_browse_button)
+        self.layout.addWidget(self.label_file)
+        self.layout.addWidget(self.label_file_edit)
+        self.layout.addWidget(self.label_file_browse_button)
         # Zuordnung von Anzeigenamen zu Variablennamen
-        self.variable_mapping = {"Number of simulations": "number",
+        self.variable_mapping = {
+                            "Number of simulations": "number",
                             "Duration": 'duration',
-                                 "Field size in degree": 'field_size',
+                            "Field size in degree": 'field_size',
                             "Sampling Frequency": 'sampling_frequency',
                             'Folderpath to save to': 'folderpath',
                             'Show plots': 'show_plots'
@@ -173,9 +176,14 @@ class MyWindow(QMainWindow):
         self.layout.addLayout(unit_layout)
 
         # Button zum Ausführen der Funktion erstellen
-        self.run_button = QPushButton("Funktion ausführen", self)
+        self.run_button = QPushButton("Start creating synthetic FEMs", self)
         self.run_button.clicked.connect(self.run_function)
         self.layout.addWidget(self.run_button)
+
+        # Dateiauswahl-Widget erstellen
+
+        self.function_combo.currentIndexChanged.connect(self.toggle_file_input_enabled)
+        self.toggle_file_input_enabled()
 
 
 
@@ -187,9 +195,19 @@ class MyWindow(QMainWindow):
                 if variable_name == "folderpath":
                     line_edit.setText(folder_path)
 
+    def browse_file(self, fileformat):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Datei auswählen", "", fileformat)
+        self.file_edit.setText(file_path)
+
     def toggle_input_field(self, line_edit, checkbox_default):
         line_edit.setDisabled(checkbox_default.isChecked())
-
+    def toggle_file_input_enabled(self):
+        selected_function = self.function_combo.currentText()
+        enable_file_input = selected_function == "RCGAN"
+        self.file_edit.setEnabled(enable_file_input)
+        self.file_browse_button.setEnabled(enable_file_input)
+        self.label_file_browse_button.setEnabled(enable_file_input)
+        self.float_combo.setEnabled(not enable_file_input)
     def handle_checkbox(self, checkbox, other_checkbox):
         if checkbox.isChecked():
             other_checkbox.setChecked(False)
@@ -239,26 +257,28 @@ class MyWindow(QMainWindow):
             variables['unit'] = 'Arcmin'
         elif self.unit_um_checkbox.isChecked():
             variables['unit'] = 'µm'
-        '''
-        variables_dict = {}
-        for key in variables.keys():
-            if key in self.variable_mapping.keys():
-                variables_dict[self.variable_mapping[key]] = variables[key]
-        '''
+
         current_combo = self.float_combo.currentText().split(',')
         for comb_elem in current_combo:
             comb_name=comb_elem.split('=')[0]
             comb_val = float(comb_elem.split('=')[1])
             variables.update({comb_name: comb_val})
-        if selected_function == 'RandomWalk based':
+        if selected_function == 'RandomWalk':
             if isinstance(variables['number'], type(None)):
                 variables['number'] =1
             range_end = int(variables['number'])
             variables.pop('number')
             for i in range(1, range_end + 1):
                 RandomWalk.RandomWalk.randomWalk(**variables, number_id=i)
-        if selected_function == 'GAN based':
-            print('Not yet implemented.')
+        if selected_function == 'RCGAN':
+            hyperparameterfile = ""
+            model = GenerateDataset(hyperparameterfile)
+            f_samp = variables['sampling_frequency']
+            duration = variables['duration']
+            n = variables['number']
+            labels = variables['label_file']
+            model.generate_data(model, n, duration, f_samp,
+                            labels=r"C:\Users\uvuik\Documents\Code\MasterarbeitIAI\GeneratingTraces_RGANtorch\FEM\RoordaLabels.csv")
 
 
 app = QApplication(sys.argv)
