@@ -68,9 +68,9 @@ class MyWindow(QMainWindow):
         # Open Excelfile
         combinations = get_combination_from_csv(Path("ParameterInputGui.csv"))
         for comb in combinations:
-            self.float_options.append((comb['simulation rate'], comb['cells per degree'], comb['relaxation rate'], comb['h_crit']))
+            self.float_options.append((comb['simulation rate'], comb['L'], comb['relaxation rate'], comb['h_crit']))
 
-        self.drop_var = ['simulation_freq', 'potential_resolution', 'relaxation_rate', 'hc']
+        self.drop_var = ['simulation_freq', 'grid size L', 'relaxation_rate', 'hc']
         self.float_combo = QComboBox(self)
         self.label_for_combo = QLabel("Parameter combination:")
         self.layout.addWidget(self.label_for_combo)
@@ -85,11 +85,11 @@ class MyWindow(QMainWindow):
         self.file_label = QLabel("GAN Model File:")
         self.file_edit = QLineEdit()
         self.file_browse_button = QPushButton("Browse file")
-        self.file_browse_button.clicked.connect(self.browse_file("GAN Model Files (*.pth)"))
+        #self.file_browse_button.clicked.connect(self.browse_file("GAN Model Files (*.pth)"))
         self.label_file = QLabel("Label file:")
         self.label_file_edit = QLineEdit()
         self.label_file_browse_button = QPushButton("Browse file")
-        self.label_file_browse_button.clicked.connect(self.browse_file("Label files (*.csv)"))
+        #self.label_file_browse_button.clicked.connect(self.browse_file("Label files (*.csv)"))
 
         self.layout.addWidget(self.file_label)
         self.layout.addWidget(self.file_edit)
@@ -268,6 +268,8 @@ class MyWindow(QMainWindow):
                 variables['number'] =1
             range_end = int(variables['number'])
             variables.pop('number')
+            variables['potential_resolution'] = int(variables['grid size L'])
+            variables.pop('grid size L')
             for i in range(1, range_end + 1):
                 RandomWalk.RandomWalk.randomWalk(**variables, number_id=i)
         if selected_function == 'RCGAN':
@@ -278,7 +280,7 @@ class MyWindow(QMainWindow):
             n = variables['number']
             labels = variables['label_file']
             model.generate_data(model, n, duration, f_samp,
-                            labels=r"C:\Users\uvuik\Documents\Code\MasterarbeitIAI\GeneratingTraces_RGANtorch\FEM\RoordaLabels.csv")
+                            labels="GeneratingTraces_RGANtorch\FEM\RoordaLabels.csv")#TODO: LabelFile anpassen, dass aus Input genommen wird
 
 
 app = QApplication(sys.argv)

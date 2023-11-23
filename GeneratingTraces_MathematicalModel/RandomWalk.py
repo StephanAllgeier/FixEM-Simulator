@@ -476,8 +476,10 @@ class RandomWalk():
         if folderpath is not None:
             save = True
             args.fpath_sampled = fr"{Path(folderpath)}\Trace{number_id}"
-
-        N = int(args.potential_resolution * 2 + 1)
+        if args.potential_resolution is not None and args.potential_resolution % 2 == 1:
+            N = int(args.potential_resolution)
+        elif args.potential_resolution is not None:
+            N= int(args.potential_resolution) + 1
         # N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
 
         if args.base_dir is not None:
