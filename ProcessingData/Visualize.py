@@ -184,13 +184,18 @@ class Visualize():
         plt.show()
 
     @staticmethod
-    def plot_fft(fft, freq, filename, title = 'FFT - Magnitude Spectrum'):
+    def plot_fft(fft, freq, filename, title = 'FFT - Magnitude Spectrum', xlim=(0,500), ylim = (10**(-2), 10**5)):
         plt.semilogy(freq[:len(freq)//2], np.abs(fft)[:len(freq)//2])
-        plt.xlabel('Frequenz in [Hz])')  # max(freq)])
-        plt.ylabel('Magnitude')
-        plt.title(title)
+        plt.xlabel('Frequenz in [Hz]', fontsize=16)
+        plt.ylabel('Magnitude', fontsize=16)
+        plt.xlim(xlim)
+        plt.ylim(ylim)
+        plt.xticks(fontsize=13)
+        plt.yticks(fontsize=13)
+        plt.title(title, fontsize=18)
         plt.grid(True)
         plt.savefig(filename, dpi=600)
+        plt.tight_layout()
         plt.show()
         plt.close()
 

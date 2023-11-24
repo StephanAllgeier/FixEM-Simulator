@@ -476,10 +476,10 @@ class RandomWalk():
         if folderpath is not None:
             save = True
             args.fpath_sampled = fr"{Path(folderpath)}\Trace{number_id}"
-            # args.fpath_sampled=fr"{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}_SamplingF={args.sampling_frequency}_SimulationF={args.simulation_frequency}_relaxationr={args.relaxation_rate}\Trace{number_id}"
-            # args.fpath_sim=fr'{Path(folderpath)}\dur={args.duration-10}_cells={args.potential_resolution}\SimulationF={args.simulation_frequency}\Signal{number_id}'
-
-        N = int(args.potential_resolution * 2 + 1)
+        if args.potential_resolution is not None and args.potential_resolution % 2 == 1:
+            N = int(args.potential_resolution)
+        elif args.potential_resolution is not None:
+            N= int(args.potential_resolution) + 1
         # N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
 
         if args.base_dir is not None:
@@ -932,7 +932,7 @@ class RandomWalk():
             ax1.plot(t, x_sampled, label='x', color='blue')
             ax1.plot(t, y_sampled, label='y', color='orange')
 
-            ax1.set_xlim(22, 24)
+            #ax1.set_xlim(22, 24)
             ax1.set_ylim(min(y_sampled), max(y_sampled))
             ax1.set_xlabel('Zeit in s')
             ax1.set_ylabel(f'Position in {unit_symb}')
@@ -942,7 +942,7 @@ class RandomWalk():
             ax2 = axs[1]
             ax2.plot(t, x_sampled, label='x', color='blue')
             ax2.plot(t, y_sampled, label='y', color='orange')
-            ax2.set_xlim(12, 14)
+            #ax2.set_xlim(12, 14)
             ax2.set_ylim(min(y_sampled), max(y_sampled))
             ax2.set_xlabel('Zeit in s')
             ax2.set_ylabel(f'Position in {unit_symb}')
@@ -963,7 +963,7 @@ class RandomWalk():
 
             # Anzeigen oder Speichern der Figur
             plt.show()
-            plt.savefig(folderpath)
+            plt.savefig(f'{args.fpath_sampled}_plot.png')
 
 
 if __name__ == '__main__':

@@ -3,7 +3,8 @@ import pandas as pd
 import torch
 from scipy.interpolate import make_interp_spline
 import inspect
-from GeneratingTraces_RGANtorch.FEM.models import RCGANGenerator, RGANGenerator
+from GeneratingTraces_RGANtorch.FEM.models.rcgan import RCGANGenerator
+from GeneratingTraces_RGANtorch.FEM.models.rgan import RGANGenerator
 from pathlib import Path
 
 
