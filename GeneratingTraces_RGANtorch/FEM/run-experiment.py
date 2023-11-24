@@ -188,14 +188,12 @@ if __name__ == '__main__':
                     'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\Roorda_scale=0.1\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",#TODO:Anpassen für HPC
                     'split': [0.8, 0.1, 0.1],
                     'label_embedding_size': 2,
-                    'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda", #TODO: Anpassen für HPC
+                    'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
                     'eval_interval': 10,
                     'input_freq': 1920,
                     'resample_freq': 250,
                     'scale': 0.1
                 }
                 i+=1
-                if Path(opt['savepath']).is_dir():
-                    continue
                 main(opt)
                 print(f"{i/len(params_list)*100}% done...")
