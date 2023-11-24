@@ -1,10 +1,6 @@
 import torch
 import numpy as np
 from math import floor
-from GeneratingTraces_RGANtorch.ward2icu import make_logger
-
-logger = make_logger(__file__)
-
 
 def tile(t, length):
     ''' Creates an extra dimension on the tensor t and
