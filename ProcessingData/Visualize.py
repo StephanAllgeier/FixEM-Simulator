@@ -238,8 +238,11 @@ class Visualize():
     def plot_prob_dist(data: list, title: str, x_value: str):
         # Takes a list of Data as input and plots the distribution
         mean = np.mean(data)
+        mean_str = str(round(mean,3)).replace('.',',')
         median = np.median(data)
+        median_str = str(round(median,3)).replace('.',',')
         std = np.std(data)
+        std_str = str(round(std,3)).replace('.',',')
         # Wahrscheinlichkeitsverteilung erstellen
         x = np.linspace(min(data), max(data), 100)
         # y = norm.pdf(x, mean, std)
@@ -247,9 +250,9 @@ class Visualize():
         # plt.plot(x, y, label='Wahrscheinlichkeitsverteilung')
         counts, bins , _ = plt.hist(data, bins=50, density=True, alpha=0.5, label='Histogram', edgecolor='black')
         # Bestimme den Index des Bins, dessen x-Wert größer als 1 ist
-        plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {round(mean,3)}', linewidth=2)
-        plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {round(median,3)}', linewidth=2)
-        plt.axvline(x=mean + std, color='b', linestyle='--', label=f'Stdev. = {round(std,3)}', linewidth=2)
+        plt.axvline(x=mean, color='r', linestyle='--', label=f'Mittelwert = {mean_str}', linewidth=2)
+        plt.axvline(x=median, color='g', linestyle='--', label=f'Median = {median_str}', linewidth=2)
+        plt.axvline(x=mean + std, color='b', linestyle='--', label=f'Stdev. = {std_str}', linewidth=2)
         plt.axvline(x=mean - std, color='b', linestyle='--', linewidth=2)
         # Achsenbeschriftung und Legende hinzufügen
         plt.xlabel(x_value)
@@ -257,5 +260,5 @@ class Visualize():
         plt.ylabel('Wahrscheinlichkeitsdichte')
         plt.legend()
         plt.savefig(
-            fr'C:\Users\uvuik\Desktop\{title}.jpeg',dpi=350)
+            fr'C:\Users\uvuik\Desktop\{title}.jpeg',dpi=600)
         plt.show()
