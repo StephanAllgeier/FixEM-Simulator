@@ -1,14 +1,12 @@
 import os
-from pathlib import Path
 
 import mlflow
 import tempfile
-import click
 import torch
 import numpy as np
 from GeneratingTraces_RGANtorch.FEM.models import RCGANGenerator, RCGANDiscriminator, RGANGenerator, RGANDiscriminator
 
-from GeneratingTraces_RGANtorch.ward2icu.samplers import BinaryBalancedSampler, SimpleSampler
+from GeneratingTraces_RGANtorch.FEM.samplers import SimpleSampler
 
 from GeneratingTraces_RGANtorch.FEM.trainers import SequenceTrainer
 from torch import optim
@@ -76,7 +74,7 @@ def main(opt):
             'optimizer': {
                 'name': optim.Adam,  # optim.RMSprop,
                 'args': {
-                    'lr': opt['lr']
+                    'lr': 2 * opt['lr']
                 }
             }
         },
@@ -164,9 +162,9 @@ if __name__ == '__main__':
             logger.info(f'Running on device {DEVICE}')
             params_list = []
 
-            for lr in [0.0002 + i * 0.0001 for i in range(9)]:
+            for lr in [0.0004 + i * 0.0001 for i in range(9)]:
                 for hidden_size in [50, 100]:
-                    params = {"lr": lr, "batch_size": 64, "hidden_size": hidden_size}
+                    params = {"lr": lr, "batch_size": 128, "hidden_size": hidden_size}
                     params_list.append(params)
             i = 0
             for params in params_list:
@@ -182,16 +180,16 @@ if __name__ == '__main__':
                     "hidden_size": params["hidden_size"],
                     'num_layers': 1,
                     "flag": 'train',
-                    "slice_length": 2,
+                    "slice_length": 5,
                     "no_mean": True,
                     'type': 'RCGAN',
-                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\Roorda_scale=0.1\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}",#TODO:Anpassen für HPC
+                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\Torch\\Roorda_scale=0.1,f=100\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}_resample=250",#TODO:Anpassen für HPC
                     'split': [0.8, 0.1, 0.1],
                     'label_embedding_size': 2,
                     'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda",
                     'eval_interval': 10,
                     'input_freq': 1920,
-                    'resample_freq': 250,
+                    'resample_freq': 100,
                     'scale': 0.1
                 }
                 i+=1
