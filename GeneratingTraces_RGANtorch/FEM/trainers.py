@@ -138,8 +138,10 @@ class SequenceTrainer:
             z = self.random_tensor((input_data.shape[0], input_data.shape[1], self.noise_size)).to(self.device) * self.scale
             #z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device) * self.scale
         else:
-            z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size], 0).to(
-                dtype=torch.float32).to(self.device)
+            z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size], 0).to(dtype=torch.float32).to(
+                self.device)
+            random_values = (torch.rand([input_data.shape[0], 1, self.noise_size]) * 0.4 - 0.2).to(self.device)
+            z += random_values
         return z
 
     def random_tensor(self, shape):
