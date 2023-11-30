@@ -37,66 +37,6 @@ class Visualize():
             plt.show()
         plt.close()
 
-    '''
-    @staticmethod
-    def plot_xy_dual(dataset1, dataset2, const_dict1, const_dict2, color1=None, color2=None, labels1=None, labels2=None,
-                     title='Augenbewegungen in x- und y-Koordinaten'):
-        if labels1 is None:
-            labels1 = ['x', 'y']
-        if labels2 is None:
-            labels2 = ['x', 'y']
-        if color1 is None:
-            color1 = ['blue', 'orange']
-        if color2 is None:
-            color2 = ['blue', 'orange']
-
-        f1 = const_dict1['f']
-        t1 = dataset1[const_dict1['time_col']] * const_dict1['TimeScaling']
-        x1 = dataset1[const_dict1['x_col']] * const_dict1['ValScaling']
-        y1 = dataset1[const_dict1['y_col']] * const_dict1['ValScaling']
-
-        f2 = const_dict2['f']
-        t2 = dataset2[const_dict2['time_col']]
-        x2 = dataset2[const_dict2['x_col']] * const_dict2['ValScaling']
-        y2 = dataset2[const_dict2['y_col']] * const_dict2['ValScaling']
-
-        mask1 = (t1 >= 12) & (t1 <= 15)
-        mask2 = (t2 >= 12) & (t2 <= 15)
-        t1 = np.array(t1[mask1])
-        x1 = np.array(x1[mask1])
-        y1 = np.array(y1[mask1])
-        t2 = np.array(t2[mask2])
-        x2 = np.array(x2[mask2])
-        y2 = np.array(y2[mask2])
-        plt.figure(figsize=(6, 8))
-
-        plt.subplot(2, 1, 1)
-        plt.plot(t1, x1, label=labels1[0], color=color1[0])
-        plt.plot(t1, y1, label=labels1[1], color=color1[1])
-        plt.xlim(12, 15)
-        plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
-        plt.xlabel('Zeit in s')
-        plt.ylabel('Position in Bogenminuten [arcmin]')
-        plt.title(title + f' - Simulation')
-        plt.legend()
-
-        plt.subplot(2, 1, 2)
-        plt.plot(t2, x2, label=labels2[0], color=color2[0])
-        plt.plot(t2, y2, label=labels2[1], color=color2[1])
-        plt.xlim(12, 15)
-        plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
-        plt.xlabel('Zeit in s')
-        plt.ylabel('Position in Bogenminuten [arcmin]')
-        plt.title(title + f' - GazeBase')
-        plt.legend()
-
-        
-        plt.savefig(save_path + '.svg', format='svg', dpi=600)
-        plt.savefig(save_path + '.jpeg', format='jpeg', dpi=600)
-        plt.savefig(save_path + '.pdf', format='pdf')
-        plt.show()
-    '''
-
     @staticmethod
     def plot_xy_µm(dataset, const_dict, color=None, labels=None):
         if labels is None:
@@ -126,6 +66,7 @@ class Visualize():
         plt.legend()
         plt.show()
 
+    @staticmethod
     def plot_xy_dual(dataset1, dataset2, const_dict1, const_dict2, subtitle1, subtitle2, savepath = None, color1=None, color2=None, labels1=None, labels2=None,
                      title='Augenbewegungen in x- und y-Koordinaten', t_on=0, t_off=5):
         if labels1 is None:
@@ -262,3 +203,160 @@ class Visualize():
         plt.savefig(
             fr'C:\Users\uvuik\Desktop\{title}.jpeg',dpi=600)
         plt.show()
+
+    @staticmethod
+    def plot_three_traces(dataset1, dataset2, dataset3, f1, f2, f3, subtitle1, subtitle2, subtitle3, ylabel, savepath = None, color1=None, color2=None, labels1=None, labels2=None,
+                 title='Augenbewegungen in x- und y-Koordinaten'):
+        if labels1 is None:
+            labels1 = ['x', 'y']
+        if labels2 is None:
+            labels2 = ['x', 'y']
+        if color1 is None:
+            color1 = ['blue', 'orange']
+        if color2 is None:
+            color2 = ['blue', 'orange']
+
+        t1 = dataset1['TimeAxis']
+        x1 = dataset1['x']
+        y1 = dataset1['y']
+
+        t2 = dataset2['Unnamed: 0'] / 1000
+        x2 = dataset2['x']
+        y2 = dataset2['y']
+
+        t3 = dataset3['Time'][0:20000]
+        x3 = dataset3['x'][10000:30000]
+        y3 = dataset3['y'][10000:30000]
+
+        t1 = np.array(t1)
+        x1 = np.array(x1)
+        y1 = np.array(y1)
+        t2 = np.array(t2)
+        x2 = np.array(x2)
+        y2 = np.array(y2)
+        t3 = np.array(t3)
+        x3 = np.array(x3)
+        y3 = np.array(y3)
+        plt.figure(figsize=(26, 20))
+        plt.suptitle(title, fontsize=18)
+        plt.subplot(3, 1, 1)
+        plt.plot(t1, x1, label=labels1[0], color=color1[0])
+        plt.plot(t1, y1, label=labels1[1], color=color1[1])
+        plt.ylim(min(min(x1), min(x2), min(y1), min(y2), min(x3), min(y3)), max(max(x1), max(y1), max(x2), max(y2), max(x3), max(y3)))
+        plt.xlim(0,14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.title(subtitle1, fontsize=16)
+        plt.legend()
+
+        plt.subplot(3, 1, 2)
+        plt.plot(t2, x2, label=labels2[0], color=color2[0])
+        plt.plot(t2, y2, label=labels2[1], color=color2[1])
+        plt.ylim(min(min(x1), min(x2), min(y1), min(y2), min(x3), min(y3)),
+                 max(max(x1), max(y1), max(x2), max(y2), max(x3), max(y3)))
+        plt.ylabel(ylabel, fontsize=14)
+        plt.title(subtitle2, fontsize=16)
+        plt.legend()
+        plt.xlim(0, 14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+
+        plt.subplot(3, 1, 3)
+        plt.plot(t3, x3, label=labels1[0], color=color1[0])
+        plt.plot(t3, y3, label=labels1[1], color=color1[1])
+        plt.ylim(min(min(x1), min(x2), min(y1), min(y2), min(x3), min(y3)),
+                 max(max(x1), max(y1), max(x2), max(y2), max(x3), max(y3)))
+        plt.xlabel('Zeit in s', fontsize=14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+
+        plt.title(subtitle3, fontsize=16)
+        plt.legend()
+        plt.xlim(0, 14)
+        plt.subplots_adjust(hspace=0.5)
+        plt.savefig(savepath + '.svg', format='svg', dpi=600)
+        plt.savefig(savepath + '.jpeg', format='jpeg', dpi=600)
+        plt.savefig(savepath + '.pdf', format='pdf')
+        plt.show()
+
+        @staticmethod
+        def plot_two_traces(dataset1, dataset2, f1, f2, subtitle1, subtitle2, ylabel, savepath=None, color1=None,
+                            color2=None, labels1=None, labels2=None,
+                            title='Augenbewegungen in x- und y-Koordinaten'):
+            if labels1 is None:
+                labels1 = ['x', 'y']
+            if labels2 is None:
+                labels2 = ['x', 'y']
+            if color1 is None:
+                color1 = ['blue', 'orange']
+            if color2 is None:
+                color2 = ['blue', 'orange']
+
+            t1 = dataset1['Time']
+            x1 = dataset1['x']
+            y1 = dataset1['y']
+
+            t2 = dataset2['Time']
+            x2 = dataset2['x']
+            y2 = dataset2['y']
+
+            t1 = np.array(t1)
+            x1 = np.array(x1)
+            y1 = np.array(y1)
+            t2 = np.array(t2)
+            x2 = np.array(x2)
+            y2 = np.array(y2)
+            plt.figure(figsize=(12, 20))
+            plt.suptitle(title, fontsize=18)
+            plt.subplot(2, 1, 1)
+            plt.plot(t1, x1, label=labels1[0], color=color1[0])
+            plt.plot(t1, y1, label=labels1[1], color=color1[1])
+            plt.ylim(-60,
+                     60)  # plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
+            plt.xlabel('Zeit in s', fontsize=14)
+            plt.xticks(fontsize=12)
+            plt.yticks(fontsize=12)
+            plt.ylabel(ylabel, fontsize=14)
+            plt.title(subtitle1, fontsize=16)
+            plt.legend()
+
+            plt.subplot(2, 1, 2)
+            plt.plot(t2, x2, label=labels2[0], color=color2[0])
+            plt.plot(t2, y2, label=labels2[1], color=color2[1])
+            # plt.ylim(min(min(x1), min(x2), min(y1), min(y2)), max(max(x1), max(y1), max(x2), max(y2)))
+            plt.ylim(-60, 60)
+            plt.xlabel('Zeit in s', fontsize=14)
+            plt.ylabel(ylabel, fontsize=14)
+            plt.title(subtitle2, fontsize=16)
+            plt.legend()
+            plt.xticks(fontsize=12)
+            plt.yticks(fontsize=12)
+            plt.subplots_adjust(hspace=0.4)
+            plt.savefig(savepath + '.svg', format='svg', dpi=600)
+            plt.savefig(savepath + '.jpeg', format='jpeg', dpi=600)
+            plt.savefig(savepath + '.pdf', format='pdf')
+            plt.show()
+
+    @staticmethod
+    def plot_polar_hist(data, filepath):
+
+
+        # Definiere die Anzahl der Bins für das Histogramm
+        anzahl_bins = 36
+
+        # Berechne das Histogramm
+        hist, bin_edges = np.histogram(data, bins=np.linspace(-180, 180, anzahl_bins + 1), density=True)
+
+        # Berechne die Mittelpunkte der Bins für die Darstellung auf dem Polarplot
+        bin_mitte = np.deg2rad((bin_edges[:-1] + bin_edges[1:]) / 2)
+
+        # Erstelle den Polarplot
+        fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+
+        # Plotte Punkte und verbinde sie
+        ax.plot(np.append(bin_mitte, bin_mitte[0]), np.append(hist, hist[0]), color='blue',
+                linestyle='solid', markersize=8)
+        plt.title('Verteilung der Richtung von Mikrosakkaden des Roorda-Datensatz')
+        # Zeige den Plot
+        plt.show()
+        plt.savefig(filepath, dpi=600)
