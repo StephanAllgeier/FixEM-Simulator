@@ -10,7 +10,6 @@ from torch.nn import BCELoss, BCEWithLogitsLoss
 from GeneratingTraces_RGANtorch.FEM import make_logger
 from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
 import GeneratingTraces_RGANtorch.FEM.mmd as mmd
-import mlflow
 import matplotlib.pyplot as plt
 logger = make_logger(__file__)
 
@@ -403,7 +402,7 @@ class SequenceTrainer:
 
         if compare_data is not None and compare_labels is not None:
             compare_data = compare_data.cpu().numpy()
-            fig, ((ax1, ax3), (ax2, ax4)) = plt.subplots(2, 2, sharex=True, sharey=True)
+            fig, ((ax1, ax3), (ax2, ax4)) = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(20, 12))
             micsac3_ = compare_labels[0,:].squeeze().cpu().numpy()
             micsac3 = np.array([1 if (micsac3_[max(0, i - 1)] + micsac3_[min(len(micsac3_) - 1, i + 1)]) % 2 == 1 and micsac3_[
                 i] == 1 else 0 for i in range(len(micsac3_))])
@@ -420,23 +419,25 @@ class SequenceTrainer:
             ax3.plot(time_axis, y3, label='Y')
             ax3.scatter(time_axis[micsac3 == 1], x3[micsac3 == 1], marker='x', color='red', label='Mikrosakkade')
             ax3.scatter(time_axis[micsac3 == 1], y3[micsac3 == 1], marker='x', color='red')
-            ax3.set_ylabel('Vergleichsdaten 1')
-            ax3.legend()
+            ax3.set_title('real', fontsize=24)
+            ax3.legend(fontsize=20)
 
             # Vierter Plot (unten rechts)
             ax4.plot(time_axis, x4, label='X')
             ax4.plot(time_axis, y4, label='Y')
             ax4.scatter(time_axis[micsac4 == 1], x4[micsac4 == 1], marker='x', color='red', label='Mikrosakkade')
             ax4.scatter(time_axis[micsac4 == 1], y4[micsac4 == 1], marker='x', color='red')
-            ax4.set_ylabel('Vergleichsdaten 2')
-            ax4.set_xlabel('Zeit in Sekunden [s]')
+            ax4.set_title('real', fontsize=24)
+            ax4.set_xlabel('Zeit in Sekunden [s]', fontsize=22)
             ax3.set_xticks(np.arange(0, compare_data.shape[1] / frequency + 1, 1))
             ax4.set_xticks(np.arange(0, compare_data.shape[1] / frequency + 1, 1))
-            ax4.legend()
+            ax4.set_xticks(ax4.get_xticks())
+            ax4.set_xticklabels(ax4.get_xticks(), fontsize=18)
+            ax4.legend(fontsize=20)
 
         else:
             fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-
+        fig.suptitle('Verlauf generierter Trajektorien (links) und \nrealer Trajektorien des Roorda-Datensatzes (rechts)', fontsize=32)
         x1 = data[0, :, 0]
         x2 = data[1, :, 0]
         y1 = data[0, :, 1]
@@ -458,8 +459,9 @@ class SequenceTrainer:
         if micsac1 is not None:
             ax1.scatter(time_axis[micsac1 == 1], x1[micsac1 == 1], marker='x', color='red', label='Mikrosakkade')
             ax1.scatter(time_axis[micsac1 == 1], y1[micsac1 == 1], marker='x', color='red')
-        ax1.set_ylabel('Beispiel 1')
-        ax1.legend()
+        ax1.set_ylabel('Position (dimensionslos)', fontsize=22)
+        ax1.set_title('synthetisch', fontsize=24)
+        ax1.legend(fontsize=20)
 
         # Zweiter Plot (unten links oder einziger Plot unten)
         ax2.plot(time_axis, x2, label='X')
@@ -467,12 +469,18 @@ class SequenceTrainer:
         if micsac2 is not None:
             ax2.scatter(time_axis[micsac2 == 1], x2[micsac2 == 1], marker='x', color='red', label='Mikrosakkade')
             ax2.scatter(time_axis[micsac2 == 1], y2[micsac2 == 1], marker='x', color='red')
-        ax2.set_ylabel('Beispiel 2')
-        ax2.set_xlabel('Zeit in Sekunden [s]')
+        ax2.set_ylabel('Position (dimensionslos)', fontsize=22)
+        ax2.set_xlabel('Zeit in Sekunden [s]', fontsize=22)
+        ax2.set_title('synthetisch', fontsize=24)
         ax1.set_xticks(np.arange(0, data.shape[1] / frequency + 1, 1))
         ax2.set_xticks(np.arange(0, data.shape[1] / frequency + 1, 1))
-        ax2.legend()
-
+        ax2.legend(fontsize=18)
+        ax2.set_yticks(ax2.get_yticks())
+        ax2.set_yticklabels(ax2.get_yticks(), fontsize=18)
+        ax2.set_xticks(ax2.get_xticks())
+        ax2.set_xticklabels(ax2.get_xticks(), fontsize=18)
+        ax1.set_yticks(ax2.get_yticks())
+        ax1.set_yticklabels(ax1.get_yticks(),fontsize=18)
         fig.tight_layout()
 
         # Speichern der Figur
@@ -520,83 +528,4 @@ class SequenceTrainer:
 
 
 logger = make_logger(__file__)
-
-
-class BinaryClassificationTrainer(object):
-    def __init__(self,
-                 model,
-                 optimizer,
-                 sampler_train=None,
-                 sampler_test=None,
-                 log_to_mlflow=True,
-                 loss_function=BCEWithLogitsLoss(),
-                 metrics_prepend=''):
-        self.optimizer = optimizer
-        self.sampler_train = sampler_train
-        self.sampler_test = sampler_test
-        self.loss_function = loss_function
-        self.model = model
-        self.log_to_mlflow = log_to_mlflow
-        self.tiled = sampler_train.tile
-        self.metrics_prepend = metrics_prepend
-
-    def train(self, epochs, evaluate_interval=100):
-        for epoch in range(epochs):
-            self.optimizer.zero_grad()
-            X_train, y_train = self.sampler_train.sample()
-
-            logits_train = self.model(X_train)
-            loss = self.loss_function(logits_train, y_train)
-            loss.backward()
-            self.optimizer.step()
-
-            if epoch % evaluate_interval == 0:
-                with torch.no_grad():
-                    X_test, y_test = self.sampler_test.sample()
-                    logger.debug(f'[Train sizes {X_train.shape} {y_train.shape}]')
-                    logger.debug(f'[Test sizes {X_test.shape} {y_test.shape}]')
-                    metrics = self.evaluate(X_test, y_test,
-                                            X_train, y_train)
-                    msg = f'[epoch {epoch}]'
-                    msg += ''.join(f'[{m} {np.round(v,4)}]'
-                                   for m, v in metrics.items()
-                                   if m.endswith('balanced_accuracy') or
-                                   m.endswith('matheus'))
-                    logger.info(msg)
-                    if self.log_to_mlflow:
-                        mlflow.log_metrics(metrics, step=epoch)
-
-    def evaluate(self, X_test, y_test, X_train, y_train):
-        def _calculate(X, y, name):
-            logits = self.model(X)
-            probs = torch.sigmoid(logits)
-            y_pred = probs.round()
-            y_true = y
-            return self.calculate_metrics(y_true, y_pred, logits, probs, name)
-
-        mp = self.metrics_prepend
-        return {**_calculate(X_test, y_test, f'{mp}test'),
-                **_calculate(X_train, y_train, f'{mp}train')}
-
-    def calculate_metrics(self, y_true, y_pred, logits, probs, name=''):
-        y_true_ = (y_true[:, 0] if self.tiled else y_true).cpu()
-        y_pred_ = (y_pred.mode().values if self.tiled else y_pred).cpu()
-
-        mask_0 = (y_true_ == 0)
-        mask_1 = (y_true_ == 1)
-
-        hits = (y_true_ == y_pred_).float()
-        bas = balanced_accuracy_score(y_true_, y_pred_)
-        matthews = matthews_corrcoef(y_true_, y_pred_)
-
-        return {f'{name}_accuracy': hits.mean().item(),
-                f'{name}_balanced_accuracy': bas,
-                f'{name}_accuracy_0': hits[mask_0].mean().item(),
-                f'{name}_accuracy_1': hits[mask_1].mean().item(),
-                f'{name}_loss': self.loss_function(logits, y_true).item(),
-                f'{name}_loss_0': self.loss_function(logits[mask_0],
-                                                     y_true[mask_0]).item(),
-                f'{name}_loss_1': self.loss_function(logits[mask_1],
-                                                     y_true[mask_1]).item(),
-                f'{name}_matthews': matthews}
 
