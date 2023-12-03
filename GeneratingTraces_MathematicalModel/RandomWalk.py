@@ -691,7 +691,7 @@ class RandomWalk():
             walked_mask[line_i, line_j] = True
 
             # Micsac Criterion
-            h_crit = hc  # 7.9 Value from "An integrated model of fixational eye movements and microsaccades
+            h_crit = hc
             # micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger PUnkt auf LInie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
             if any(micsac_array[max(0, i - round(f_sim * 0.015)):i]):
@@ -704,15 +704,18 @@ class RandomWalk():
                         1 / f_sim)
             visited_activation[walked_mask] = visited_activation[walked_mask] + 1.0
 
-        # Evaluation
-        micsac_onset = []  # Entspricht Offset Drift
-        micsac_offset = []  # Entspricht Onset Drift
+        '''
+        Evaluation of IMSI 
+        '''
+
+        micsac_onset = []  # Offset drift
+        micsac_offset = []  # Onset drift
         for i in range(1, len(micsac_array)):
             if micsac_array[i] and not micsac_array[i - 1]:
                 micsac_onset.append(i)
             elif not micsac_array[i] and micsac_array[i - 1]:
                 micsac_offset.append(i - 1)
-        if len(micsac_onset) > len(micsac_offset):  # Wenn genau am letzten Index eine Mikrosakkade getriggert wird.
+        if len(micsac_onset) > len(micsac_offset):  # If MS gets triggered without an end at end of simulation
             micsac_onset = micsac_onset[:-1]
         drift_segments = []
         for i in range(len(micsac_onset) + 1):
@@ -732,6 +735,7 @@ class RandomWalk():
         for segment in drift_segments_after10s:
             intermicsac_dur.append((segment[1] - segment[0]) / args.simulation_frequency)
         drift_segments = drift_segments_after10s
+
         """
         BSpline Interpolation for random Walk and Linear Interpolation for Microsaccades
         """
