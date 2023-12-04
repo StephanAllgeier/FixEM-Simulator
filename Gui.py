@@ -290,12 +290,14 @@ class MyWindow(QMainWindow):
         elif self.unit_um_checkbox.isChecked():
             variables['unit'] = 'µm'
         variables["simulation_freq"] = float(self.line_edit_simulation_freq.text())
-        variables["cells per degree"] = float(self.line_edit_cells_per_degree.text())
+        variables["cells per deg"] = float(self.line_edit_cells_per_degree.text())
         variables["relaxation_rate"] = float(self.line_edit_relaxation_rate.text())
         variables["hc"] = float(self.line_edit_hc.text())
 
         current_combo = self.float_combo.currentText().split(',')
         for comb_elem in current_combo:
+            if comb_elem == 'None':
+                break
             comb_name=comb_elem.split('=')[0]
             comb_val = float(comb_elem.split('=')[1])
             variables.update({comb_name: comb_val})
@@ -304,8 +306,8 @@ class MyWindow(QMainWindow):
                 variables['number'] =1
             range_end = int(variables['number'])
             variables.pop('number')
-            variables['potential_resolution'] = int(variables['grid size L'])
-            variables.pop('grid size L')
+            variables['potential_resolution'] = int(variables['cells per deg'])
+            variables.pop('cells per deg')
             for i in range(1, range_end + 1):
                 RandomWalk.RandomWalk.randomWalk(**variables, number_id=i)
         if selected_function == 'RCGAN':
