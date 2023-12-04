@@ -74,6 +74,7 @@ class MyWindow(QMainWindow):
         self.float_combo = QComboBox(self)
         self.label_for_combo = QLabel("Parameter combination:")
         self.layout.addWidget(self.label_for_combo)
+        self.float_combo.addItem('None')
         for index, option in enumerate(self.float_options):
             self.float_combo.addItem(
                 f"{self.drop_var[0]}={option[0]},{self.drop_var[1]}={option[1]},{self.drop_var[2]}={option[2]},{self.drop_var[3]}={option[3]}")
@@ -90,7 +91,33 @@ class MyWindow(QMainWindow):
         self.label_file_edit = QLineEdit()
         self.label_file_browse_button = QPushButton("Browse file")
         #self.label_file_browse_button.clicked.connect(self.browse_file("Label files (*.csv)"))
+        self.label_simulation_freq = QLabel("Simulation Frequency:")
+        self.label_cells_per_degree = QLabel("Cells per Degree:")
+        self.label_relaxation_rate = QLabel("Relaxation Rate:")
+        self.label_hc = QLabel("hc:")
 
+        self.layout.addWidget(self.label_simulation_freq)
+        self.line_edit_simulation_freq = QLineEdit()
+        self.layout.addWidget(self.line_edit_simulation_freq)
+        self.layout.addWidget(self.label_cells_per_degree)
+        self.line_edit_cells_per_degree = QLineEdit()
+        self.layout.addWidget(self.line_edit_cells_per_degree)
+        self.layout.addWidget(self.label_relaxation_rate)
+        self.line_edit_relaxation_rate = QLineEdit()
+        self.layout.addWidget(self.line_edit_relaxation_rate)
+        self.layout.addWidget(self.label_hc)
+        self.line_edit_hc = QLineEdit()
+        self.layout.addWidget(self.line_edit_hc)
+
+        # input_fields-Liste aktualisieren
+        self.input_fields = [
+            # ... (bestehende Felder)
+            ("simulation_freq", self.line_edit_simulation_freq, None),
+            ("cells per degree", self.line_edit_cells_per_degree, None),
+            ("relaxation_rate", self.line_edit_relaxation_rate, None),
+            ("hc", self.line_edit_hc, None),
+            # ... (bestehende Felder)
+        ]
         self.layout.addWidget(self.file_label)
         self.layout.addWidget(self.file_edit)
         self.layout.addWidget(self.file_browse_button)
@@ -213,13 +240,18 @@ class MyWindow(QMainWindow):
             other_checkbox.setChecked(False)
 
     def toggle_input_fields_enabled(self):
-        selected_index = self.float_combo.currentIndex()
-        selected_option = self.float_options[selected_index]
-        disable_variables = ["variable1",
-                             "variable2"]  # Fügen Sie hier die Variablennamen hinzu, die deaktiviert werden sollen
+        selected_option_text = self.float_combo.currentText()
+        disable_fields = selected_option_text.lower() != 'none'
 
-        for variable_name, line_edit, _ in self.input_fields:
-            line_edit.setEnabled(variable_name not in disable_variables)
+        for label, line_edit in [
+            (self.label_simulation_freq, self.line_edit_simulation_freq),
+            (self.label_cells_per_degree, self.line_edit_cells_per_degree),
+            (self.label_relaxation_rate, self.line_edit_relaxation_rate),
+            (self.label_hc, self.line_edit_hc)
+        ]:
+            label.setEnabled(not disable_fields)
+            line_edit.setDisabled(disable_fields)
+            line_edit.clear() if disable_fields else None
 
     def run_function(self):
         selected_function = self.function_combo.currentText()
@@ -257,6 +289,10 @@ class MyWindow(QMainWindow):
             variables['unit'] = 'Arcmin'
         elif self.unit_um_checkbox.isChecked():
             variables['unit'] = 'µm'
+        variables["simulation_freq"] = float(self.line_edit_simulation_freq.text())
+        variables["cells per degree"] = float(self.line_edit_cells_per_degree.text())
+        variables["relaxation_rate"] = float(self.line_edit_relaxation_rate.text())
+        variables["hc"] = float(self.line_edit_hc.text())
 
         current_combo = self.float_combo.currentText().split(',')
         for comb_elem in current_combo:
