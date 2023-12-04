@@ -68,9 +68,9 @@ class MyWindow(QMainWindow):
         # Open Excelfile
         combinations = get_combination_from_csv(Path("ParameterInputGui.csv"))
         for comb in combinations:
-            self.float_options.append((comb['simulation rate'], comb['L'], comb['relaxation rate'], comb['h_crit']))
+            self.float_options.append((comb['simulation rate'], comb['cells per degree'], comb['relaxation rate'], comb['h_crit']))
 
-        self.drop_var = ['simulation_freq', 'grid size L', 'relaxation_rate', 'hc']
+        self.drop_var = ['simulation_freq', 'cells per deg', 'relaxation_rate', 'hc']
         self.float_combo = QComboBox(self)
         self.label_for_combo = QLabel("Parameter combination:")
         self.layout.addWidget(self.label_for_combo)
