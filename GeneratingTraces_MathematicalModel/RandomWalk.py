@@ -476,11 +476,7 @@ class RandomWalk():
         if folderpath is not None:
             save = True
             args.fpath_sampled = fr"{Path(folderpath)}\Trace{number_id}"
-        if args.potential_resolution is not None and args.potential_resolution % 2 == 1:
-            N = int(args.potential_resolution)
-        elif args.potential_resolution is not None:
-            N= int(args.potential_resolution) + 1
-        # N = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
+        N=RandomWalk.round_to_odd(args.field_size*args.potential_resolution)
 
         if args.base_dir is not None:
             chdir(args.base_dir)
@@ -692,7 +688,7 @@ class RandomWalk():
 
             # Micsac Criterion
             h_crit = hc
-            # micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger PUnkt auf LInie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
+            # micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger Punkt auf Linie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
             if any(micsac_array[max(0, i - round(f_sim * 0.015)):i]):
                 micsac_array[i + 1] = False
