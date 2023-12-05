@@ -79,7 +79,7 @@ class MyWindow(QMainWindow):
             self.float_combo.addItem(
                 f"{self.drop_var[0]}={option[0]},{self.drop_var[1]}={option[1]},{self.drop_var[2]}={option[2]},{self.drop_var[3]}={option[3]}")
         self.layout.addWidget(self.float_combo)
-
+        self.disable_fields=False
         self.float_combo.currentIndexChanged.connect(self.toggle_input_fields_enabled)  # Event handler hinzufügen
         self.layout.addWidget(self.float_combo)
 
@@ -241,7 +241,7 @@ class MyWindow(QMainWindow):
 
     def toggle_input_fields_enabled(self):
         selected_option_text = self.float_combo.currentText()
-        disable_fields = selected_option_text.lower() != 'none'
+        self.disable_fields = selected_option_text.lower() != 'none'
 
         for label, line_edit in [
             (self.label_simulation_freq, self.line_edit_simulation_freq),
@@ -249,9 +249,9 @@ class MyWindow(QMainWindow):
             (self.label_relaxation_rate, self.line_edit_relaxation_rate),
             (self.label_hc, self.line_edit_hc)
         ]:
-            label.setEnabled(not disable_fields)
-            line_edit.setDisabled(disable_fields)
-            line_edit.clear() if disable_fields else None
+            label.setEnabled(not self.disable_fields)
+            line_edit.setDisabled(self.disable_fields)
+            line_edit.clear() if self.disable_fields else None
 
     def run_function(self):
         selected_function = self.function_combo.currentText()
@@ -289,10 +289,7 @@ class MyWindow(QMainWindow):
             variables['unit'] = 'Arcmin'
         elif self.unit_um_checkbox.isChecked():
             variables['unit'] = 'µm'
-        variables["simulation_freq"] = float(self.line_edit_simulation_freq.text())
-        variables["cells per deg"] = float(self.line_edit_cells_per_degree.text())
-        variables["relaxation_rate"] = float(self.line_edit_relaxation_rate.text())
-        variables["hc"] = float(self.line_edit_hc.text())
+
 
         current_combo = self.float_combo.currentText().split(',')
         for comb_elem in current_combo:
@@ -301,6 +298,11 @@ class MyWindow(QMainWindow):
             comb_name=comb_elem.split('=')[0]
             comb_val = float(comb_elem.split('=')[1])
             variables.update({comb_name: comb_val})
+        if not self.disable_fields:
+            variables["simulation_freq"] = float(self.line_edit_simulation_freq.text())
+            variables["cells per deg"] = float(self.line_edit_cells_per_degree.text())
+            variables["relaxation_rate"] = float(self.line_edit_relaxation_rate.text())
+            variables["hc"] = float(self.line_edit_hc.text())
         if selected_function == 'RandomWalk':
             if isinstance(variables['number'], type(None)):
                 variables['number'] =1
