@@ -6,6 +6,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torchgan
+from matplotlib.ticker import StrMethodFormatter
 from torch.nn import BCELoss, BCEWithLogitsLoss
 from GeneratingTraces_RGANtorch.FEM import make_logger
 from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
@@ -105,20 +106,22 @@ class SequenceTrainer:
 
     def train_RCGAN(self, dataloader):
         for epoch in range(self.epochs):
+            i=0
             for batch in dataloader:
-
-                input_data, labels = batch
-                input_data, labels = input_data.to(self.device), labels.to(self.device)
-                input_data = input_data.to(dtype=torch.float32)# ,dtype=input_data.dtype).to(self.device)
-                # Train discriminator
-                for _ in range(self.ncritic):
+                while i<5:
+                    input_data, labels = batch
+                    input_data, labels = input_data.to(self.device), labels.to(self.device)
+                    input_data = input_data.to(dtype=torch.float32)# ,dtype=input_data.dtype).to(self.device)
+                    # Train discriminator
+                    for _ in range(self.ncritic):
+                        z = self.sample_z(input_data)
+                        z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
+                        self.train_RCDiscriminator(input_data, labels, z, z_labels)
+                    # Train Generator
                     z = self.sample_z(input_data)
                     z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
-                    self.train_RCDiscriminator(input_data, labels, z, z_labels)
-                # Train Generator
-                z = self.sample_z(input_data)
-                z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
-                self.train_RCgenerator(z, z_labels)
+                    self.train_RCgenerator(z, z_labels)
+                    i+=1
             self.on_epoch_end(epoch)
 
             # Speichere Checkpoints
@@ -437,7 +440,7 @@ class SequenceTrainer:
 
         else:
             fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-        fig.suptitle('Verlauf generierter Trajektorien (links) und \nrealer Trajektorien des Roorda-Datensatzes (rechts)', fontsize=32)
+        fig.suptitle('Verlauf generierter Trajektorien (links) und \nrealer Trajektorien des GazeBase-Datensatzes (rechts)', fontsize=32)
         x1 = data[0, :, 0]
         x2 = data[1, :, 0]
         y1 = data[0, :, 1]
@@ -481,6 +484,8 @@ class SequenceTrainer:
         ax2.set_xticklabels(ax2.get_xticks(), fontsize=18)
         ax1.set_yticks(ax2.get_yticks())
         ax1.set_yticklabels(ax1.get_yticks(),fontsize=18)
+        ax2.yaxis.set_major_formatter(StrMethodFormatter('{x:,.1f}'))
+        ax1.yaxis.set_major_formatter(StrMethodFormatter('{x:,.1f}'))
         fig.tight_layout()
 
         # Speichern der Figur
