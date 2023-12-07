@@ -175,8 +175,8 @@ def alt():
 
 
 if __name__ == '__main__':
-    excel_file=r"C:\Users\uvuik\Desktop\PlottingTrace.xlsx"
+    excel_file=r"C:\Users\uvuik\Desktop\ParameterInputGui.xlsx"
     combinations = get_combination_from_excel(excel_file)
-    combinations = [{'cells per degree': 10, 'h_crit': 6.9, 'relaxation rate': 0.1, 'simulation rate': 100}]
+    combinations = [{'cells per degree': 21, 'h_crit': 6.9, 'relaxation rate': 0.1, 'simulation rate': 100}]
     folder_to_save_to = r"C:\Users\uvuik\Desktop\TestOrdner40s"
     save_combination_evaluation_to_json(combinations=combinations, folder_to_save_to=folder_to_save_to)
