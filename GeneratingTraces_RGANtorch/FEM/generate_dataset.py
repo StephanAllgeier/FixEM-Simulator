@@ -6,13 +6,14 @@ import inspect
 from GeneratingTraces_RGANtorch.FEM.models.rcgan import RCGANGenerator
 from GeneratingTraces_RGANtorch.FEM.models.rgan import RGANGenerator
 from pathlib import Path
+import joblib
 
 
 class GenerateDataset():
     def __init__(self,
                  checkpoint_file):
         self.device = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
-        self.checkpoint = torch.load(checkpoint_file)
+        self.checkpoint = torch.load(checkpoint_file, map_location=torch.device('cpu'))
         self.generator = RGANGenerator if self.checkpoint[
                                               'GANtype'] == 'RGAN' else RCGANGenerator  # self.checkpoint['GANtype']
         self.GANargs = self.checkpoint['GANargs']
@@ -48,17 +49,29 @@ class GenerateDataset():
             ms = [int(i * fsamp / 1000) for i in data['ms']]
         rand_labels_batch = [sample_rand_labels() for _ in range(z.shape[0])]
         return torch.tensor(rand_labels_batch, dtype=torch.float32)
+    @staticmethod
+    def random_tensor(shape):
+        random_samples = torch.rand(shape)
+        random_tensor = 2*random_samples -1
+        return random_tensor
 
     @staticmethod
-    def generate_data(model, num_samples, duration, fsamp, fsamp_out, folderpath_to_save_to=None, labels=None):
+    def generate_data(model, num_samples, duration, fsamp, fsamp_out, folderpath_to_save_to=None, labels=None, noise_scale=0.2, scalerfile=None ):
         device = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
         noise_size = model.noise_size  # Annahme: input_size ist ein Attribut des Modells
-        z = torch.randn(num_samples, duration * fsamp, noise_size).to(device)
+        #z = torch.randn(num_samples, duration * fsamp, noise_size).to(device)*noise_scale
+        z = GenerateDataset.random_tensor((num_samples, duration * fsamp, noise_size)).to(device)*noise_scale
         if 'y' in list(inspect.signature(model.forward).parameters):  # If labels are needed
             y = GenerateDataset.rand_batch_labels(labels, z, fsamp).to(device)
             synthetic_data = model(z, y, reshape=False).detach().cpu()
         else:
             synthetic_data = model(z, reshape=False).detach().cpu()
+        '''
+        scaler = joblib.load(scalerfile)
+        sample_syntheticData = synthetic_data.reshape(-1, synthetic_data.shape[1] * synthetic_data.shape[2])
+        scaled_samples = scaler.inverse_transform(sample_syntheticData.numpy())
+        synthetic_data = torch.from_numpy(scaled_samples.reshape(synthetic_data.shape))
+        '''
         dfs = []
         for i in range(synthetic_data.shape[0]):
             x_vals = synthetic_data[i, :, 0].numpy()
@@ -66,7 +79,7 @@ class GenerateDataset():
             t_vals = np.arange(synthetic_data.shape[1]) / fsamp
             # Erstelle einen DataFrame für die aktuelle Nummer
             if 'y' in list(inspect.signature(model.forward).parameters):
-                df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals, 'flags':y[i].cpu().numpy()})
+                df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals, 'flags': y[i].cpu().numpy()})
             else:
                 df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals})
             # resample mit B-Spline Interpolation
