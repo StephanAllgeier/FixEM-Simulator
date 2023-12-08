@@ -5,7 +5,7 @@ from scipy import signal
 from scipy.interpolate import CubicSpline
 import torch
 from torch.utils.data import Dataset
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MaxAbsScaler
 import numpy as np
 
 class TimeSeriesFEM(Dataset):
@@ -111,7 +111,7 @@ class TimeSeriesFEM(Dataset):
         sample_r = sample.reshape(-1, signal_length * num_signals)
 
         # Fit scaler
-        scaler = MinMaxScaler(feature_range=scale_range).fit(sample_r)
+        scaler = MaxAbsScaler().fit(sample_r)
 
         # Scale
         normalized_sample = scaler.transform(sample_r).reshape(-1, signal_length, num_signals)
