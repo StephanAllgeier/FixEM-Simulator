@@ -1,6 +1,5 @@
 import scipy
-from scipy import signal
-from scipy.signal import butter, lfilter, freqz, cheby1, cheby2, filtfilt
+from scipy.signal import butter, lfilter, freqz, filtfilt
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -57,11 +56,3 @@ class Filtering():
         b, a = Filtering.butter_lowpass(highcut, fs, order=order)
         y = filtfilt(b, a, data, padlen=3 * max(len(a), len(b)))
         return y
-
-    @staticmethod
-    def barlet_filter(signal_df, const_dict, window_duration_ms=20):
-        x = signal_df[const_dict['x']].to_numpy()
-        y = signal_df[const_dict['y']].to_numpy()
-
-        #Anzahl Abtastpunkte im 210ms Fenster
-        win_length = int((window_duration_ms / 1000) * const_dict['f'])
