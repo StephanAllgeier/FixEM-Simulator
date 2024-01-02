@@ -109,13 +109,11 @@ class TimeSeriesFEM(Dataset):
             sample -= data_mean
         # Reshape
         sample_r = sample.reshape(-1, signal_length * num_signals)
-
+        sample_r = np.transpose(sample_r)
         # Fit scaler
         scaler = MaxAbsScaler().fit(sample_r)
-
         # Scale
-        normalized_sample = scaler.transform(sample_r).reshape(-1, signal_length, num_signals)
-
+        normalized_sample = np.transpose(scaler.transform(sample_r)).reshape(-1, signal_length, num_signals)
         return normalized_sample
     def get_label_dist(self):
         _, labels = self.load_data()

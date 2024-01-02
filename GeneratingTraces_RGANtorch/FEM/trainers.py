@@ -106,9 +106,9 @@ class SequenceTrainer:
 
     def train_RCGAN(self, dataloader):
         for epoch in range(self.epochs):
-            i=0
+            i = 0
             for batch in dataloader:
-                while i<5:
+                if i<8:
                     input_data, labels = batch
                     input_data, labels = input_data.to(self.device), labels.to(self.device)
                     input_data = input_data.to(dtype=torch.float32)# ,dtype=input_data.dtype).to(self.device)

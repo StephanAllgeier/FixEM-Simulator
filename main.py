@@ -310,7 +310,7 @@ def merge_excel(file1_path, file2_path, output_path):
     except Exception as e:
         print(f"Fehler beim Mergen der Excel-Dateien: {str(e)}")
 
-def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, compare_label, label1, label2,title=None):
+def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, compare_label, label1, label2, title=None):
     with open(
             compare_filepath,
             'r') as comp:
@@ -320,10 +320,10 @@ def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, 
     with open(file2, 'r') as comp3:
         varlist2_2 = json.load(comp3)[feature]
     hist_bins = 50
-    savefigpath = file1
+    savefigpath = r"C:\Users\uvuik\Desktop\Neue Plots\filename"
     savefig = f"{Path(savefigpath).parent}/DualHistogramLog_intermicsac.jpeg"
-    Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, compare_label, label1, savefig, xlabel,
-                                           range_limits=(0, 2.5), normalize_01=False, title=title)
+    #Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, compare_label, label1, savefig, xlabel,
+                                           #range_limits=(0, 2.5), normalize_01=False, title=title)
     Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, compare_label, label1, label2, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
 def create_histogram_w_HD(compare_filepath, folderpath, feature, xlabel, dataset1name, dataset2name):
     with open(
@@ -390,29 +390,65 @@ def get_micsac_ang(folderpath, const_dict, ms_flag, drift_flag):
 def plot_amplitude_hist(jsonpath):
     with open(jsonpath, 'r') as fp:
         data = json.load(fp)['MicsacAmplitudes']
-    Vis.plot_prob_dist(data, "Histogramm der Amplituden von Mikrosakkaden bei Blickfeldgröße 2°", "Amplitude in Grad [dva]")
+    Vis.plot_prob_dist(data, "Histogramm der Amplituden von Mikrosakkaden bei Blickfeldgröße 2°", "Amplitude in Grad [°]")
 
 if __name__ == '__main__':
+    data = pd.read_csv(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\GazeBase_v2_0\Winkel_GB.csv")
+    roorda_file = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json"
+    file1 = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=3.969_simulation_rate=150_CellsPerDegree=10_RelaxationRate=0.085_HCrit=8.9.json"
+    file2 = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
+    file20s = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
+    file30s = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation30s\BestHD_IntermicDur\HD=4.74_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
+    file30s = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation30s\BestHD_IntermicDur\HD=4.353_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.085_HCrit=7.4.json"
+    plot_amplitude_hist(file1)
+
+
+
+
+    create_histogram_dual_w_HD(roorda_file, file1, file2, 'IntermicDur',
+                               'Intermikrosakkadische Intervalldauer in Sekunden [s]', compare_label='Roorda',
+                               label1='(f_sim=150Hz, L=21, epsilon=0,085, h_crit=8,9)', label2='(f_sim=100Hz, L=21, epsilon=0,1, h_crit=6,9)',
+                               title='Histogramm der IMSI \nVergleich Roorda Lab / (f_sim=100Hz, L=21, epsilon=0,085, h_crit=7,4)')
+
     const_roorda = get_constants('Roorda')
     const_gb = get_constants('GazeBase')
+    gbfile = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TESTGaZeBaSe.csv"
+    gbfiles = get_csv_files_in_folder(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase")
+    for file in gbfiles:
+        data = pd.read_csv(file)
+        x = data['x']
+        y = data['y']
+        x_mean = x.mean()
+        y_mean = y.mean()
+        x -= x_mean
+        y -= y_mean
+
+        if x.max() > 3 or x.min() <-3 or y.max()>3 or y.min()< -3:
+            os.remove(file)
+        #Vis.plot_xy(data, const_gb,savepath=r"C:\Users\uvuik\Desktop\SichtungGazeBase", filename=Path(file).name)
     roorda_folder = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
     roorda_files = glob.glob(os.path.join(roorda_folder, "*.csv"))
     roorda_files = roorda_files[:-1]# get_files_with_pattern(gb_folder, const_gb['file_pattern'])
-
+    roorda_augment_folder = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda"
+    roorda_files = glob.glob(os.path.join(roorda_augment_folder, "*.csv"))
     for file in roorda_files:
         data = pd.read_csv(file)
-        removed_blink, _ = Interpolation.remove_blink_annot(data,const_roorda, cutoff=0.015)
+        #removed_blink, _ = Interpolation.remove_blink_annot(data,const_roorda, cutoff=0.015)
 
-        new_cols = {const_roorda['x_col']: 'x', const_roorda['y_col']: 'y', const_roorda['Annotations']: 'flags'}
-        removed_blink.loc[removed_blink[const_roorda['Annotations']] == 2, const_roorda['Annotations']] = 0
-        b = Augmentation.flip_dataframe(removed_blink, const_roorda).rename(columns=new_cols)
-        c = Augmentation.reverse_data(removed_blink, const_roorda).rename(columns=new_cols)
+        #new_cols = {const_roorda['x_col']: 'x', const_roorda['y_col']: 'y', const_roorda['Annotations']: 'flags'}
+        #removed_blink.loc[removed_blink[const_roorda['Annotations']] == 2, const_roorda['Annotations']] = 0
+        #b = Augmentation.flip_dataframe(removed_blink, const_roorda).rename(columns=new_cols)
+        #c = Augmentation.reverse_data(removed_blink, const_roorda).rename(columns=new_cols)
         folderpath = r"C:\Users\uvuik\Desktop\NewRoordaTrainingset"
-        removed_blink = removed_blink.rename(columns=new_cols)
-        removed_blink.to_csv(fr"{folderpath}\{Path(file).stem}.csv", index=False)
+        #removed_blink = removed_blink.rename(columns=new_cols)
+        const_roorda['x_col'] = "x"
+        const_roorda['y_col'] = "y"
+        gauss = Augmentation.add_gaussian_noise(data, const_roorda,0,0.02)
+        #removed_blink.to_csv(fr"{folderpath}\{Path(file).stem}.csv", index=False)
+        gauss.to_csv(fr"{folderpath}\{Path(file).stem}_gauss=0,02.csv", index=False)
         #a.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv")
-        b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv",index=False)
-        c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv",index=False)
+        #b.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv",index=False)
+        #c.to_csv(fr"{folderpath}\{Path(file).stem}_reversed.csv",index=False)
 
     print("done")
     #Plotting FFTs of Datasets:
@@ -431,16 +467,12 @@ if __name__ == '__main__':
 
 
     #label_micsac(r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase",const_dict=const_gb, mindur=6, vfac=10)
-    file20s= r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
-    file30s = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation30s\BestHD_IntermicDur\HD=4.74_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
-    create_histogram_dual_w_HD(file20s, file30s, file20s, 'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]', compare_label='t_sim=20s',label1='t_sim=30s', label2='test',title= 'Histogramm der IMSI der Parameterkombination \n(f_sim=100Hz, L=21, epsilon=0.1, h_crit=6.9) bei 20s und 30s Simulationsdauer' )
     roorda_folder = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley"
     roorda_files = get_files_with_pattern(roorda_folder, const_roorda['file_pattern'])
     i=0
     test_folder = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
     folderpath = r"C:\Users\uvuik\Desktop\TestFolderDataAugmentation"
 
-    folderpath = r""
 
     create_histogram_dual_w_HD(
         r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json",

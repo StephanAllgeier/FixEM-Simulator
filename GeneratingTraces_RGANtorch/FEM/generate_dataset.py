@@ -37,6 +37,7 @@ class GenerateDataset():
             return sequence[:seq_len]
 
         seq_len = z.shape[1]
+        num=z.shape[0]
         '''
         if type(labels) == list:
             drift = labels[0]
@@ -48,7 +49,7 @@ class GenerateDataset():
                      data['drift']]  # Adjust duration of drift segments according to fsamp
             ms = [int(i * fsamp / 1000) for i in data['ms']]
         rand_labels_batch = [sample_rand_labels() for _ in range(z.shape[0])]
-        return torch.tensor(rand_labels_batch, dtype=torch.float32)
+        return torch.tensor(rand_labels_batch, dtype=torch.float32).view(z.shape[0], z.shape[1], -1)
     @staticmethod
     def random_tensor(shape):
         random_samples = torch.rand(shape)
@@ -56,14 +57,14 @@ class GenerateDataset():
         return random_tensor
 
     @staticmethod
-    def generate_data(model, num_samples, duration, fsamp, fsamp_out, folderpath_to_save_to=None, labels=None, noise_scale=0.2, scalerfile=None ):
+    def generate_data(model, num_samples, duration, fsamp, fsamp_out, folderpath_to_save_to=None, labels=None, noise_scale=0.3, scalerfile=None, scaling_x = 30, scaling_y=12.5):
         device = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
         noise_size = model.noise_size  # Annahme: input_size ist ein Attribut des Modells
         #z = torch.randn(num_samples, duration * fsamp, noise_size).to(device)*noise_scale
         z = GenerateDataset.random_tensor((num_samples, duration * fsamp, noise_size)).to(device)*noise_scale
         if 'y' in list(inspect.signature(model.forward).parameters):  # If labels are needed
             y = GenerateDataset.rand_batch_labels(labels, z, fsamp).to(device)
-            synthetic_data = model(z, y, reshape=False).detach().cpu()
+            synthetic_data = model(z, y, reshape=False, reshape_y=True).detach().cpu()
         else:
             synthetic_data = model(z, reshape=False).detach().cpu()
         '''
@@ -74,12 +75,12 @@ class GenerateDataset():
         '''
         dfs = []
         for i in range(synthetic_data.shape[0]):
-            x_vals = synthetic_data[i, :, 0].numpy()
-            y_vals = synthetic_data[i, :, 1].numpy()
+            x_vals = synthetic_data[i, :, 0].numpy() #*scaling_x
+            y_vals = synthetic_data[i, :, 1].numpy()#*scaling_y
             t_vals = np.arange(synthetic_data.shape[1]) / fsamp
             # Erstelle einen DataFrame für die aktuelle Nummer
             if 'y' in list(inspect.signature(model.forward).parameters):
-                df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals, 'flags': y[i].cpu().numpy()})
+                df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals, 'flags': y[i].squeeze().cpu().numpy()})
             else:
                 df = pd.DataFrame({'t': t_vals, 'x': x_vals, 'y': y_vals})
             # resample mit B-Spline Interpolation

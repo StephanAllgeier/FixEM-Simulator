@@ -51,7 +51,7 @@ class RCGANGenerator(RGANGenerator):
 
         # weights already initialized in parent class
 
-    def forward(self, z, y, reshape=True):
+    def forward(self, z, y, reshape=True, reshape_y=False):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
@@ -67,6 +67,8 @@ class RCGANGenerator(RGANGenerator):
         # shape: (batch-size, sequence_length, noise_size)
         if reshape:
             z = z.view(-1, self.sequence_length, self.noise_size)
+        if reshape_y:
+            y_emb =y_emb.view(z.shape[0], z.shape[1], -1)
 
         # shape: (batch-size, encoding_dims)
         z_cond = torch.cat((z, y_emb), dim=2)
