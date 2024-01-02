@@ -42,15 +42,11 @@ class EventDetection():
     def drift_only_wo_micsac(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
-            df, const_dict = Interpolation.remove_blink_annot(df, const_dict)  # Noch alle Frequenzbänder vorhanden
-        # fft, fftfreq = Filtering.fft_transform(df, const_dict, 'x_col')
-        # Visualize.plot_fft(fft, fftfreq) #HIER SIND NOCH ALLE FREQUENZBÄNDER VORHANDEN
+            df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
         # remove micsacs
         removed_micsac = Microsaccades.remove_micsac(df, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)
-        # fft, fftfreq = Filtering.fft_transform(removed_micsac, const_dict,
-        #   'x_col')  # Noch alle Frequenzbänder vorhanden
-        # Visualize.plot_fft(fft, fftfreq) #TODO: Wieso sieht das Signal hier so anders aus? Entsteht durch das Splicen des Signals an Stellen der Mikrosakkaden
-        # Lowpassfiltering Signal
+
+        # Lowpassfiltering signal
         filtered = EventDetection.filter_drift(removed_micsac, const_dict)
         return filtered
 
@@ -58,7 +54,7 @@ class EventDetection():
     def drift_interpolated(df, const_dict, micsac_mindur=6, micsac_vfac=21):
         if const_dict['rm_blink'] == False:
             # remove blinks
-            df, const_dict = Interpolation.remove_blink_annot(df, const_dict)  # Noch alle Frequenzbänder vorhanden
+            df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
         # interpolate micsacs
         interpol_micsac = Microsaccades.interpolate_micsac(df, const_dict, mindur=micsac_mindur, vfac=micsac_vfac)
         # Lowpassfiltering Signal
@@ -70,7 +66,7 @@ class EventDetection():
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
-        # Lowpassfiltering Signal
+        # Lowpassfiltering signal
         filtered = EventDetection.filter_drift(df, const_dict)
         return filtered
 
@@ -87,7 +83,7 @@ class EventDetection():
         return filtered
 
     @staticmethod
-    def tremor_only(df, const_dict, micsac_mindur=6, micsac_vfac=21):
+    def tremor_only(df, const_dict):
         if const_dict['rm_blink'] == False:
             # remove blinks
             df, const_dict = Interpolation.remove_blink_annot(df, const_dict)
