@@ -16,11 +16,10 @@ Methods:
 Author: Fabian Anzlinger
 Date: 04.01.2024
 """
+import matplotlib.pyplot as plt
+import numpy as np
 import scipy
 from scipy.signal import butter, lfilter, freqz, filtfilt
-import numpy as np
-import matplotlib.pyplot as plt
-
 
 
 class Filtering():
