@@ -5,7 +5,7 @@ This Python file contains a class named Visualize, which provides static methods
  Each method is designed to offer customization options such as color, labels, titles, and the ability to save the plots
 
 Author: Fabian Anzlinger
-Date: 04.01.2023
+Date: 04.01.2024
 '''
 import os
 
