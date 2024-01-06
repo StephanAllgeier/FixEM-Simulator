@@ -1,13 +1,12 @@
+import numpy as np
 import torch
 
-import numpy as np
 
-
-def rbf_kernel2(x, y, sigma=1.0):
+def rbf_kernel_numpy(x, y, sigma=1.0):
     return np.exp(-np.linalg.norm(x - y) ** 2 / (2 * sigma ** 2))
 
 
-def mmd_squared(X, Y, kernel=rbf_kernel2):
+def mmd_squared(X, Y, kernel=rbf_kernel_numpy):
     n = X.shape[0]
     m = Y.shape[0]
 
@@ -29,15 +28,19 @@ def mmd_squared(X, Y, kernel=rbf_kernel2):
 
     return mmd
 
+
 def mix_rbf_mmd2_and_ratio(x, y, sigmas, wts=None):
     """
-    Berechnet die gemischte RBF MMD^2 und den MMD-Verhältnis.
+    Computes the mixed Radial Basis Function (RBF) MMD^2 and the MMD ratio.
 
-    :param x: Tensor mit Beispielen aus der ersten Verteilung
-    :param y: Tensor mit Beispielen aus der zweiten Verteilung
-    :param sigmas: Bandbreiten für den RBF-Kernel (kann eine einzelne Zahl oder eine Liste/Tensor sein)
-    :param wts: Gewichtung der einzelnen RBF-Kernel (optional)
-    :return: MMD^2 und MMD-Verhältnis
+    Parameters:
+        - x: Tensor with samples from the first distribution.
+        - y: Tensor with samples from the second distribution.
+        - sigmas: Bandwidths for the RBF kernel (can be a single number or a list/tensor).
+        - wts: Weights for individual RBF kernels (optional).
+
+    Returns:
+        - MMD^2 and MMD ratio.
     """
     if isinstance(sigmas, (int, float)):
         sigmas = [sigmas]

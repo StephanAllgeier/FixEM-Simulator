@@ -1,35 +1,69 @@
-"""
+'''
+Module: SequenceTrainer
+
+Description:
+    This module defines a SequenceTrainer class for training Generative Adversarial Networks (GANs) on sequence data.
+    The class supports training of both regular GANs (RGAN) and recurrent conditional GANs (RCGAN). It includes functions
+    for training, saving checkpoints, and visualizing results.
+
+Functions:
+    - __init__: Initializes the SequenceTrainer with necessary parameters and creates GAN components.
+    - on_epoch_end: Callback function called at the end of each training epoch for logging and visualization.
+    - conv_signal: Applies convolution to the input signal tensor for smoothing.
+    - train_RGAN: Trains a regular GAN using the provided dataloader.
+    - train_RCGAN: Trains a recurrent conditional GAN using the provided dataloader.
+    - sample_z: Generates random noise for the generator input.
+    - random_tensor: Generates a random tensor with values between -1 and 1.
+    - adversarial_loss: Computes adversarial loss using Binary Cross Entropy with logits.
+    - fft_analysis_plot: Performs FFT analysis and plots time and frequency domains.
+    - train_generator: Trains the generator network.
+    - train_RCgenerator: Trains the recurrent conditional generator network.
+    - train_discriminator: Trains the discriminator network.
+    - train_RCDiscriminator: Trains the recurrent conditional discriminator network.
+    - perform_sigma_grid_search: Performs a grid search for the optimal sigma value for MMD calculation.
+    - save_checkpoint: Saves a checkpoint containing the GAN model states, optimizers, and training logs.
+    - tsne_pca: Applies t-SNE and PCA for visualizing the generated and real data distributions.
+    - plot_imgs: Plots generated trajectory images and optionally compares them with real data.
+    - plot_losses_and_mmd2: Plots discriminator and generator losses, and MMD2 over training epochs.
+
 References:
     - https://github.com/eriklindernoren/PyTorch-GAN/blob/master/implementations/gan/gan.py
-"""
-import torch
-import numpy as np
-import torch.nn as nn
-import torchgan
-from matplotlib.ticker import StrMethodFormatter
-from torch.nn import BCELoss, BCEWithLogitsLoss
-from GeneratingTraces_RGANtorch.FEM import make_logger
-from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
-import GeneratingTraces_RGANtorch.FEM.mmd as mmd
+
+Author: Fabian Anzlinger
+Date: 04.01.2024
+'''
+import os
+
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
+from matplotlib.ticker import StrMethodFormatter
+
+import GeneratingTraces_RGANtorch.FEM.mmd as mmd
+from GeneratingTraces_RGANtorch.FEM import make_logger
+
 logger = make_logger(__file__)
 
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 from scipy.fft import fft
 
+
 class SequenceTrainer:
-    def __init__(self, models, recon, ncritic, losses_list, epochs, retain_checkpoints, checkpoints, mlflow_interval, device, noise_size, vali_set, savepath, GANtype, resamp_frequency, eval_frequency=1, conv_window = 10, scale=None):
+    def __init__(self, models, recon, ncritic, epochs, retain_checkpoints, checkpoints, mlflow_interval, device,
+                 noise_size, vali_set, savepath, GANtype, resamp_frequency, dataset_name, eval_frequency=1,
+                 conv_window=10,
+                 scale=None):
         self.models = models
         self.recon = recon
         self.ncritic = ncritic
-        self.losses_list = losses_list
         self.epochs = epochs
         self.retain_checkpoints = retain_checkpoints
         self.checkpoints = checkpoints
         self.mlflow_interval = mlflow_interval
         self.device = device
-        self.noise_size= noise_size
+        self.noise_size = noise_size
         self.g_loss_log_epoch = []
         self.d_loss_log_epoch = []
         self.g_loss_log = []
@@ -43,8 +77,9 @@ class SequenceTrainer:
         self.savepath = savepath
         self.GANtype = GANtype
         self.conv_window = conv_window
-        self.scale=scale
+        self.scale = scale
         self.frequency = resamp_frequency
+        self.dataset_name = dataset_name
 
         # Erstelle Generator und Diskriminator hier
         self.generator = self.models['generator']['name'](**self.models['generator']['args']).to(self.device)
@@ -56,10 +91,12 @@ class SequenceTrainer:
                                                                          **self.models['generator']['optimizer'][
                                                                              'args'])
         self.optimizer_d = self.models['discriminator']['optimizer']['name'](self.discriminator.parameters(),
-                                                            **self.models['discriminator']['optimizer']['args'])
+                                                                             **
+                                                                             self.models['discriminator']['optimizer'][
+                                                                                 'args'])
 
     def on_epoch_end(self, epoch, fake_labels=None):
-        #Gloss und d_loss berechnen und anschließend die liste zurücksetzen
+        # Gloss and Dloss
         self.g_loss_log.append(sum(self.g_loss_log_epoch) / len(self.g_loss_log_epoch))
         self.d_loss_log.append(sum(self.d_loss_log_epoch) / len(self.d_loss_log_epoch))
         self.g_loss_log_epoch = []
@@ -72,73 +109,71 @@ class SequenceTrainer:
             kernel_size -= 1
         kernel = (torch.ones(1, 1, kernel_size) // kernel_size).to(signal_tensor.device)
 
-        # Flattening des Signals für die Faltung
+        # Flattening of signal for convolution
         flattened_signals = signal_tensor.permute(0, 2, 1).contiguous().view(batch_size * 2, 1, signal_values)
 
-        # Anwendung der Faltung auf beide Koordinaten gleichzeitig
+        # Convolution for both signals
         conv_signal = nn.functional.conv1d(flattened_signals, kernel, padding=kernel_size // 2).view(batch_size, 2,
-                                                                                              signal_values)
+                                                                                                     signal_values)
         return conv_signal.permute(0, 2, 1).contiguous()
-    '''
+
     def train_RGAN(self, dataloader):
-        #plot 1 real example
+        # plot real example
         data, _ = next(dataloader)
-        self.plot_imgs(data,'real_example')
+        self.plot_imgs(data, 'real_example')
         for epoch in range(self.epochs):
             for batch in dataloader:
                 input_data, labels = batch
                 input_data, labels = input_data.to(self.device), labels.to(self.device)
 
                 self.z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device)
-                input_data = input_data.to(dtype=self.z.dtype)# ,dtype=input_data.dtype).to(self.device)
-                # Trainiere den Discriminator ncritic mal
+                input_data = input_data.to(dtype=self.z.dtype)
+                # Train discriminator ncritic times
                 for _ in range(self.ncritic):
                     self.train_discriminator(input_data)
-                # Trainiere den Generator
+                # Train generator
                 self.train_generator()
             self.on_epoch_end(epoch)
 
-            # Speichere Checkpoints
+            # save checkpoints
             if epoch % self.mlflow_interval == 0:
                 self.plot_imgs(self.generator(self.z).detach(), f"epoch={epoch}", compare_data=input_data)
                 self.save_checkpoint(epoch)
-    '''
 
     def train_RCGAN(self, dataloader):
         for epoch in range(self.epochs):
-            i = 0
             for batch in dataloader:
-                if i<8:
-                    input_data, labels = batch
-                    input_data, labels = input_data.to(self.device), labels.to(self.device)
-                    input_data = input_data.to(dtype=torch.float32)# ,dtype=input_data.dtype).to(self.device)
-                    # Train discriminator
-                    for _ in range(self.ncritic):
-                        z = self.sample_z(input_data)
-                        z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
-                        self.train_RCDiscriminator(input_data, labels, z, z_labels)
-                    # Train Generator
+                input_data, labels = batch
+                input_data, labels = input_data.to(self.device), labels.to(self.device)
+                input_data = input_data.to(dtype=torch.float32)
+                # Train discriminator
+                for _ in range(self.ncritic):
                     z = self.sample_z(input_data)
                     z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
-                    self.train_RCgenerator(z, z_labels)
-                    i+=1
+                    self.train_RCDiscriminator(input_data, labels, z, z_labels)
+                # Train Generator
+                z = self.sample_z(input_data)
+                z_labels = dataloader.rand_batch_labels(labels.shape[0]).to(self.device)
+                self.train_RCgenerator(z, z_labels)
             self.on_epoch_end(epoch)
 
-            # Speichere Checkpoints
+            # save checkpoints
             if epoch % self.mlflow_interval == 0:
                 sigma = [0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10, 50,
                          100]
                 sigma, best_mmd2 = self.perform_sigma_grid_search(epoch, sigma,
-                                                                  fake_labels=dataloader.rand_batch_labels(self.vali_set.shape[0]).to(self.device))
+                                                                  fake_labels=dataloader.rand_batch_labels(
+                                                                      self.vali_set.shape[0]).to(self.device))
                 self.fft_analysis_plot(real=input_data, fake=self.generator(z, z_labels).detach(), plot=False)
                 print(f"Epoche {epoch} done. \nSigma = {sigma}, mmd2={best_mmd2}.")
-                self.plot_imgs(self.generator(z, z_labels).detach(), f"epoch={epoch}", compare_data=input_data, compare_labels=labels, z_labels=z_labels)#TODO: WIEDER RÜCKGÄNGIG MACHEN!!!self.plot_imgs(self.generator(self.z, labels).detach(), f"epoch={epoch}")
-                #self.tsne_pca(epoch, fake_data=self.generator(self.z, self.z_labels).detach(), real_data=input_data)
+                self.plot_imgs(self.generator(z, z_labels).detach(), f"epoch={epoch}", compare_data=input_data,
+                               compare_labels=labels, z_labels=z_labels)
                 self.save_checkpoint(epoch)
+
     def sample_z(self, input_data):
         if self.scale:
-            z = self.random_tensor((input_data.shape[0], input_data.shape[1], self.noise_size)).to(self.device) * self.scale
-            #z = torch.randn(input_data.shape[0], input_data.shape[1], self.noise_size).to(self.device) * self.scale
+            z = self.random_tensor((input_data.shape[0], input_data.shape[1], self.noise_size)).to(
+                self.device) * self.scale
         else:
             z = torch.full([input_data.shape[0], input_data.shape[1], self.noise_size], 0).to(dtype=torch.float32).to(
                 self.device)
@@ -148,8 +183,9 @@ class SequenceTrainer:
 
     def random_tensor(self, shape):
         random_samples = torch.rand(shape)
-        random_tensor = 2*random_samples -1
+        random_tensor = 2 * random_samples - 1
         return random_tensor
+
     def adversarial_loss(self, y_hat, y):
         criterion = nn.BCEWithLogitsLoss()
         return criterion(y_hat, y)
@@ -157,14 +193,12 @@ class SequenceTrainer:
     def fft_analysis_plot(self, real, fake, plot=False):
         real = real.cpu().numpy()
         fake = fake.cpu().numpy()
-
-        # Extrahiere die x- und y-Koordinaten für beide Signale
+        # Extract x- and y-coordinates for both signals
         real_x = real[0, :, 0]
         real_y = real[0, :, 1]
         fake_x = fake[0, :, 0]
         fake_y = fake[0, :, 1]
 
-        # Annahme: signal_1 und signal_2 sind zwei Signale, die verglichen werden sollen
         signal_1 = real_x + 1j * real_y
         signal_2 = fake_x + 1j * fake_y
         # Anwenden eines Hamming-Fensters
@@ -176,55 +210,51 @@ class SequenceTrainer:
         fft_signal_1 = fft(signal_1)
         fft_signal_2 = fft(signal_2)
 
-        # Berechne die Ähnlichkeit im Frequenzraum, z.B. durch die Kreuzkorrelation
+        # Similatiry in fequency domain using cross correlation
         similarity = np.corrcoef(np.abs(fft_signal_1), np.abs(fft_signal_2))[0, 1]
         self.fft_similarity.append(similarity)
         if plot:
-            # Plot der Zeitbereiche
+            # Plot of time domain
             plt.figure(figsize=(12, 4))
 
             plt.subplot(2, 2, 1)
             plt.plot(real_x, label='Signal 1 (x)')
             plt.plot(real_y, label='Signal 1 (y)')
-            plt.title('Zeitbereich - Signal 1')
+            plt.title('Time domain - Signal 1')
             plt.legend()
 
             plt.subplot(2, 2, 2)
             plt.plot(fake_x, label='fake (x)')
             plt.plot(fake_y, label='fake (y)')
-            plt.title('Zeitbereich - fake')
+            plt.title('Time domain - fake')
             plt.legend()
 
-            # Plot der Frequenzbereiche
+            # Plot of frequency domain
             plt.subplot(2, 2, 3)
             plt.plot(np.abs(fft_signal_1), label='real')
-            plt.title('Frequenzbereich - real')
+            plt.title('Frequency domain - real')
 
             plt.subplot(2, 2, 4)
             plt.plot(np.abs(fft_signal_2), label='fake')
-            plt.title('Frequenzbereich - fake')
+            plt.title('Frequency domain - fake')
 
             plt.tight_layout()
-            plt.savefig(r"C:\Users\uvuik\Desktop\FFT\Fig1.jpeg")
+            plt.savefig(os.path.join(self.savepath, 'FFT_plot.jpeg'), dpi=600)
             plt.show()
-
-        # Ausgabe der Ähnlichkeit
-        print(f"Ähnlichkeit im Frequenzraum: {similarity}")
+        print(f"Similarity in frequency domain: {similarity}")
 
     def train_generator(self):
         self.optimizer_g.zero_grad()
-        #z = torch.randn(input_data.shape[0], self.noise_size).to(self.device)
         fake_data = self.generator(self.z)
-        #y_alt = torch.ones(input_data.shape[0], 2).to(self.device)
         y = torch.ones_like(self.discriminator(fake_data)).to(self.device)
-        g_loss = self.adversarial_loss(self.discriminator(fake_data), y) #Aus Paper: -CE(RNNd(RNNg(Zn)),1) = -CE(RNNd(fake_data),1)
+        g_loss = self.adversarial_loss(self.discriminator(fake_data),
+                                       y)
         g_loss.backward()
         self.optimizer_g.step()
         self.g_loss_log_epoch.append(g_loss.item())
 
     def train_RCgenerator(self, z, z_labels):
         self.optimizer_g.zero_grad()
-        #fake_data = self.generator(self.z, labels)
         fake_data = self.generator(z, z_labels)
         # Calculating Gradient
         # conv_fake = self.conv_signal(fake_data, kernel_size=self.conv_window)
@@ -233,10 +263,10 @@ class SequenceTrainer:
         # cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
 
         # Gloss(Z) = Dloss(RNNg(Z),1) = -CE(RNNd(RNNg(Z)),1)
-        #TODO: Wieder ändern wenn kein label embedding
-        d_output = self.discriminator(fake_data, z_labels)#self.z_labels)  # cond_input_fake) #TODO: WIRD HIER DER DISKRIMINATOR TRAINIERT?
+        d_output = self.discriminator(fake_data,
+                                      z_labels)
         y = torch.ones_like(d_output).to(self.device)
-        g_loss = self.adversarial_loss(d_output, y) #Aus Paper: -CE(RNNd(RNNg(Zn)),1) = -CE(RNNd(fake_data),1)
+        g_loss = self.adversarial_loss(d_output, y)
         g_loss.backward()
         self.optimizer_g.step()
         self.g_loss_log_epoch.append(g_loss.item())
@@ -248,60 +278,55 @@ class SequenceTrainer:
         # How well can it label as real
         y_hat_real = self.discriminator(input_data)
         y_real = torch.ones(y_hat_real.shape, dtype=y_hat_real.dtype).to(self.device)
-        real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
+        real_loss = self.adversarial_loss(y_hat_real,
+                                          y_real)
 
         # How well can it label generated labels as fake
         y_hat_fake = self.discriminator(self.generator(self.z).detach())
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
 
-        d_loss = (real_loss + fake_loss) / 2 #TODO: WIESO WIRD HIER HALBIERT?
-        #d_loss = (real_loss + fake_loss)  # TODO: Nicht mehr halbiert
-        #log_dict = {'d_loss': d_loss.item()}
+        d_loss = real_loss + fake_loss
         d_loss.backward()
         self.optimizer_d.step()
         self.d_loss_log_epoch.append(d_loss.item())
 
-    def train_RCDiscriminator(self, input_data, labels,z, z_labels):
+    def train_RCDiscriminator(self, input_data, labels, z, z_labels):
         self.optimizer_d.zero_grad()
-
         # Convolution and calcuating gradient---------------------------------------------------------------------------
         # Smoothing the original signal -> convolution with window_size, and mean-kernel
-        #conv_real = self.conv_signal(input_data, kernel_size=self.conv_window)
-        #Gradient-Tensor berechnen
-        #gradients_real = torch.diff(conv_real, dim=1)
-        #gradients_real = torch.cat([torch.zeros_like(gradients_real[:, :1, :]), gradients_real], dim=1)
-        #cond_input_real = torch.concat([labels, gradients_real], dim=2)
-        #---------------------------------------------------------------------------------------------------------------
+        # conv_real = self.conv_signal(input_data, kernel_size=self.conv_window)
+        # Gradient-Tensor berechnen
+        # gradients_real = torch.diff(conv_real, dim=1)
+        # gradients_real = torch.cat([torch.zeros_like(gradients_real[:, :1, :]), gradients_real], dim=1)
+        # cond_input_real = torch.concat([labels, gradients_real], dim=2)
+        # ---------------------------------------------------------------------------------------------------------------
 
         # How well can it label as real
-        #Gradient als weiteren input. TODO: Falls gewünscht wieder ändern!
-        y_hat_real = self.discriminator(input_data, labels)  # ,cond_input)
+        y_hat_real = self.discriminator(input_data, labels)
         y_real = torch.ones(y_hat_real.shape, dtype=y_hat_real.dtype).to(self.device)
-        real_loss = self.adversarial_loss(y_hat_real,y_real) # Target size (torch.Size([32, 2])) must be the same as input size (torch.Size([32, 5760, 1]))
+        real_loss = self.adversarial_loss(y_hat_real,
+                                          y_real)
 
         # How well can it label generated labels as fake
-        #--------------------------------------------------------------------------------------------------------------
-        # Im Originalen Code werden hier keine labels generiert, sondern die lables des batches verwendet
-        #gen_output = self.generator(self.z, labels).detach()
-        #y_hat_fake = self.discriminator(gen_output, labels)
-        #y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
-        #fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
         # --------------------------------------------------------------------------------------------------------------
-
-        #----------------Testing generating labels----------------------------------------------------------------------
-        #Sample z
+        # In the original code, labels are not generated here; instead, the labels of the batch are used.
+        # gen_output = self.generator(self.z, labels).detach()
+        # y_hat_fake = self.discriminator(gen_output, labels)
+        # y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
+        # fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
+        # --------------------------------------------------------------------------------------------------------------
+        # Sample z
         gen_output = self.generator(z, z_labels).detach()
-        #conv_fake = self.conv_signal(gen_output, kernel_size=self.conv_window)
-        #gradients_fake = torch.diff(conv_fake, dim=1)
-        #gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
+        # conv_fake = self.conv_signal(gen_output, kernel_size=self.conv_window)
+        # gradients_fake = torch.diff(conv_fake, dim=1)
+        # gradients_fake = torch.cat([torch.zeros_like(gradients_fake[:, :1, :]), gradients_fake], dim=1)
 
-        #cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
+        # cond_input_fake = torch.concat([self.z_labels.unsqueeze(-1), gradients_fake], dim=2)
         y_hat_fake = self.discriminator(gen_output, z_labels)
         y_fake = torch.zeros(y_hat_fake.shape).to(self.device)
         fake_loss = self.adversarial_loss(y_hat_fake, y_fake)
-        #---------------------------------------------------------------------------------------------------------------
-
+        # ---------------------------------------------------------------------------------------------------------------
         d_loss = real_loss + fake_loss
         d_loss.backward()
         self.optimizer_d.step()
@@ -316,18 +341,9 @@ class SequenceTrainer:
             fake_sample = self.generator(noise).detach()
         elif str(self.GANtype) == "RCGAN":
             fake_sample = self.generator(noise, fake_labels).detach()
-        # real_sample_x = real_sample[:, :, 0].squeeze()
-        # real_sample_y = real_sample[:, :, 1].squeeze()
-        # fake_sample_x = fake_sample[:, :, 0].squeeze()
-        # fake_sample_y = fake_sample[:, :, 1].squeeze()
 
         for sigma in sigma_values:
             current_mmd2, _ = mmd.mix_rbf_mmd2_and_ratio(real_sample, fake_sample, sigma)
-            '''
-            current_mmd2_x, _ = mmd.mix_rbf_mmd2_and_ratio(real_sample_x, fake_sample_x, sigma)
-            current_mmd2_y, _ = mmd.mix_rbf_mmd2_and_ratio(real_sample_y, fake_sample_y, sigma)
-            current_mmd2 = (current_mmd2_x + current_mmd2_y) / 2
-            '''
             if current_mmd2 < best_mmd2 and current_mmd2 > 0:
                 best_mmd2 = current_mmd2
                 best_sigma = sigma
@@ -354,20 +370,21 @@ class SequenceTrainer:
             'best_epoch': self.best_epoch
         }
 
-        # Speichere das Dictionary in einer Datei
-        filename = fr'{self.savepath}\Evaluation_{epoch}.pth'
+        # Save dict to file
+        filename = os.path.join(self.savepath, f'Evaluation_{epoch}.pth')
         torch.save(checkpoint, filename)
         self.plot_losses_and_mmd2(epoch)
-    def tsne_pca(self, epoch, real_data = None, fake_data=None):
-        real_data = real_data[:,:,0].squeeze().cpu()#real_data.reshape((real_data.shape[0],-1)).cpu()
-        fake_data = fake_data[:,:,0].squeeze().cpu()#fake_data.reshape((fake_data.shape[0],-1)).cpu()
+
+    def tsne_pca(self, epoch, real_data=None, fake_data=None):
+        real_data = real_data[:, :, 0].squeeze().cpu()
+        fake_data = fake_data[:, :, 0].squeeze().cpu()
 
         pca = PCA(n_components=2)
         real_data_pca = pca.fit_transform(real_data)
         fake_data_pca = pca.transform(fake_data)
 
         # Apply t-SNE
-        tsne = TSNE(n_components=2, perplexity = 25)
+        tsne = TSNE(n_components=2, perplexity=25)
         real_data_tsne = tsne.fit_transform(real_data)
         fake_data_tsne = tsne.fit_transform(fake_data)
 
@@ -395,10 +412,11 @@ class SequenceTrainer:
         plt.title('PCA - Fake Data Only')
 
         plt.tight_layout()
-        plt.savefig(f'{self.savepath}\PCA_TSNE_epoch{epoch}.jpg')
+        file_path = os.path.join(self.savepath, f'PCA_TSNE_epoch{epoch}.jpg')
+        plt.savefig(file_path)
         plt.close()
 
-    def plot_imgs(self, data, filename, compare_data=None, compare_labels = None, z_labels = None):
+    def plot_imgs(self, data, filename, compare_data=None, compare_labels=None, z_labels=None):
         frequency = self.frequency
         time_axis = np.arange(0, data.shape[1] / frequency, 1 / frequency)
         data = data.cpu().numpy()
@@ -406,18 +424,20 @@ class SequenceTrainer:
         if compare_data is not None and compare_labels is not None:
             compare_data = compare_data.cpu().numpy()
             fig, ((ax1, ax3), (ax2, ax4)) = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(20, 12))
-            micsac3_ = compare_labels[0,:].squeeze().cpu().numpy()
-            micsac3 = np.array([1 if (micsac3_[max(0, i - 1)] + micsac3_[min(len(micsac3_) - 1, i + 1)]) % 2 == 1 and micsac3_[
-                i] == 1 else 0 for i in range(len(micsac3_))])
-            micsac4_ = compare_labels[1,:].squeeze().cpu().numpy()
-            micsac4 = np.array([1 if (micsac4_[max(0, i - 1)] + micsac4_[min(len(micsac4_) - 1, i + 1)]) % 2 == 1 and micsac4_[
-                i] == 1 else 0 for i in range(len(micsac4_))])
+            micsac3_ = compare_labels[0, :].squeeze().cpu().numpy()
+            micsac3 = np.array(
+                [1 if (micsac3_[max(0, i - 1)] + micsac3_[min(len(micsac3_) - 1, i + 1)]) % 2 == 1 and micsac3_[
+                    i] == 1 else 0 for i in range(len(micsac3_))])
+            micsac4_ = compare_labels[1, :].squeeze().cpu().numpy()
+            micsac4 = np.array(
+                [1 if (micsac4_[max(0, i - 1)] + micsac4_[min(len(micsac4_) - 1, i + 1)]) % 2 == 1 and micsac4_[
+                    i] == 1 else 0 for i in range(len(micsac4_))])
             x3 = compare_data[0, :, 0]
             y3 = compare_data[0, :, 1]
             x4 = compare_data[1, :, 0]
             y4 = compare_data[1, :, 1]
 
-            # Dritter Plot (oben rechts)
+            # Third plot (top right)
             ax3.plot(time_axis, x3, label='X')
             ax3.plot(time_axis, y3, label='Y')
             ax3.scatter(time_axis[micsac3 == 1], x3[micsac3 == 1], marker='x', color='red', label='Mikrosakkade')
@@ -425,7 +445,7 @@ class SequenceTrainer:
             ax3.set_title('real', fontsize=24)
             ax3.legend(fontsize=20)
 
-            # Vierter Plot (unten rechts)
+            # Forth plot (bottom right)
             ax4.plot(time_axis, x4, label='X')
             ax4.plot(time_axis, y4, label='Y')
             ax4.scatter(time_axis[micsac4 == 1], x4[micsac4 == 1], marker='x', color='red', label='Mikrosakkade')
@@ -440,23 +460,25 @@ class SequenceTrainer:
 
         else:
             fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-        fig.suptitle('Verlauf generierter Trajektorien (links) und \nrealer Trajektorien des GazeBase-Datensatzes (rechts)', fontsize=32)
+        fig.suptitle(
+            f'Verlauf generierter Trajektorien (links) und \nrealer Trajektorien des {self.dataset_name} (rechts)',
+            fontsize=32)
         x1 = data[0, :, 0]
         x2 = data[1, :, 0]
         y1 = data[0, :, 1]
         y2 = data[1, :, 1]
         if str(self.GANtype) == "RCGAN":
-            #Wenn RCGAN dann positionen der Mikrosakkaden plotten
             micsac1_ = z_labels[0, :].squeeze().cpu().numpy()
-            micsac1 = np.array([1 if (micsac1_[max(0, i - 1)] + micsac1_[min(len(micsac1_) - 1, i + 1)]) % 2 == 1 and micsac1_[i] == 1 else 0 for i in range(len(micsac1_))])
-            micsac2_ = z_labels[1,:].squeeze().cpu().numpy()
-            micsac2 = np.array([1 if (micsac2_[max(0, i - 1)] + micsac2_[min(len(micsac2_) - 1, i + 1)]) % 2 == 1 and micsac2_[
-                i] == 1 else 0 for i in range(len(micsac2_))])
+            micsac1 = np.array([1 if (micsac1_[max(0, i - 1)] + micsac1_[min(len(micsac1_) - 1, i + 1)]) % 2 == 1 and
+                                     micsac1_[i] == 1 else 0 for i in range(len(micsac1_))])
+            micsac2_ = z_labels[1, :].squeeze().cpu().numpy()
+            micsac2 = np.array(
+                [1 if (micsac2_[max(0, i - 1)] + micsac2_[min(len(micsac2_) - 1, i + 1)]) % 2 == 1 and micsac2_[
+                    i] == 1 else 0 for i in range(len(micsac2_))])
         else:
             micsac1, micsac2 = None, None
 
-
-        # Erster Plot (oben links oder einziger Plot oben)
+        # First plot (top left)
         ax1.plot(time_axis, x1, label='X')
         ax1.plot(time_axis, y1, label='Y')
         if micsac1 is not None:
@@ -466,7 +488,7 @@ class SequenceTrainer:
         ax1.set_title('synthetisch', fontsize=24)
         ax1.legend(fontsize=20)
 
-        # Zweiter Plot (unten links oder einziger Plot unten)
+        # Second plot (bottom left)
         ax2.plot(time_axis, x2, label='X')
         ax2.plot(time_axis, y2, label='Y')
         if micsac2 is not None:
@@ -483,22 +505,23 @@ class SequenceTrainer:
         ax2.set_xticks(ax2.get_xticks())
         ax2.set_xticklabels(ax2.get_xticks(), fontsize=18)
         ax1.set_yticks(ax2.get_yticks())
-        ax1.set_yticklabels(ax1.get_yticks(),fontsize=18)
+        ax1.set_yticklabels(ax1.get_yticks(), fontsize=18)
         ax2.yaxis.set_major_formatter(StrMethodFormatter('{x:,.1f}'))
         ax1.yaxis.set_major_formatter(StrMethodFormatter('{x:,.1f}'))
         fig.tight_layout()
 
         # Speichern der Figur
-        fig.savefig(fr'{self.savepath}\{filename}.png')
+        file_path = os.path.join(self.savepath, f'{filename}.png')
+        fig.savefig(file_path)
         plt.close()
         return True
 
     def plot_losses_and_mmd2(self, epoch):
         fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(20, 8), sharex=True)
 
-        # Subplot für Discriminator und Generator Loss
+        # Subplot for discriminator and Generator Loss
         ax1.plot(np.linspace(0, epoch, len(self.d_loss_log)), self.d_loss_log, label='Discriminator Loss', color='blue')
-        ax2 = ax1.twinx()  # Zweite Y-Achse für den rechten Plot
+        ax2 = ax1.twinx()
         ax2.plot(np.linspace(0, epoch, len(self.g_loss_log)), self.g_loss_log, label='Generator Loss', color='red')
 
         ax1.set_ylabel('Discriminator Loss', color='blue')
@@ -517,20 +540,18 @@ class SequenceTrainer:
         ax1.set_ylim(min_y, max_y)
         ax2.set_ylim(min_y, max_y)
 
-
-        # Subplot für MMD2 (zweite Zeile des Plots)
+        # Subplot for MMD^2
         ax3.plot(np.linspace(0, epoch, len(self.mmd2)), self.mmd2, label='MMD2', color='green')
         ax3.set_xlabel('Epoch')
         ax3.set_ylabel('MMD2', color='green')
         ax3.tick_params('y', colors='green')
         ax3.grid(True)
 
-        # Layout verbessern
         plt.suptitle('Discriminator and Generator Loss, MMD2 Over Time')
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout for suptitle
-        plt.savefig(fr'{self.savepath}\Evaluation.png')
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+        file_path = os.path.join(self.savepath, 'Evaluation.png')
+        plt.savefig(file_path)
         plt.close()
 
 
 logger = make_logger(__file__)
-

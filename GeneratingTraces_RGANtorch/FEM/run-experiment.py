@@ -1,40 +1,39 @@
 import os
+import tempfile
 
 import mlflow
-import tempfile
-import torch
 import numpy as np
-from GeneratingTraces_RGANtorch.FEM.models import RCGANGenerator, RCGANDiscriminator, RGANGenerator, RGANDiscriminator
-
-from GeneratingTraces_RGANtorch.FEM.samplers import SimpleSampler
-
-from GeneratingTraces_RGANtorch.FEM.trainers import SequenceTrainer
+import torch
 from torch import optim
-from torchgan import losses
+
 from GeneratingTraces_RGANtorch.FEM import make_logger
 from GeneratingTraces_RGANtorch.FEM.dataimport import TimeSeriesFEM
+from GeneratingTraces_RGANtorch.FEM.models import RCGANGenerator, RCGANDiscriminator, RGANGenerator, RGANDiscriminator
+from GeneratingTraces_RGANtorch.FEM.samplers import SimpleSampler
+from GeneratingTraces_RGANtorch.FEM.trainers import SequenceTrainer
+
 logger = make_logger(__file__)
+
 
 def main(opt):
     if not os.path.exists(opt['savepath']):
         os.makedirs(opt['savepath'])
-        print(f"Der Ordner {opt['savepath']} wurde erstellt.")
+        print(f"Folder {opt['savepath']} has been created.")
     else:
-        print(f"Der Ordner {opt['savepath']} existiert bereits.")
+        print(f"Folder {opt['savepath']} already exists.")
     logger.info(opt)
     batch_size = opt['batch_size'] if opt['batch_size'] != -1 else None
 
-    # dataset = TimeSeriesVitalSigns(transform=opt['dataset_transform'],
-    #                               vital_signs=opt['signals'])
-
     dataset = TimeSeriesFEM(folderpath=opt['input_folder'],
                             transform=opt['dataset_transform'], vital_signs=opt['signals'], no_mean=opt['no_mean'],
-                            slice_length=opt['slice_length'], input_freq=opt['input_freq'], resample_freq=opt['resample_freq'])
+                            slice_length=opt['slice_length'], input_freq=opt['input_freq'],
+                            resample_freq=opt['resample_freq'])
     label_dist = dataset.label_dist
     X = torch.from_numpy(dataset.data).cuda()
     y = torch.from_numpy(
         dataset.labels).long().cuda()
-    num_train, num_test, num_vali = int(opt['split'][0] * X.shape[0]), int(opt['split'][1] * X.shape[0]), int(opt['split'][2] * X.shape[0])
+    num_train, num_test, num_vali = (int(opt['split'][0] * X.shape[0]), int(opt['split'][1] * X.shape[0]),
+                                     int(opt['split'][2] * X.shape[0]))
     rand_indices = np.arange(len(X))
     np.random.shuffle(rand_indices)
     train_indices, test_indices, vali_indices = (rand_indices[:num_train], rand_indices[num_train:num_train + num_test],
@@ -46,11 +45,10 @@ def main(opt):
     test_sampler = SimpleSampler(X_test, y_test, label_dist=label_dist, batch_size=batch_size)
     vali_sampler = SimpleSampler(X_vali, y_vali, label_dist=label_dist, batch_size=batch_size)
 
-
     num_classes = len(torch.unique(y.view(-1, y.size(-1))))
     RGAN = [RGANGenerator, RGANDiscriminator]
     RCGAN = [RCGANGenerator, RCGANDiscriminator]
-    # TODO: Anpassen
+
     if opt['type'] == "RGAN":
         GANtype = RGAN
     elif opt['type'] == "RCGAN":
@@ -66,15 +64,15 @@ def main(opt):
                 'dropout': opt['gen_dropout'] if opt['num_layers'] != 1 else 0,
                 'sequence_length': X.shape[1],
                 'rnn_type': 'lstm',
-                'label_size':1,
+                'label_size': 1,
                 'noise_size': opt["noise_size"],
                 'num_classes': num_classes if opt['type'] == 'RCGAN' else None,
                 'label_embedding_size': opt['label_embedding_size'] if opt['type'] == 'RCGAN' else None
             },
             'optimizer': {
-                'name': optim.Adam,  # optim.RMSprop,
+                'name': optim.Adam,
                 'args': {
-                    'lr': 2*opt['lr']
+                    'lr': opt['lr']
                 }
             }
         },
@@ -90,7 +88,7 @@ def main(opt):
                 'label_embedding_size': opt['label_embedding_size'] if opt['type'] == 'RCGAN' else None
             },
             'optimizer': {
-                'name': optim.Adam,  # optim.RMSprop, originalPaper nimmt GradientDescend
+                'name': optim.Adam,
                 'args': {
                     'lr': opt['lr']
                 }
@@ -98,18 +96,14 @@ def main(opt):
         }
     }
 
-    wasserstein_losses = [losses.WassersteinGeneratorLoss(),
-                          losses.WassersteinDiscriminatorLoss(),
-                          losses.WassersteinGradientPenalty()]
-
     logger.info(network)
-    with open(f"{opt['savepath']}/LogNetwork.txt", 'w') as file:
+    log_file_path = os.path.join(opt['savepath'], "LogNetwork.txt")
+    with open(log_file_path, 'w') as file:
         file.write(str(network) + '\n' + str(opt))
 
     trainer = SequenceTrainer(models=network,
                               recon=None,
                               ncritic=opt['ncritic'],
-                              losses_list=wasserstein_losses,
                               epochs=opt['epochs'],
                               retain_checkpoints=1,
                               checkpoints=f"{MODEL_DIR}/",
@@ -121,7 +115,8 @@ def main(opt):
                               savepath=opt['savepath'],
                               GANtype=opt['type'],
                               scale=opt['scale'],
-                              resamp_frequency=opt['resample_freq']
+                              resamp_frequency=opt['resample_freq'],
+                              dataset_name=opt['dataset_name']
                               )
 
     if opt['type'] == 'RGAN':
@@ -130,26 +125,7 @@ def main(opt):
         trainer.train_RCGAN(dataloader=train_sampler)
     logger.info(trainer.generator)
     logger.info(trainer.discriminator)
-    #Generator = trainer.generator, Diskriminator = trainer.diskriminator
-    '''
-    df_synth, X_synth, y_synth = synthesis_df(trainer.generator, dataset)
 
-    logger.info(df_synth.sample(10))
-    logger.info(df_synth.groupby('cat_vital_sign')['value'].nunique()
-                .div(df_synth.groupby('cat_vital_sign').size()))
-    X_real = X.detach().cpu().numpy()
-    mfe = np.abs(mean_feature_error(X_real, X_synth))
-    logger.info(f'Mean feature error: {mfe}')
-
-    mlflow.set_tag('flag', opt['flag'])
-    log_df(df_synth, 'synthetic/vital_signs')
-    mlflow.log_metric('mean_feature_error', mfe)
-
-    trainer_class = classify(X_synth, y_synth, epochs=2_000, batch_size=batch_size)
-    trainer_tstr = tstr(X_synth, y_synth, X, y, epochs=3_000, batch_size=batch_size)
-    log_model(trainer_class.model, 'models/classifier')
-    log_model(trainer_tstr.model, 'models/tstr')
-    '''
 
 if __name__ == '__main__':
     with mlflow.start_run():
@@ -183,15 +159,16 @@ if __name__ == '__main__':
                     "slice_length": 5,
                     "no_mean": True,
                     'type': 'RCGAN',
-                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\TorchMaxAbsScaler\\SameLR\\GazeBase_scale=0.2,f=100,len=5s\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}_resample=100",#TODO:Anpassen für HPC
+                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\TorchMaxAbsScaler\\SameLR\\GazeBase_scale=0.2,f=100,len=5s\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}_resample=100",
                     'split': [0.8, 0.1, 0.1],
                     'label_embedding_size': 1,
                     'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase",
                     'eval_interval': 10,
                     'input_freq': 1000,
                     'resample_freq': 100,
-                    'scale': 0.2
+                    'scale': 0.2,
+                    'dataset_name': 'GazeBase'
                 }
-                i+=1
+                i += 1
                 main(opt)
-                print(f"{i/len(params_list)*100}% done...")
+                print(f"{i / len(params_list) * 100}% done...")

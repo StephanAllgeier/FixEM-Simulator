@@ -1,9 +1,7 @@
-import os
-
 import torch
 import torch.nn as nn
+
 from GeneratingTraces_RGANtorch.FEM.models import RGANGenerator, RGANDiscriminator
-from GeneratingTraces_RGANtorch.FEM.utils import tile
 
 
 class RCGANGenerator(RGANGenerator):
@@ -36,7 +34,6 @@ class RCGANGenerator(RGANGenerator):
         if prob_classes is None:
             prob_classes = torch.ones(num_classes)
 
-        #TODO(dsevero): this could cause problems
         kwargs['input_size'] = label_embedding_size + noise_size
         kwargs['noise_size'] = noise_size
         kwargs['label_type'] = "generated"
@@ -46,7 +43,7 @@ class RCGANGenerator(RGANGenerator):
         super(RCGANGenerator, self).__init__(**kwargs)
         self.num_classes = num_classes
         self.label_embeddings = nn.Embedding(num_classes, label_embedding_size)
-        self.label_embedding_size = label_embedding_size 
+        self.label_embedding_size = label_embedding_size
         self.prob_classes = torch.Tensor(prob_classes)
 
         # weights already initialized in parent class
@@ -56,26 +53,20 @@ class RCGANGenerator(RGANGenerator):
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
 
-        #y_tiled = torch.randint(0, 2, (z.shape[0], z.shape[1]), dtype=torch.long).to(y.device)
         y_tiled = y.squeeze().type(torch.LongTensor).to(y.device)
-        #y_tiled = y.reshape(-1,self.sequence_length,1)
         # shape: (batch-size, sequence_length, label_embedding_size)
 
-        # y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
         y_emb = self.label_embeddings(y_tiled)
-
         # shape: (batch-size, sequence_length, noise_size)
         if reshape:
             z = z.view(-1, self.sequence_length, self.noise_size)
         if reshape_y:
-            y_emb =y_emb.view(z.shape[0], z.shape[1], -1)
+            y_emb = y_emb.view(z.shape[0], z.shape[1], -1)
 
         # shape: (batch-size, encoding_dims)
         z_cond = torch.cat((z, y_emb), dim=2)
         # shape: (batch-size, sequence_length, output_size)
         return super(RCGANGenerator, self).forward(z_cond, reshape=False)
-
-
 
     def sampler(self, sample_size, device='cuda'):
         return [
@@ -102,7 +93,7 @@ class RCGANDiscriminator(RGANDiscriminator):
         """
 
         # Defaults
-        #label_embedding_size = label_embedding_size or num_classes
+        # label_embedding_size = label_embedding_size or num_classes
         kwargs['input_size'] = input_size + label_embedding_size
         kwargs['label_type'] = "required"
         kwargs['sequence_length'] = sequence_length
@@ -119,11 +110,9 @@ class RCGANDiscriminator(RGANDiscriminator):
         # y must be tiled so that labels repeat across the sequence dimensions
         # y_tiled[:, i] == y_tiled[:, j] for all i and j
         # shape: (batch_size, sequence_length)
-        #y_test = y.expand(-1,-1,2)
         y_tiled = y.squeeze().type(torch.LongTensor).to(y.device)
         # shape: (batch-size, sequence_length, label_embedding_size)
 
-        #y_emb = self.label_embeddings(y_tiled.type(torch.LongTensor).to(y.device))
         y_emb = self.label_embeddings(y_tiled)
 
         # shape: (batch-size, sequence_length, label_embedding_size + hidden_size)

@@ -1,10 +1,9 @@
 '''
 Reference: https://arxiv.org/abs/1706.02633 
 '''
-
-import torch
 import torch.nn as nn
 from torchgan.models import Generator, Discriminator
+
 from GeneratingTraces_RGANtorch.FEM.layers import rnn_layer
 
 
@@ -54,7 +53,6 @@ class RGANGenerator(Generator):
             last_layer (Module, optional): Last layer of the discriminator.
         """
 
-
         # Defaults
         noise_size = noise_size or output_size
         input_size = input_size or noise_size
@@ -78,7 +76,7 @@ class RGANGenerator(Generator):
         # Total size of z that will be sampled. Later, in the forward 
         # method, we resize to (batch_size, sequence_length, noise_size).
 
-        self.encoding_dims = sequence_length*noise_size
+        self.encoding_dims = sequence_length * noise_size
 
         super(RGANGenerator, self).__init__(self.encoding_dims,
                                             self.label_type)
@@ -89,7 +87,7 @@ class RGANGenerator(Generator):
                              num_layers=num_layers,
                              dropout=dropout,
                              rnn_type=rnn_type,
-                             nonlinearity=rnn_nonlinearity) #Hier werden die Gewichte automatisch Initialisiert mit h0=zeros
+                             nonlinearity=rnn_nonlinearity)
         self.dropout = nn.Dropout(dropout)
         # self.batchnorm = nn.BatchNorm1d(hidden_size)
         self.linear = nn.Linear(hidden_size, output_size)
@@ -103,9 +101,8 @@ class RGANGenerator(Generator):
         if reshape:
             z = z.view(-1, self.sequence_length, self.noise_size)
 
-        y, _ = self.rnn(z) # Wird hier automatisch mit h0=zeros initialisiert??? Output: y = (batch_size, seq_len, hidden_size)
+        y, _ = self.rnn(z)
         y = self.dropout(y)
-        # y = self.batchnorm(y.permute(0, 2, 1)).permute(0, 2, 1)
         y = self.linear(y)
         return y if self.last_layer is None else self.last_layer(y)
 
@@ -187,4 +184,3 @@ class RGANDiscriminator(Discriminator):
         y = self.dropout(y)
         y = self.linear(y)
         return y if self.last_layer is None else self.last_layer(y)
-
