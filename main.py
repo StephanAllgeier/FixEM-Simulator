@@ -154,9 +154,9 @@ def augmentation(datafolder, savefolder, const_dict):
         flipped_ts = Augmentation.flip_dataframe(removed_blink, const_dict).rename(columns=new_cols)
         removed_blink = removed_blink.rename(columns=new_cols)
         removed_blink.to_csv(fr"{savefolder}\{Path(file).stem}.csv")
-        flipped_ts.to_csv(fr"{folderpath}\{Path(file).stem}_flipped.csv")
+        flipped_ts.to_csv(fr"{savefolder}\{Path(file).stem}_flipped.csv")
         gaussian_frame = Augmentation.add_gaussian_noise(removed_blink, const_dict).rename(columns=new_cols)
-        gaussian_frame.to_csv(fr"{folderpath}\{Path(file).stem}_gaussian.csv")
+        gaussian_frame.to_csv(fr"{savefolder}\{Path(file).stem}_gaussian.csv")
     return None
 
 
