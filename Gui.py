@@ -44,7 +44,8 @@ class Functs:
 class MyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
+        self.info_message = None
+        self.exception=False
         # Hauptfenster-Einstellungen
         self.setWindowTitle("Create synthetic FEMs")
         self.setGeometry(200, 200, 400, 400)
@@ -91,10 +92,11 @@ class MyWindow(QMainWindow):
         self.label_file_edit = QLineEdit()
         self.label_file_browse_button = QPushButton("Browse file")
         #self.label_file_browse_button.clicked.connect(self.browse_file("Label files (*.csv)"))
-        self.label_simulation_freq = QLabel("Simulation Frequency:")
-        self.label_cells_per_degree = QLabel("Cells per Degree:")
-        self.label_relaxation_rate = QLabel("Relaxation Rate:")
-        self.label_hc = QLabel("hc:")
+        self.label_simulation_freq = QLabel("Simulation Frequency in Hz (as float):")
+        self.label_cells_per_degree = QLabel("Cells per Degree (as int):")
+        self.label_relaxation_rate = QLabel("Relaxation Rate (as float):")
+        self.label_hc = QLabel("hc (as float):")
+        self.label_chi = QLabel("Angular weight chi (as float):")
 
         self.layout.addWidget(self.label_simulation_freq)
         self.line_edit_simulation_freq = QLineEdit()
@@ -108,15 +110,17 @@ class MyWindow(QMainWindow):
         self.layout.addWidget(self.label_hc)
         self.line_edit_hc = QLineEdit()
         self.layout.addWidget(self.line_edit_hc)
+        self.layout.addWidget(self.label_chi)
+        self.line_edit_chi = QLineEdit()
+        self.layout.addWidget(self.line_edit_chi)
 
         # input_fields-Liste aktualisieren
         self.input_fields = [
-            # ... (bestehende Felder)
             ("simulation_freq", self.line_edit_simulation_freq, None),
             ("cells per degree", self.line_edit_cells_per_degree, None),
             ("relaxation_rate", self.line_edit_relaxation_rate, None),
             ("hc", self.line_edit_hc, None),
-            # ... (bestehende Felder)
+            ("chi", self.line_edit_chi, None)
         ]
         self.layout.addWidget(self.file_label)
         self.layout.addWidget(self.file_edit)
@@ -127,9 +131,9 @@ class MyWindow(QMainWindow):
         # Zuordnung von Anzeigenamen zu Variablennamen
         self.variable_mapping = {
                             "Number of simulations": "number",
-                            "Duration": 'duration',
-                            "Field size in degree": 'field_size',
-                            "Sampling Frequency": 'sampling_frequency',
+                            "Duration in seconds (as int)": 'duration',
+                            "Field size in degree (as float)": 'field_size',
+                            "Sampling Frequency in Hz (as float)": 'sampling_frequency',
                             'Folderpath to save to': 'folderpath',
                             'Show plots': 'show_plots'
                             }
@@ -233,6 +237,7 @@ class MyWindow(QMainWindow):
         enable_file_input = selected_function == "RCGAN"
         self.file_edit.setEnabled(enable_file_input)
         self.file_browse_button.setEnabled(enable_file_input)
+        self.label_file_edit.setEnabled(enable_file_input)
         self.label_file_browse_button.setEnabled(enable_file_input)
         self.float_combo.setEnabled(not enable_file_input)
     def handle_checkbox(self, checkbox, other_checkbox):
@@ -254,7 +259,10 @@ class MyWindow(QMainWindow):
             line_edit.clear() if self.disable_fields else None
 
     def run_function(self):
+        self.exception = False
+
         selected_function = self.function_combo.currentText()
+
         # Variablenwerte sammeln
         variables = {}
         for element in self.input_fields:
@@ -299,19 +307,57 @@ class MyWindow(QMainWindow):
             comb_val = float(comb_elem.split('=')[1])
             variables.update({comb_name: comb_val})
         if not self.disable_fields:
-            variables["simulation_freq"] = float(self.line_edit_simulation_freq.text())
-            variables["cells per deg"] = float(self.line_edit_cells_per_degree.text())
-            variables["relaxation_rate"] = float(self.line_edit_relaxation_rate.text())
-            variables["hc"] = float(self.line_edit_hc.text())
+            def get_float_input(line_edit, name):
+                text = line_edit.text()
+                if text == '':
+                    return None
+                else:
+                    try:
+                        return_val = float(text)
+                        return return_val
+                    except Exception:
+                        QMessageBox.critical(self, 'Error', f"{name} is expected to be float.")
+                        self.exception =True
+            variables["simulation_freq"] = get_float_input(self.line_edit_simulation_freq, 'Simulation frequency')
+            variables["cells per deg"] = get_float_input(self.line_edit_cells_per_degree, 'Cells per degree')
+            variables["relaxation_rate"] = get_float_input(self.line_edit_relaxation_rate, 'Relaxation rate')
+            variables["hc"] = get_float_input(self.line_edit_hc, 'h_crit')
+            if self.line_edit_chi.text() != '':
+                try:
+                    variables['chi'] = float(self.line_edit_chi.text())
+                except Exception as e:
+                    QMessageBox.critical(self, 'Error', f"Chi is expected to be float.")
+                    self.exception = True
+            else:
+                variables['chi'] = 1
         if selected_function == 'RandomWalk':
             if isinstance(variables['number'], type(None)):
                 variables['number'] =1
             range_end = int(variables['number'])
             variables.pop('number')
-            variables['potential_resolution'] = int(variables['cells per deg'])
+            if variables['cells per deg'] != '' and variables['cells per deg'] != None:
+                variables['potential_resolution'] = int(variables['cells per deg'])
+            else:
+                variables['potential_resolution'] = None
             variables.pop('cells per deg')
-            for i in range(1, range_end + 1):
-                RandomWalk.RandomWalk.randomWalk(**variables, number_id=i)
+            # ProgressBar
+            if not self.exception:
+                progress_dialog = QProgressDialog("Simulations running", "Cancel", 0, range_end, self)
+                progress_dialog.setWindowTitle("Progress")
+                progress_dialog.setWindowModality(Qt.WindowModal)
+                progress_dialog.setAutoClose(True)
+
+                for i in range(1, range_end + 1):
+                    if progress_dialog.wasCanceled():
+                        break
+                    progress_dialog.setValue(i-1)
+                    QApplication.processEvents()
+
+                    RandomWalk.RandomWalk.randomWalk(**variables, number_id=i)
+                progress_dialog.setValue(range_end)
+                if not progress_dialog.wasCanceled():
+                    self.show_info_popup(variables, range_end)
+                    self.wait_for_popup_close()
         if selected_function == 'RCGAN':
             hyperparameterfile = ""
             model = GenerateDataset(hyperparameterfile)
@@ -320,10 +366,52 @@ class MyWindow(QMainWindow):
             n = variables['number']
             labels = variables['label_file']
             model.generate_data(model, n, duration, f_samp,
-                            labels="GeneratingTraces_RGANtorch\FEM\RoordaLabels.csv")#TODO: LabelFile anpassen, dass aus Input genommen wird
+                            labels="GeneratingTraces_RGANtorch\FEM\RoordaLabels.csv")
+        self.reset_gui()
+
+    def reset_gui(self):
+
+        self.function_combo.setCurrentIndex(0)
+        self.float_combo.setCurrentIndex(0)
+        self.file_edit.clear()
+        self.label_file_edit.clear()
+        self.line_edit_simulation_freq.clear()
+        self.line_edit_cells_per_degree.clear()
+        self.line_edit_relaxation_rate.clear()
+        self.line_edit_hc.clear()
+        self.line_edit_chi.clear()
+
+        # Deaktiviere alle Checkboxen
+        for checkbox in self.default_checkboxes:
+            checkbox.setChecked(False)
+        for checkbox in [self.checkbox_yes, self.checkbox_no]:
+            checkbox.setChecked(False)
+        self.unit_dva_checkbox.setChecked(True)
+
+        # Deaktiviere Eingabefelder
+        self.toggle_input_fields_enabled()
+        self.toggle_file_input_enabled()
+
+    def show_info_popup(self, variables, number):
+        self.info_message = QMessageBox(self)
+        self.info_message.setIcon(QMessageBox.Information)
+        self.info_message.setWindowTitle("Simulations done")
+        self.info_message.setText("All simulations have run successfully.")
+        self.info_message.setDetailedText(
+            f"Savepath: {variables['folderpath']}\nNumber of Simulations: {number}\nSimulation Duration: {variables['duration']}")
+        self.info_message.open()
+
+    def wait_for_popup_close(self):
+        popup_open = True
+        while popup_open:
+            QApplication.processEvents()
+            popup_open = self.info_message.isVisible()
 
 
 app = QApplication(sys.argv)
-window = MyWindow()
-window.show()
-sys.exit(app.exec_())
+
+while True:
+    window = MyWindow()
+    window.show()
+    sys.exit(app.exec_())
+    break
