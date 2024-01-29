@@ -1,15 +1,13 @@
+# This function was used to evaluate the properties of generated trajectories.
+# No further usage. The Gui uses RandomWalk.py
 import os
 from argparse import ArgumentParser, Namespace
 from decimal import *
 from math import floor, fsum, inf, isinf, isnan, nan, sqrt
 from pathlib import Path
-import pandas as pd
 
 import matplotlib
 import pandas as pd
-
-from GeneratingTraces_MathematicalModel.colorline import colorline
-from ProcessingData.Visualize import Visualize
 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -396,9 +394,7 @@ class RandomWalk():
 
     @staticmethod
     def oculomotor_potential(args, curr_posx, curr_posy, center_row, center_col):
-        chi = 2
-        L = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
-        oculo_pot = lambda offset_x, offset_y:(args.fixation_potential_factor * 2 *(((offset_x-curr_posx) ** 2) * ((offset_y-curr_posy) ** 2)))
+        oculo_pot = lambda offset_x, offset_y:(args.chi*(((offset_x-curr_posx) ** 2) * ((offset_y-curr_posy) ** 2)))
         return oculo_pot(center_col, center_row)
 
 
@@ -408,7 +404,7 @@ class RandomWalk():
                    potential_norm_exponent=None, random_seed=None, potential_resolution=None, potential_weight=None,
                    relaxation_rate=None, sampling_duration=None, sampling_frequency=None, sampling_start=None,
                    show_plots=True, start_position_sigma=None, num_step_candidates=None, step_through=None,
-                   number=None, use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False):
+                   number=None, use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0, save=False, report=False, chi=1):
         # Init
         global warned_mirror
         warned_mirror = False
@@ -416,6 +412,7 @@ class RandomWalk():
 
         #   Get parsed parameters
         args, N = RandomWalk.parse_args()
+        args.chi=chi
         if abs_dist_max is not None:
             args.abs_dist_max = abs_dist_max
         if abs_dist_max:
