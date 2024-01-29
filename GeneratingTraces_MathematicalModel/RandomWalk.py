@@ -127,6 +127,8 @@ class RandomWalk():
                             help='Should be turned off for high sampling rates.')
         parser.add_argument('--use_decimal', default=None, type=str,
                             help='Binary switch for using the Decimal type for exponential weight computations which provides a nearly unlimited exponent. Use when getting an overflow exception with ordinary double precision accuracy, slows down computation. For an integer value >= 2, specifies the number of used decimal digits, which is of minor relevance.')
+        parser.add_argument('--hc', default='7.9', type=float,
+                            help='Critical value for triggering a microsaccade.')
 
         args = parser.parse_args()
 
@@ -400,9 +402,7 @@ class RandomWalk():
 
     @staticmethod
     def oculomotor_potential(args, curr_posx, curr_posy, center_row, center_col):
-        chi = 2
-        L = RandomWalk.round_to_odd(args.field_size * args.potential_resolution)
-        oculo_pot = lambda offset_x, offset_y: (args.fixation_potential_factor * 2 * (
+        oculo_pot = lambda offset_x, offset_y: (args.chi * (
                     ((offset_x - curr_posx) ** 2) * ((offset_y - curr_posy) ** 2)))
         return oculo_pot(center_col, center_row)
 
@@ -413,7 +413,7 @@ class RandomWalk():
                    relaxation_rate=None, sampling_duration=None, sampling_frequency=None, sampling_start=None,
                    show_plots=False, start_position_sigma=None, num_step_candidates=None, step_through=None,
                    use_decimal=None, walk_along_axes=None, folderpath=None, simulation_freq=None, number_id=1, hc=1.0,
-                   save=False, report=False, unit=None):
+                   save=False, report=False, unit=None, chi=1):
         # Init
         global warned_mirror
         warned_mirror = False
@@ -421,6 +421,7 @@ class RandomWalk():
 
         #   Get parsed parameters
         args, N = RandomWalk.parse_args()
+        args.chi=chi
         if abs_dist_max is not None:
             args.abs_dist_max = abs_dist_max
         if abs_dist_max:
@@ -476,6 +477,8 @@ class RandomWalk():
         if folderpath is not None:
             save = True
             args.fpath_sampled = fr"{Path(folderpath)}\Trace{number_id}"
+        if hc is None:
+            hc = 7.9
         N=RandomWalk.round_to_odd(args.field_size*args.potential_resolution)
 
         if args.base_dir is not None:
@@ -688,7 +691,6 @@ class RandomWalk():
 
             # Micsac Criterion
             h_crit = hc
-            # micsac_flag = np.any(visited_activation[walked_mask]>h_crit) #Wenn ein Beliebiger Punkt auf Linie die überschritten wird über Grenzwert ist.Stimmt nicht ganz mit Paper überein, vorerst verworfen
             micsac_flag = visited_activation[line_i[-1], line_j[-1]] > h_crit
             if any(micsac_array[max(0, i - round(f_sim * 0.015)):i]):
                 micsac_array[i + 1] = False
@@ -938,11 +940,10 @@ class RandomWalk():
             ax1.set_ylabel(f'Position in {unit_symb}')
             ax1.set_title(f'Augenbewegungen in x-y-Koordinaten - Positiv Beispiel')
 
-            # Subplot 2: Bereich 24 bis 25 Sekunden
             ax2 = axs[1]
             ax2.plot(t, x_sampled, label='x', color='blue')
             ax2.plot(t, y_sampled, label='y', color='orange')
-            #ax2.set_xlim(12, 14)
+
             ax2.set_ylim(min(y_sampled), max(y_sampled))
             ax2.set_xlabel('Zeit in s')
             ax2.set_ylabel(f'Position in {unit_symb}')
