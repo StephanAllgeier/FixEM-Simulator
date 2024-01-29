@@ -217,7 +217,7 @@ def get_best_HD(folderpath_to_jsons, feature, compare_json_file, normalize_01, o
 
 # This function creates a dual histogram plot with log scale, comparing a common dataset (compare_filepath)
 # with two others (file1 and file2) based on a specified feature, and saves the plot as a JPEG file.
-def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, compare_label, label1, label2, title=None):
+def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, compare_label, label1, label2, savefigpath):
     with open(
             compare_filepath,
             'r') as comp:
@@ -226,11 +226,9 @@ def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, 
         varlist2_1 = json.load(comp2)[feature]
     with open(file2, 'r') as comp3:
         varlist2_2 = json.load(comp3)[feature]
-    hist_bins = 50
-    savefigpath = r"C:\Users\uvuik\Desktop\Neue Plots\filename"
     savefig = f"{Path(savefigpath).parent}/DualHistogramLog_intermicsac.jpeg"
     Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, compare_label, label1, savefig, xlabel,
-                                           range_limits=(0, 2.5), normalize_01=False, title=title)
+    #                                       range_limits=(0, 2.5), normalize_01=False, title=title)
     Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, compare_label, label1, label2, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
 
 # This function creates individual histograms for datasets in a specified folder (folderpath),
@@ -306,23 +304,24 @@ def get_micsac_ang(folderpath, ms_flag, drift_flag):
 
 if __name__ == '__main__':
     ### Example Usages
+
     const_roorda = get_constants('Roorda')
-    folderpath_roorda = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda"
-    roorda_file = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda\10003L_001.csv"
-    const_gb = get_constants('GazeBase')
-    folderpath_gb = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase"
-    gb_file =  r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase\S_1001_S1_FXS.csv"
+    #folderpath_roorda = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda"
+    #roorda_file = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda\10003L_001.csv"
+    #const_gb = get_constants('GazeBase')
+    #folderpath_gb = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase"
+    #gb_file =  r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase\S_1001_S1_FXS.csv"
 
     # Augmentation
-    a =  augmentation(folderpath_gb, savefolder = r"C:\Users\uvuik\Desktop\Testfolder", const_dict = const_gb)
+    #a =  augmentation(folderpath_gb, savefolder = r"C:\Users\uvuik\Desktop\Testfolder", const_dict = const_gb)
 
     #Creating histogram plots
-    compare_filepath = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\External\EyeMotionTraces_Roorda Vision Berkeley\MicsacFeatures.json"
+    compare_filepath = r"C:\Users\uvuik\bwSyncShare\Abgabe IAI\Datasets\Roorda Vision Berkeley\MicsacFeatures.json"
     file1 = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=3.969_simulation_rate=150_CellsPerDegree=10_RelaxationRate=0.085_HCrit=8.9.json"
     file2 = r"C:\Users\uvuik\bwSyncShare\Documents\Versuchsplanung Mathematisches Modell\AuswertungErgebnisse\Evaluation20s\BestHD_IntermicDur\HD=4.103_simulation_rate=100_CellsPerDegree=10_RelaxationRate=0.1_HCrit=6.9.json"
     create_histogram_dual_w_HD(
         compare_filepath, file1, file2, 'IntermicDur', 'Intermikrosakkadische Intervalldauer in Sekunden [s]',
-        label1='(f_sim=150Hz, L=21, epsilon=0.085, h_crit=8.9)', label2='(f_sim=100Hz, L=21, epsilon=0.1, h_crit=6.9)')
+        label1='(f_sim=150Hz, L=21, epsilon=0.085, h_crit=8.9)', label2='(f_sim=100Hz, L=21, epsilon=0.1, h_crit=6.9)', compare_label='Roorda Lab', savefigpath=r"C:\Users\uvuik\Desktop\NewFolder")
 
     # Functions for plotting Histograms
     create_histogram_w_HD(
