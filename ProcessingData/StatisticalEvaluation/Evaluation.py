@@ -108,9 +108,9 @@ def dual_hist_subplot_w_histdiff_log(varlist1, varlist2_1, varlist2_2, label1, l
     ax1_scatter = axs[0, 1]
     ax1_scatter.plot(bin_centers_roorda, relative_freq_roorda, 'o', color='blue')
     ax1_scatter.plot(bin_centers_1, relative_freq_1, 'o', color="red")
-    ax1_scatter.plot(x_fit, 10 ** y_fit_roorda, color='red',
+    ax1_scatter.plot(x_fit, 10 ** y_fit_roorda, color='blue',
                      label="Anpassende Gerade (log) Roorda")  # Gerade auf logarithmischer Skala
-    ax1_scatter.plot(x_fit, 10 ** y_fit_1, color='blue',
+    ax1_scatter.plot(x_fit, 10 ** y_fit_1, color='red',
                      label="Anpassende Gerade (log) math. Modell")
     ax1_scatter.set_xscale('linear')
     ax1_scatter.set_yscale('log')
