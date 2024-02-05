@@ -217,7 +217,7 @@ def get_best_HD(folderpath_to_jsons, feature, compare_json_file, normalize_01, o
 
 # This function creates a dual histogram plot with log scale, comparing a common dataset (compare_filepath)
 # with two others (file1 and file2) based on a specified feature, and saves the plot as a JPEG file.
-def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, compare_label, label1, label2, savefigpath):
+def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, compare_label, label1, label2, savefigpath, title=None):
     with open(
             compare_filepath,
             'r') as comp:
@@ -228,7 +228,7 @@ def create_histogram_dual_w_HD(compare_filepath, file1, file2, feature, xlabel, 
         varlist2_2 = json.load(comp3)[feature]
     savefig = f"{Path(savefigpath).parent}/DualHistogramLog_intermicsac.jpeg"
     Evaluation.hist_subplot_w_histdiff_log(compare_data, varlist2_1, compare_label, label1, savefig, xlabel,
-    #                                       range_limits=(0, 2.5), normalize_01=False, title=title)
+                                           range_limits=(0, 2.5), normalize_01=False, title=title)
     Evaluation.dual_hist_subplot_w_histdiff_log(compare_data, varlist2_1, varlist2_2, compare_label, label1, label2, savefig, xlabel, range_limits=(0, 2.5), normalize_01=False)
 
 # This function creates individual histograms for datasets in a specified folder (folderpath),
@@ -306,14 +306,14 @@ if __name__ == '__main__':
     ### Example Usages
 
     const_roorda = get_constants('Roorda')
-    #folderpath_roorda = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda"
-    #roorda_file = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda\10003L_001.csv"
-    #const_gb = get_constants('GazeBase')
-    #folderpath_gb = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase"
-    #gb_file =  r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase\S_1001_S1_FXS.csv"
+    folderpath_roorda = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda"
+    roorda_file = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\Roorda\10003L_001.csv"
+    const_gb = get_constants('GazeBase')
+    folderpath_gb = r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase"
+    gb_file =  r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase\S_1001_S1_FXS.csv"
 
     # Augmentation
-    #a =  augmentation(folderpath_gb, savefolder = r"C:\Users\uvuik\Desktop\Testfolder", const_dict = const_gb)
+    a =  augmentation(folderpath_gb, savefolder = r"C:\Users\uvuik\Desktop\Testfolder", const_dict = const_gb)
 
     #Creating histogram plots
     compare_filepath = r"C:\Users\uvuik\bwSyncShare\Abgabe IAI\Datasets\Roorda Vision Berkeley\MicsacFeatures.json"

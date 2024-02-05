@@ -4,7 +4,7 @@ Reference: https://arxiv.org/abs/1706.02633
 import torch.nn as nn
 from torchgan.models import Generator, Discriminator
 
-from GeneratingTraces_RGANtorch.FEM.layers import rnn_layer
+from GeneratingTraces_RCGAN.FEM.layers import rnn_layer
 
 
 class RGANGenerator(Generator):

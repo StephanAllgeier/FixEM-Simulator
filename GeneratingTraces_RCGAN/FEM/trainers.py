@@ -40,8 +40,8 @@ import torch
 import torch.nn as nn
 from matplotlib.ticker import StrMethodFormatter
 
-import GeneratingTraces_RGANtorch.FEM.mmd as mmd
-from GeneratingTraces_RGANtorch.FEM import make_logger
+import GeneratingTraces_RCGAN.FEM.mmd as mmd
+from GeneratingTraces_RCGAN.FEM import make_logger
 
 logger = make_logger(__file__)
 

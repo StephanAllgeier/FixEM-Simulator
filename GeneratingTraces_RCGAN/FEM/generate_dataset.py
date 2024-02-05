@@ -21,13 +21,14 @@ Example:
 import inspect
 import os
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import torch
 from scipy.interpolate import make_interp_spline
 
-from GeneratingTraces_RGANtorch.FEM.models.rcgan import RCGANGenerator
-from GeneratingTraces_RGANtorch.FEM.models.rgan import RGANGenerator
+from GeneratingTraces_RCGAN.FEM.models.rcgan import RCGANGenerator
+from GeneratingTraces_RCGAN.FEM.models.rgan import RGANGenerator
 
 
 class GenerateDataset():
@@ -74,10 +75,10 @@ class GenerateDataset():
 
     @staticmethod
     def generate_data(model, num_samples, duration, fsamp, fsamp_out, folderpath_to_save_to=None, labels=None,
-                      noise_scale=0.3, scaling_x=30, scaling_y=12.5):
+                      noise_scale=0.3, scaling_x=30, scaling_y=12.5, unit=None):
         device = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
         noise_size = model.noise_size
-        z = GenerateDataset.random_tensor((num_samples, duration * fsamp, noise_size)).to(device) * noise_scale
+        z = GenerateDataset.random_tensor((int(num_samples), int(duration * fsamp), int(noise_size))).to(device) * noise_scale
         if 'y' in list(inspect.signature(model.forward).parameters):  # If labels are needed
             y = GenerateDataset.rand_batch_labels(labels, z, fsamp).to(device)
             synthetic_data = model(z, y, reshape=False, reshape_y=True).detach().cpu()
@@ -101,6 +102,13 @@ class GenerateDataset():
             else:
                 resampled_df = df
             if folderpath_to_save_to:
+                if unit=='DVA':
+                    df['x'] = df['x'] / 60
+                    df['y'] = df['y'] / 60
+                elif unit=='µm':
+                    r = 24500
+                    df['x'] = r * np.sin(df['x']/60)
+                    df['y'] = r * np.sin(df['y']/60)
                 df.to_csv(os.path.join(folderpath_to_save_to, f'trace{i}.csv'), index=False)
             dfs.append(resampled_df)
         return dfs

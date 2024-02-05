@@ -237,7 +237,7 @@ class Visualize():
         plt.ylabel('Probability density')
         plt.legend()
         plt.savefig(
-            fr'{savepath}\{title}.jpeg', dpi=600)
+            os.path.join(savepath, f"{title}.jpeg"), dpi=600)
         plt.show()
 
     @staticmethod

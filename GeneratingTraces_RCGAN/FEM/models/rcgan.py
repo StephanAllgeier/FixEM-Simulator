@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from GeneratingTraces_RGANtorch.FEM.models import RGANGenerator, RGANDiscriminator
+from GeneratingTraces_RCGAN.FEM.models.rgan import RGANGenerator, RGANDiscriminator
 
 
 class RCGANGenerator(RGANGenerator):

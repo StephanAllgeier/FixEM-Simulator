@@ -1,9 +1,10 @@
-import numpy as np
-from matplotlib import pyplot as plt
-import torch
 import os
 
-from GeneratingTraces_RGANtorch.FEM.generate_dataset import GenerateDataset
+import numpy as np
+import torch
+from matplotlib import pyplot as plt
+
+from GeneratingTraces_RCGAN.FEM.generate_dataset import GenerateDataset
 
 savepath = r"C:\Users\uvuik\Desktop\Torch\Bild"
 def plot_imgs(data, f, i):
@@ -92,7 +93,7 @@ for file in pth_files:
     fsamp=100
     duration=5
     fsamp_out=100
-    b = a.generate_data(a.model, 1, duration, fsamp, fsamp_out, labels=r"C:\Users\uvuik\Documents\Code\MasterarbeitIAI\GeneratingTraces_RGANtorch\FEM\GazeBaseLabels.csv", scalerfile=r'C:\\Users\\uvuik\\Documents\\Code\\MasterarbeitIAI\\GeneratingTraces_RGANtorch\\FEM\\ScalerRoorda5sf=100.save')
+    b = a.generate_data(a.model, 1, duration, fsamp, fsamp_out, labels=r"C:\Users\uvuik\Documents\Code\MasterarbeitIAI\GeneratingTraces_RGANtorch\FEM\GazeBaseLabels.csv", scalerfile=r'C:\\Users\\uvuik\\Documents\\Code\\MasterarbeitIAI\\GeneratingTraces_RCGAN\\FEM\\ScalerRoorda5sf=100.save')
     savepath = filepath[:-4]
     plot_imgs(b[0], fsamp_out, "Trace")
 
@@ -101,6 +102,6 @@ for file in pth_files:
 #fsamp = 100
 #duration = 5
 #fsamp_out = 100
-#b = a.generate_data(a.model, 1, duration, fsamp, fsamp_out, labels=r"C:\Users\uvuik\Documents\Code\MasterarbeitIAI\GeneratingTraces_RGANtorch\FEM\GazeBaseLabels.csv", scalerfile=r'C:\\Users\\uvuik\\Documents\\Code\\MasterarbeitIAI\\GeneratingTraces_RGANtorch\\FEM\\ScalerRoorda5sf=100.save')
+#b = a.generate_data(a.model, 1, duration, fsamp, fsamp_out, labels=r"C:\Users\uvuik\Documents\Code\MasterarbeitIAI\GeneratingTraces_RCGAN\FEM\GazeBaseLabels.csv", scalerfile=r'C:\\Users\\uvuik\\Documents\\Code\\MasterarbeitIAI\\GeneratingTraces_RCGAN\\FEM\\ScalerRoorda5sf=100.save')
 #for i in range(0,4):
 #    plot_imgs(b[i], fsamp_out, i)

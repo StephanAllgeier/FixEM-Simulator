@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from torch import optim
 
-from GeneratingTraces_RGANtorch.FEM import make_logger
-from GeneratingTraces_RGANtorch.FEM.dataimport import TimeSeriesFEM
-from GeneratingTraces_RGANtorch.FEM.models import RCGANGenerator, RCGANDiscriminator, RGANGenerator, RGANDiscriminator
-from GeneratingTraces_RGANtorch.FEM.samplers import SimpleSampler
-from GeneratingTraces_RGANtorch.FEM.trainers import SequenceTrainer
+from GeneratingTraces_RCGAN.FEM import make_logger
+from GeneratingTraces_RCGAN.FEM.dataimport import TimeSeriesFEM
+from GeneratingTraces_RCGAN.FEM.models import RCGANGenerator, RCGANDiscriminator, RGANGenerator, RGANDiscriminator
+from GeneratingTraces_RCGAN.FEM.samplers import SimpleSampler
+from GeneratingTraces_RCGAN.FEM.trainers import SequenceTrainer
 
 logger = make_logger(__file__)
 
@@ -139,7 +139,7 @@ if __name__ == '__main__':
             params_list = []
 
             for lr in [0.0003 + i * 0.0001 for i in range(3)]:
-                for hidden_size in [250]:
+                for hidden_size in [500]:
                     params = {"lr": lr, "batch_size": 128, "hidden_size": hidden_size}
                     params_list.append(params)
             i = 0
@@ -152,14 +152,14 @@ if __name__ == '__main__':
                     "dataset_transform": 'normalize',
                     "signals": 2,
                     "gen_dropout": 0.2,
-                    "noise_size": 10,
+                    "noise_size": 5,
                     "hidden_size": params["hidden_size"],
                     'num_layers': 1,
                     "flag": 'train',
-                    "slice_length": 5,
+                    "slice_length": 10,
                     "no_mean": True,
                     'type': 'RCGAN',
-                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\TorchMaxAbsScaler\\SameLR\\GazeBase_scale=0.2,f=100,len=5s\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}_resample=100",
+                    'savepath': fr"C:\\Users\\uvuik\\Desktop\\NewRuns12012024\\SameLR\\GazeBase_scale=0.2,f=100,len=5s\\RCGAN_Params_lr_{params['lr']}_bs_{params['batch_size']}_hs_{params['hidden_size']}_resample=100",
                     'split': [0.8, 0.1, 0.1],
                     'label_embedding_size': 1,
                     'input_folder': r"C:\Users\uvuik\bwSyncShare\Documents\Dataset\TrainingData\GazeBase",

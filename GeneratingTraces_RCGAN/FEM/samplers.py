@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from GeneratingTraces_RGANtorch.FEM.utils import tile as tile_func
+from GeneratingTraces_RCGAN.FEM.utils import tile as tile_func
 
 
 class SimpleSampler:
